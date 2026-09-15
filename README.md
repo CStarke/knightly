@@ -43,11 +43,10 @@ students, faculty, and staff. Rows open the mail client.
 - Design tokens (Calvin maroon `#862633`, gold `#FFC72C`, spacing, radii, light and
   dark palettes) live in `src/constants/theme.ts`.
 - Tabs are the headless `expo-router/ui` navigator with a custom bottom bar
-  (`src/components/app-tabs.tsx`). Flinging left or right moves to the neighbouring
-  tab via a `react-native-gesture-handler` fling gesture; whether the tab changes by
-  fling or by tapping the bar, the incoming screen slides in from that side on a
-  shared bezier curve (`Easing.bezier(0.22, 1, 0.36, 1)`, 340ms) — tweak `CURVE` and
-  `DURATION` at the top of that file. Web keeps its own top bar in
+  (`src/components/app-tabs.tsx`). A follow-my-finger horizontal pan gesture allows
+  swiping smoothly left and right between tabs in real time with elastic edge
+  resistance and physics-based spring snapping on release. Tapping the bottom bar
+  slides smoothly to the selected tab. Web keeps its own top bar in
   `src/components/app-tabs.web.tsx`.
 - NFC building access is mocked as a "coming soon" card — nothing is wired up.
 

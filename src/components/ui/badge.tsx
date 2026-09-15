@@ -1,12 +1,18 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-export type BadgeTone = 'neutral' | 'brand' | 'success' | 'warning' | 'danger';
+export type BadgeTone = 'neutral' | 'brand' | 'success' | 'warning' | 'danger' | 'info' | 'gold';
 
-export function Badge({ label, tone = 'neutral' }: { label: string; tone?: BadgeTone }) {
+export type BadgeProps = {
+  label: string;
+  tone?: BadgeTone;
+  style?: StyleProp<ViewStyle>;
+};
+
+export function Badge({ label, tone = 'neutral', style }: BadgeProps) {
   const theme = useTheme();
 
   const palette: Record<BadgeTone, { bg: string; fg: string }> = {
@@ -15,18 +21,27 @@ export function Badge({ label, tone = 'neutral' }: { label: string; tone?: Badge
     success: { bg: theme.successSoft, fg: theme.success },
     warning: { bg: theme.warningSoft, fg: theme.warning },
     danger: { bg: theme.dangerSoft, fg: theme.danger },
+    info: { bg: theme.infoSoft, fg: theme.info },
+    gold: { bg: theme.accentSoft, fg: theme.accentDark },
   };
 
   return (
-    <View style={[styles.badge, { backgroundColor: palette[tone].bg }]}>
-      <ThemedText style={[styles.label, { color: palette[tone].fg }]}>{label}</ThemedText>
+    <View style={[styles.badge, { backgroundColor: palette[tone].bg }, style]}>
+      <ThemedText
+        numberOfLines={1}
+        style={[styles.label, { color: palette[tone].fg }]}>
+        {label}
+      </ThemedText>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   badge: {
-    alignSelf: 'flex-start',
+    alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
     paddingHorizontal: Spacing.two,
     paddingVertical: Spacing.half,
     borderRadius: Radius.sm,
@@ -37,5 +52,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.4,
     textTransform: 'uppercase',
+    textAlign: 'center',
+    includeFontPadding: false,
   },
 });

@@ -112,7 +112,12 @@ export function Barcode({ value, height = 76, showValue = true }: BarcodeProps) 
       </View>
 
       {showValue ? (
-        <ThemedText type="code" style={styles.value}>
+        <ThemedText
+          type="code"
+          style={styles.value}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.7}>
           {value.split('').join(' ')}
         </ThemedText>
       ) : null}

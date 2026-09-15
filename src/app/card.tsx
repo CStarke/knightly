@@ -1,65 +1,173 @@
 import * as Brightness from "expo-brightness";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useRef } from "react";
+import { AppState, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
+import { Avatar } from "@/components/avatar";
 import { Barcode } from "@/components/barcode";
-import { Brand, Spacing } from "@/constants/theme";
+import { Brand, Fonts, Radius, Spacing } from "@/constants/theme";
 import { mealPlan, swipesRemaining } from "@/data/dining";
 import { fullName, student } from "@/data/student";
 
-/** Raise the screen while the ID is up so dining hall scanners can read it, then put it back. */
+/**
+ * Raise the screen while the ID is up so dining hall scanners can read it reliably,
+ * and guarantee it reverts back to the user's device default when exiting or backgrounding.
+ */
 function useBoostedBrightness() {
-  useEffect(() => {
+  const originalBrightnessRef = useRef<number | null>(null);
+  const isBoostedRef = useRef(false);
+
+  const restore = useCallback(async () => {
     if (Platform.OS === "web") return;
+    if (!isBoostedRef.current && originalBrightnessRef.current === null) return;
+    isBoostedRef.current = false;
 
-    let previous: number | null = null;
-    let cancelled = false;
-
-    (async () => {
-      try {
-        previous = await Brightness.getBrightnessAsync();
-        if (!cancelled) await Brightness.setBrightnessAsync(1);
-      } catch {
-        // Brightness control is unavailable on this device; the ID still shows.
+    try {
+      if (Platform.OS === "android") {
+        await Brightness.restoreSystemBrightnessAsync();
+      } else if (originalBrightnessRef.current !== null) {
+        await Brightness.setBrightnessAsync(originalBrightnessRef.current);
       }
-    })();
-
-    return () => {
-      cancelled = true;
-      if (previous !== null) {
-        Brightness.setBrightnessAsync(previous).catch(() => {});
-      }
-    };
+    } catch {
+      // Ignore if brightness control unavailable
+    }
   }, []);
+
+  const boost = useCallback(async () => {
+    if (Platform.OS === "web") return;
+    try {
+      if (originalBrightnessRef.current === null) {
+        const current = await Brightness.getBrightnessAsync();
+        // Guard against caching 1.0 in case of re-entry or double-mount
+        if (current < 0.99 || originalBrightnessRef.current === null) {
+          originalBrightnessRef.current = current;
+        }
+      }
+
+      await Brightness.setBrightnessAsync(1);
+      isBoostedRef.current = true;
+    } catch {
+      // Ignore if brightness control unavailable
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      boost();
+
+      const subscription = AppState.addEventListener("change", (state) => {
+        if (state === "active") {
+          boost();
+        } else {
+          restore();
+        }
+      });
+
+      return () => {
+        subscription.remove();
+        restore();
+      };
+    }, [boost, restore])
+  );
+
+  return restore;
 }
 
 export default function KnightCardScreen() {
-  useBoostedBrightness();
+  const restoreBrightness = useBoostedBrightness();
+
+  const handleClose = () => {
+    restoreBrightness();
+    router.back();
+  };
 
   return (
     <Pressable
       style={styles.screen}
-      onPress={() => router.back()}
+      onPress={handleClose}
       accessibilityRole="button"
       accessibilityLabel="Close student ID"
     >
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
 
-      <View style={styles.content}>
-        <View style={styles.identity}>
-          <Text style={styles.university}>CALVIN UNIVERSITY</Text>
-          <Text style={styles.name}>{fullName}</Text>
+      <View style={styles.cardFrame}>
+        {/* Calvin Maroon Header Bar */}
+        <View style={styles.cardHeader}>
+          <Text style={styles.universityTitle}>Calvin University</Text>
+          <Text style={styles.cardTypeLabel}>KNIGHT CARD</Text>
         </View>
 
-        <Barcode value={student.cardNumber} height={110} />
+        {/* 33-degree Gold Rule Accent */}
+        <View style={styles.goldScaffoldingRule}>
+          <View style={styles.goldLine} />
+          <View style={styles.goldSlant} />
+        </View>
 
-        <View style={styles.identity}>
-          <Text style={styles.meta}>
-            {swipesRemaining} swipes left · ${mealPlan.knightBucks.toFixed(2)}{" "}
-            KnightBucks
-          </Text>
+        {/* Card Body */}
+        <View style={styles.cardBody}>
+          {/* Student Identity Row */}
+          <View style={styles.studentRow}>
+            <Avatar name={fullName} initials="CS" size={64} />
+            <View style={styles.studentInfo}>
+              <Text style={styles.studentName}>{fullName}</Text>
+              <Text style={styles.studentMeta}>
+                {student.standing} · {student.major}
+              </Text>
+              <Text style={styles.studentIdNumber}>ID: {student.id}</Text>
+            </View>
+          </View>
+
+          {/* Barcode Section */}
+          <View style={styles.barcodeWell}>
+            <Barcode value={student.barcode} height={100} />
+          </View>
+
+          {/* Balance & Meal Plan Metrics */}
+          <View style={styles.statsRow}>
+            <View style={styles.statBox}>
+              <Text style={styles.statNum} numberOfLines={1}>
+                {swipesRemaining}
+              </Text>
+              <Text
+                style={styles.statLabel}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
+              >
+                Swipes left
+              </Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statBox}>
+              <Text style={styles.statNum} numberOfLines={1}>
+                ${mealPlan.knightBucks.toFixed(2)}
+              </Text>
+              <Text
+                style={styles.statLabel}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
+              >
+                KnightBucks
+              </Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statBox}>
+              <Text style={styles.statNum} numberOfLines={1}>
+                ${mealPlan.diningDollars.toFixed(2)}
+              </Text>
+              <Text
+                style={styles.statLabel}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
+              >
+                Dining Dollars
+              </Text>
+            </View>
+          </View>
+
           <Text style={styles.hint}>Tap anywhere to close</Text>
         </View>
       </View>
@@ -70,39 +178,147 @@ export default function KnightCardScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(12, 13, 16, 0.88)",
     alignItems: "center",
     justifyContent: "center",
     padding: Spacing.four,
   },
-  content: {
+  cardFrame: {
     width: "100%",
-    maxWidth: 520,
-    alignItems: "center",
-    gap: Spacing.five,
+    maxWidth: 420,
+    backgroundColor: "#FFFFFF",
+    borderRadius: Radius.xl,
+    overflow: "hidden",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.35,
+    shadowRadius: 24,
+    elevation: 16,
   },
-  identity: {
+  cardHeader: {
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.three + 2,
+    flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.one,
+    justifyContent: "space-between",
+    backgroundColor: Brand.maroon,
   },
-  university: {
+  universityTitle: {
+    color: "#FFFFFF",
+    fontFamily: Fonts.serif,
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+  },
+  cardTypeLabel: {
+    color: Brand.gold,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: "800",
+    letterSpacing: 1.4,
+  },
+  goldScaffoldingRule: {
+    height: 4,
+    backgroundColor: Brand.gold,
+    position: "relative",
+    overflow: "hidden",
+  },
+  goldLine: {
+    flex: 1,
+    backgroundColor: Brand.gold,
+  },
+  goldSlant: {
+    position: "absolute",
+    right: 48,
+    width: 24,
+    height: 4,
+    backgroundColor: "#FFFFFF",
+    transform: [{ skewX: "-33deg" }],
+  },
+  cardBody: {
+    padding: Spacing.four,
+    gap: Spacing.four,
+    alignItems: "center",
+  },
+  studentRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.three,
+    width: "100%",
+  },
+  studentInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  studentName: {
+    color: "#11181C",
+    fontFamily: Fonts.serif,
+    fontSize: 22,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+  },
+  studentMeta: {
+    color: "#545F68",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  studentIdNumber: {
     color: Brand.maroon,
     fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 2,
-  },
-  name: {
-    color: "#111111",
-    fontSize: 26,
     fontWeight: "700",
+    letterSpacing: 0.5,
   },
-  meta: {
-    color: "#555555",
-    fontSize: 14,
+  barcodeWell: {
+    width: "100%",
+    backgroundColor: "#FAFAFC",
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "#E2E4E9",
+    padding: Spacing.two,
+  },
+  statsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    width: "100%",
+    paddingVertical: Spacing.two,
+    backgroundColor: "#F6F6F8",
+    borderRadius: Radius.md,
+  },
+  statBox: {
+    flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingHorizontal: 2,
+  },
+  statNum: {
+    color: Brand.maroon,
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+    textAlign: "center",
+  },
+  statLabel: {
+    color: "#717982",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.2,
+    textAlign: "center",
+    width: "100%",
+  },
+  statDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: "#E2E4E9",
+    alignSelf: "center",
   },
   hint: {
-    color: "#999999",
+    color: "#838D95",
     fontSize: 12,
-    marginTop: Spacing.two,
+    fontWeight: "600",
   },
 });

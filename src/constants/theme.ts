@@ -3,55 +3,79 @@
  * Brand colors follow Calvin's maroon + gold palette.
  */
 
-import '@/global.css';
+import "@/global.css";
 
-import { Platform } from 'react-native';
+import { Platform } from "react-native";
 
 export const Brand = {
-  maroon: '#862633',
-  maroonDark: '#5E1A24',
-  maroonLight: '#B04355',
-  gold: '#FFC72C',
+  // Primary Palette (Deep rich Calvin Maroon; avoids the bright red appearance of uncoated digital #8C2131)
+  maroon: '#5E1A24',
+  maroonClassic: '#8C2131',
+  maroonDark: '#450F18',
+  maroonLight: '#8C2131',
+  gold: '#F3CD00',
+  goldDark: '#C9A900',
+  goldSoft: '#FFFBEA',
+
+  // Secondary Palette (Pantone 200 U, 7458 U, 359 U)
+  brightRed: '#C2002F',
+  renewBlue: '#71B1C8',
+  renewBlueSoft: '#EEF6F9',
+  trueGreen: '#A2D683',
+  trueGreenSoft: '#F2F9EE',
+
+  // Official Neutrals
+  charcoal: '#1C1D21',
+  pureBlack: '#000000',
+  pureWhite: '#FFFFFF',
 } as const;
 
 export const Colors = {
   light: {
     text: '#11181C',
-    textSecondary: '#5B6670',
-    textMuted: '#8A9299',
-    background: '#F7F7F9',
+    textSecondary: '#545F68',
+    textMuted: '#838D95',
+    background: '#F6F6F8',
     backgroundElement: '#FFFFFF',
-    backgroundSelected: '#ECEDF1',
-    border: '#E2E4E9',
+    backgroundSelected: '#ECECEF',
+    border: '#E0E2E7',
     tint: Brand.maroon,
-    tintSoft: '#F6E9EB',
+    tintSoft: '#F7E9EB',
     onTint: '#FFFFFF',
     accent: Brand.gold,
-    danger: '#C62828',
-    dangerSoft: '#FDECEC',
+    accentDark: Brand.goldDark,
+    accentSoft: Brand.goldSoft,
+    danger: Brand.brightRed,
+    dangerSoft: '#FDE8EC',
     success: '#2E7D32',
-    successSoft: '#E8F4E9',
-    warning: '#B26A00',
-    warningSoft: '#FDF2E0',
+    successSoft: Brand.trueGreenSoft,
+    warning: '#D97706',
+    warningSoft: '#FEF3C7',
+    info: Brand.renewBlue,
+    infoSoft: Brand.renewBlueSoft,
   },
   dark: {
-    text: '#ECEDEE',
-    textSecondary: '#9BA1A6',
-    textMuted: '#6C7379',
-    background: '#0C0D10',
-    backgroundElement: '#17191D',
-    backgroundSelected: '#23262B',
-    border: '#2A2E34',
-    tint: '#C55265',
-    tintSoft: '#2A161A',
+    text: '#F1F2F4',
+    textSecondary: '#9CA3AF',
+    textMuted: '#6B7280',
+    background: '#0B0C0E',
+    backgroundElement: '#141619',
+    backgroundSelected: '#1F2328',
+    border: '#2A2E35',
+    tint: '#D94D60',
+    tintSoft: '#291216',
     onTint: '#FFFFFF',
     accent: Brand.gold,
-    danger: '#F2685F',
-    dangerSoft: '#2E1616',
-    success: '#6FCF77',
-    successSoft: '#14251A',
-    warning: '#F2B544',
-    warningSoft: '#2A2012',
+    accentDark: Brand.goldDark,
+    accentSoft: '#2A2408',
+    danger: Brand.brightRed,
+    dangerSoft: '#301217',
+    success: Brand.trueGreen,
+    successSoft: '#182914',
+    warning: '#F59E0B',
+    warningSoft: '#2C1F0A',
+    info: '#8AC3D8',
+    infoSoft: '#132832',
   },
 } as const;
 
@@ -61,9 +85,15 @@ export type Theme = (typeof Colors)['light'];
 export const Fonts = Platform.select({
   ios: {
     sans: 'system-ui',
-    serif: 'ui-serif',
+    serif: 'Georgia',
     rounded: 'ui-rounded',
     mono: 'ui-monospace',
+  },
+  android: {
+    sans: 'Roboto',
+    serif: 'serif',
+    rounded: 'normal',
+    mono: 'monospace',
   },
   default: {
     sans: 'normal',
@@ -72,10 +102,10 @@ export const Fonts = Platform.select({
     mono: 'monospace',
   },
   web: {
-    sans: 'var(--font-display)',
-    serif: 'var(--font-serif)',
+    sans: 'Gotham, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    serif: 'Constantia, "Century Schoolbook", Georgia, serif',
     rounded: 'var(--font-rounded)',
-    mono: 'var(--font-mono)',
+    mono: 'ui-monospace, monospace',
   },
 });
 

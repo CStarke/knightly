@@ -1,3 +1,4 @@
+import { usePathname } from 'expo-router';
 import {
   TabList,
   TabSlot,
@@ -7,32 +8,54 @@ import {
   type TabTriggerSlotProps,
 } from 'expo-router/ui';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { useSharedValue } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
+import { AppHeader } from '@/components/ui/app-header';
+import { ParallaxStarfield } from '@/components/ui/starfield';
+import { getTabHeader } from '@/constants/tab-headers';
 import { Brand, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
+import { StarfieldContext } from '@/context/starfield-context';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function AppTabs() {
+  const pathname = usePathname();
+  const headerInfo = getTabHeader(pathname);
+  const translateX = useSharedValue(0);
+  const scrollY = useSharedValue(0);
+
   return (
-    <Tabs>
-      <TabSlot style={styles.slot} />
-      <TabList asChild>
-        <TopBar>
-          <TabTrigger name="knightly" href="/" asChild>
-            <TabButton>Knightly</TabButton>
-          </TabTrigger>
-          <TabTrigger name="dining" href="/dining" asChild>
-            <TabButton>Dining</TabButton>
-          </TabTrigger>
-          <TabTrigger name="safety" href="/safety" asChild>
-            <TabButton>Safety</TabButton>
-          </TabTrigger>
-          <TabTrigger name="directory" href="/directory" asChild>
-            <TabButton>Directory</TabButton>
-          </TabTrigger>
-        </TopBar>
-      </TabList>
-    </Tabs>
+    <StarfieldContext.Provider value={{ translateX, scrollY }}>
+      <View style={{ flex: 1, position: 'relative' }}>
+        <ParallaxStarfield translateX={translateX} scrollY={scrollY} />
+
+        <Tabs>
+          <TabList asChild>
+            <TopBar>
+              <TabTrigger name="knightly" href="/" asChild>
+                <TabButton>Knightly</TabButton>
+              </TabTrigger>
+              <TabTrigger name="dining" href="/dining" asChild>
+                <TabButton>Dining</TabButton>
+              </TabTrigger>
+              <TabTrigger name="safety" href="/safety" asChild>
+                <TabButton>Safety</TabButton>
+              </TabTrigger>
+              <TabTrigger name="directory" href="/directory" asChild>
+                <TabButton>Directory</TabButton>
+              </TabTrigger>
+            </TopBar>
+          </TabList>
+
+          <AppHeader
+            title={headerInfo.title}
+            subtitle={headerInfo.subtitle}
+            right={headerInfo.right}
+          />
+          <TabSlot style={styles.slot} />
+        </Tabs>
+      </View>
+    </StarfieldContext.Provider>
   );
 }
 
@@ -66,12 +89,8 @@ function TopBar(props: TabListProps) {
       ]}>
       <View style={styles.barInner}>
         <View style={styles.brand}>
-          <View style={styles.brandMark}>
-            <ThemedText type="caption" style={styles.brandMarkText}>
-              C
-            </ThemedText>
-          </View>
-          <ThemedText type="sectionTitle">Calvin</ThemedText>
+          <ThemedText type="title" style={styles.brandText}>Calvin</ThemedText>
+          <View style={styles.dot} />
         </View>
 
         <View style={styles.tabs}>{props.children}</View>
@@ -104,19 +123,18 @@ const styles = StyleSheet.create({
   },
   brand: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
+    alignItems: 'flex-end',
+    gap: 3,
   },
-  brandMark: {
-    width: 26,
-    height: 26,
-    borderRadius: Radius.sm,
-    backgroundColor: Brand.maroon,
-    alignItems: 'center',
-    justifyContent: 'center',
+  brandText: {
+    letterSpacing: -0.2,
   },
-  brandMarkText: {
-    color: '#FFFFFF',
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Brand.gold,
+    marginBottom: 4,
   },
   tabs: {
     flexDirection: 'row',

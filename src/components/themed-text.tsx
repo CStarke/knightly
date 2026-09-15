@@ -8,6 +8,7 @@ export type ThemedTextProps = TextProps & {
     | 'default'
     | 'display'
     | 'title'
+    | 'headline'
     | 'subtitle'
     | 'sectionTitle'
     | 'small'
@@ -36,29 +37,41 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
 
 const styles = StyleSheet.create({
   default: {
+    fontFamily: Fonts.sans,
     fontSize: 16,
     lineHeight: 24,
     fontWeight: '400',
   },
   display: {
-    fontSize: 40,
+    fontFamily: Fonts.serif,
+    fontSize: 38,
     lineHeight: 44,
-    fontWeight: '800',
-    letterSpacing: -0.8,
+    fontWeight: '700',
+    letterSpacing: -0.6,
   },
   title: {
+    fontFamily: Fonts.serif,
     fontSize: 28,
     lineHeight: 34,
     fontWeight: '700',
-    letterSpacing: -0.4,
+    letterSpacing: -0.3,
+  },
+  headline: {
+    fontFamily: Fonts.serif,
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
   subtitle: {
-    fontSize: 22,
-    lineHeight: 28,
+    fontFamily: Fonts.sans,
+    fontSize: 21,
+    lineHeight: 27,
     fontWeight: '700',
     letterSpacing: -0.2,
   },
   sectionTitle: {
+    fontFamily: Fonts.sans,
     fontSize: 18,
     lineHeight: 24,
     fontWeight: '700',

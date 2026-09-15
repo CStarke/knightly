@@ -1,7 +1,10 @@
 import type { PropsWithChildren, ReactNode } from 'react';
-import { Platform, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import Animated, { useAnimatedScrollHandler } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { MaxContentWidth, Spacing, WebHeaderInset } from '@/constants/theme';
+import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { useStarfield } from '@/context/starfield-context';
 import { useTheme } from '@/hooks/use-theme';
 
 type ScreenProps = PropsWithChildren<{
@@ -13,27 +16,37 @@ type ScreenProps = PropsWithChildren<{
 
 export function Screen({ children, style, header, scroll = true }: ScreenProps) {
   const theme = useTheme();
+  const starfield = useStarfield();
+  const insets = useSafeAreaInsets();
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      if (starfield) {
+        starfield.scrollY.value = event.contentOffset.y;
+      }
+    },
+  });
+
   const body = <View style={[styles.inner, style]}>{children}</View>;
-  const topPadding = header
-    ? Spacing.three
-    : Platform.OS === 'web'
-      ? WebHeaderInset + Spacing.three
-      : Spacing.three;
+  const topPadding = Spacing.three;
+  const bottomPadding = Math.max(insets.bottom, Spacing.two) + 72;
 
   return (
-    <View style={[styles.fill, { backgroundColor: theme.background }]}>
+    <View style={[styles.fill, { backgroundColor: starfield ? 'transparent' : theme.background }]}>
       {header}
 
       {scroll ? (
-        <ScrollView
+        <Animated.ScrollView
           style={styles.fill}
-          contentContainerStyle={[styles.outer, { paddingTop: topPadding }]}
+          contentContainerStyle={[styles.outer, { paddingTop: topPadding, paddingBottom: bottomPadding }]}
           keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}>
+          showsVerticalScrollIndicator={false}
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}>
           {body}
-        </ScrollView>
+        </Animated.ScrollView>
       ) : (
-        <View style={[styles.fill, styles.outer, { paddingTop: topPadding }]}>{body}</View>
+        <View style={[styles.fill, styles.outer, { paddingTop: topPadding, paddingBottom: bottomPadding }]}>{body}</View>
       )}
     </View>
   );

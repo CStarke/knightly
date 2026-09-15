@@ -1,18 +1,31 @@
+export type MealPlanCadence = 'weekly' | 'semester';
+
 export type MealPlan = {
   name: string;
+  cadence?: MealPlanCadence;
+  /** Swipes allocated for the period (per week for weekly plans, per semester for semester block plans). */
+  swipesTotal?: number;
   swipesPerWeek: number;
   swipesUsed: number;
+  /** Flex meal equivalencies (e.g. 2/week at Johnny's or Peet's). */
+  flexMeals?: number;
+  flexMealsUsed?: number;
   guestPasses: number;
   guestPassesUsed: number;
   knightBucks: number;
   diningDollars: number;
-  weekResetsOn: string;
+  /** Reset schedule text if plan resets weekly (e.g. "Sunday at 12:00 a.m."). */
+  weekResetsOn?: string;
 };
 
 export const mealPlan: MealPlan = {
   name: "Core 14",
+  cadence: "weekly",
+  swipesTotal: 14,
   swipesPerWeek: 14,
   swipesUsed: 6,
+  flexMeals: 2,
+  flexMealsUsed: 0,
   guestPasses: 2,
   guestPassesUsed: 1,
   knightBucks: 142.75,
@@ -20,9 +33,24 @@ export const mealPlan: MealPlan = {
   weekResetsOn: "Sunday at 12:00 a.m.",
 };
 
-export const swipesRemaining = mealPlan.swipesPerWeek - mealPlan.swipesUsed;
+export const swipesRemaining = (mealPlan.swipesTotal ?? mealPlan.swipesPerWeek) - mealPlan.swipesUsed;
+export const flexMealsRemaining = (mealPlan.flexMeals ?? 2) - (mealPlan.flexMealsUsed ?? 0);
 export const guestPassesRemaining =
   mealPlan.guestPasses - mealPlan.guestPassesUsed;
+
+/**
+ * Returns the descriptive swipe cadence/reset note based on whether the plan
+ * is weekly (e.g. Core 14) or semester-based (e.g. Block 60).
+ */
+export function getSwipeResetText(plan: MealPlan = mealPlan): string {
+  if (plan.cadence === 'semester') {
+    return 'Swipes last through the semester';
+  }
+  if (plan.weekResetsOn) {
+    return `Swipes reset ${plan.weekResetsOn}`;
+  }
+  return 'Swipes last through the semester';
+}
 
 export type ServiceWindow = {
   label: string;
@@ -245,3 +273,16 @@ export function formatAmount(tx: Transaction) {
 export function knightBucksLabel() {
   return `$${mealPlan.knightBucks.toFixed(2)}`;
 }
+
+export const swipesUsedLastWeek = transactions
+  .filter((tx) => tx.kind === "swipe" && tx.amount < 0)
+  .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+
+export const knightBucksSpentLastWeek = transactions
+  .filter((tx) => tx.kind === "knightbucks" && tx.amount < 0)
+  .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+
+export const diningDollarsSpentLastWeek = transactions
+  .filter((tx) => tx.kind === "dining-dollars" && tx.amount < 0)
+  .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+

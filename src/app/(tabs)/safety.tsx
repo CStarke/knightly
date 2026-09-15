@@ -1,20 +1,19 @@
-import { Linking, StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, View } from "react-native";
 
-import { ThemedText } from '@/components/themed-text';
-import { AppHeader } from '@/components/ui/app-header';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { ListRow } from '@/components/ui/list-row';
-import { Screen } from '@/components/ui/screen';
-import { SectionHeader } from '@/components/ui/section-header';
-import { Spacing } from '@/constants/theme';
-import { emergencyContacts, safetyAlerts } from '@/data/safety';
-import { useTheme } from '@/hooks/use-theme';
+import { ThemedText } from "@/components/themed-text";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { ListRow } from "@/components/ui/list-row";
+import { Screen } from "@/components/ui/screen";
+import { SectionHeader } from "@/components/ui/section-header";
+import { Spacing } from "@/constants/theme";
+import { emergencyContacts, safetyAlerts } from "@/data/safety";
+import { useTheme } from "@/hooks/use-theme";
 
-const severityColor = {
-  critical: 'danger',
-  warning: 'warning',
-  info: 'textMuted',
+const severityTone = {
+  critical: "danger",
+  warning: "warning",
+  info: "info",
 } as const;
 
 export default function SafetyScreen() {
@@ -22,20 +21,20 @@ export default function SafetyScreen() {
   const call = (phone: string) => Linking.openURL(`tel:${phone}`);
 
   return (
-    <Screen header={<AppHeader title="Safety" subtitle="Campus Safety · staffed 24/7" />}>
+    <Screen>
       <Button
-        label="Call Campus Safety"
+        label="Call Campus Safety (Emergency)"
         variant="danger"
         size="large"
         sf="phone.fill"
         md="call"
-        onPress={() => call('6165263333')}
+        onPress={() => call("6165263333")}
       />
 
       <Card flush>
         <ListRow
           title="Request a Safe Walk"
-          subtitle="An escort meets you in about five minutes"
+          subtitle="Have a friend view your location temporarily"
           sf="figure.walk"
           md="directions_walk"
           onPress={() => {}}
@@ -69,8 +68,14 @@ export default function SafetyScreen() {
                   borderBottomWidth: StyleSheet.hairlineWidth,
                   borderBottomColor: theme.border,
                 },
-              ]}>
-              <View style={[styles.dot, { backgroundColor: theme[severityColor[alert.severity]] }]} />
+              ]}
+            >
+              <View
+                style={[
+                  styles.dot,
+                  { backgroundColor: theme[severityTone[alert.severity]] },
+                ]}
+              />
               <View style={styles.alertBody}>
                 <ThemedText type="smallBold">{alert.title}</ThemedText>
                 <ThemedText type="caption" themeColor="textMuted">
@@ -90,9 +95,9 @@ export default function SafetyScreen() {
               key={contact.id}
               title={contact.name}
               subtitle={contact.detail}
-              sf={contact.urgent ? 'phone.fill' : 'phone'}
+              sf="phone.fill"
               md="call"
-              tone={contact.urgent ? 'danger' : 'default'}
+              tone={contact.urgent ? "danger" : "default"}
               onPress={() => call(contact.phone)}
               last={index === emergencyContacts.length - 1}
             />
@@ -108,8 +113,8 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   alert: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.three,
     padding: Spacing.three,
   },

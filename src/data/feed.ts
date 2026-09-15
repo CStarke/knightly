@@ -26,21 +26,23 @@ export type Post = {
   /** Club, department, or office that posted. */
   org: string;
   /** Monogram shown in the post avatar. */
-  mark: string;
+  mark?: string;
   category: FeedCategory;
   postedAt: string;
   headline: string;
   body: string;
   when?: string;
   where?: string;
+  /** Hero stock photo URL */
+  image?: string;
   /** Student follows this org, so it shows up in For You. */
   followed: boolean;
   /** Open to all of campus, so it shows up in For You regardless of follows. */
   campusWide: boolean;
-  /** Poster gradient. */
-  colors: [string, string];
-  sf: SfSymbolName;
-  md: MaterialSymbolName;
+  /** Poster gradient fallback colors. */
+  colors?: [string, string];
+  sf?: SfSymbolName;
+  md?: MaterialSymbolName;
 };
 
 export const posts: Post[] = [
@@ -54,9 +56,10 @@ export const posts: Post[] = [
     body: 'Lip sync, choreography, and far too much fog machine. Sign your floor up by Thursday at midnight, eight spots left.',
     when: 'Fri, Sep 18 · 8:00 PM',
     where: 'Van Noord Arena',
+    image: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=80',
     followed: true,
     campusWide: true,
-    colors: ['#862633', '#C4566B'],
+    colors: ['#8C2131', '#C4566B'],
     sf: 'music.mic',
     md: 'mic',
   },
@@ -70,6 +73,7 @@ export const posts: Post[] = [
     body: 'No experience needed, no monologue to prepare. Walk in, read a side, leave in twenty minutes. Crew sign-ups happen at the same table.',
     when: 'Mon, Sep 21 · 6:00-9:00 PM',
     where: 'Gezon Auditorium',
+    image: 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?auto=format&fit=crop&w=800&q=80',
     followed: true,
     campusWide: false,
     colors: ['#3B2E58', '#8A6FC4'],
@@ -86,6 +90,7 @@ export const posts: Post[] = [
     body: 'Student section gets in free with a Knight Card. Gold out, so wear the shirt they handed you at orientation.',
     when: 'Sat, Sep 19 · 7:00 PM',
     where: 'Zuidema Field',
+    image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=800&q=80',
     followed: true,
     campusWide: true,
     colors: ['#1B3A5C', '#4C90CE'],
@@ -102,6 +107,7 @@ export const posts: Post[] = [
     body: 'Twenty-four student musicians rotating week to week. Doors at 7:30, service at 8, cider on the patio after.',
     when: 'Sun, Sep 20 · 8:00 PM',
     where: 'Chapel Undercroft',
+    image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&q=80',
     followed: true,
     campusWide: true,
     colors: ['#2F4858', '#6A8CA3'],
@@ -118,6 +124,7 @@ export const posts: Post[] = [
     body: 'Pizza, whiteboards, and zero expectations. Bring a laptop or borrow one of ours. Last time someone made a Commons line predictor.',
     when: 'Thu, Sep 17 · 7:00-11:00 PM',
     where: 'North Hall 276',
+    image: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=800&q=80',
     followed: true,
     campusWide: false,
     colors: ['#15514A', '#3FA08F'],
@@ -134,6 +141,7 @@ export const posts: Post[] = [
     body: 'New allergen-free station, 120 more seats upstairs, and the grab-and-go case is restocked at 7 every night now.',
     when: 'Open today until 9:00 PM',
     where: 'Commons Dining Hall',
+    image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80',
     followed: false,
     campusWide: true,
     colors: ['#8A5A00', '#E0A62A'],
@@ -150,6 +158,7 @@ export const posts: Post[] = [
     body: 'Sit in the balcony and listen to Dvorak fall apart and come back together. Stay for as long or as little as you want.',
     when: 'Tue, Sep 22 · 7:30 PM',
     where: 'Covenant Fine Arts Center',
+    image: 'https://images.unsplash.com/photo-1465847899084-d164df4dedc6?auto=format&fit=crop&w=800&q=80',
     followed: false,
     campusWide: false,
     colors: ['#4A2545', '#9B5E96'],
@@ -166,6 +175,7 @@ export const posts: Post[] = [
     body: 'Meet at the trailhead, walk the loop, be back before your 9 a.m. Coffee is on us. Fourteen spots, first come.',
     when: 'Sat, Sep 19 · 6:45 AM',
     where: 'Ecosystem Preserve trailhead',
+    image: 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=800&q=80',
     followed: true,
     campusWide: false,
     colors: ['#1F4D2E', '#5FA271'],
@@ -182,6 +192,7 @@ export const posts: Post[] = [
     body: 'Vans leave from Commons Lawn at 8:30 and are back by noon. No ongoing commitment, come once or come every week.',
     when: 'Saturdays · 8:30 AM',
     where: 'Commons Lawn',
+    image: 'https://images.unsplash.com/photo-1593113598332-cd288d649433?auto=format&fit=crop&w=800&q=80',
     followed: false,
     campusWide: true,
     colors: ['#5C3A1E', '#B98249'],
@@ -198,6 +209,7 @@ export const posts: Post[] = [
     body: 'Eleven seniors, one gallery, a lot of nervous energy. Snacks are genuinely good this year.',
     when: 'Fri, Sep 25 · 5:00-8:00 PM',
     where: 'Center Art Gallery',
+    image: 'https://images.unsplash.com/photo-1518998053901-5348d3961a04?auto=format&fit=crop&w=800&q=80',
     followed: false,
     campusWide: false,
     colors: ['#6B2A4A', '#C06A96'],
@@ -214,6 +226,7 @@ export const posts: Post[] = [
     body: 'Ana Oyelaran had 31 kills last weekend. Come watch her do it again in a much louder room.',
     when: 'Wed, Sep 23 · 6:30 PM',
     where: 'Van Noord Arena',
+    image: 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=800&q=80',
     followed: true,
     campusWide: false,
     colors: ['#1B3A5C', '#5AA0D8'],
@@ -262,6 +275,7 @@ export const posts: Post[] = [
     body: 'Open jam every other Thursday. Horns especially welcome, we have been carrying the melody on one trumpet.',
     when: 'Thu, Sep 24 · 9:00 PM',
     where: 'Commons Annex basement',
+    image: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?auto=format&fit=crop&w=800&q=80',
     followed: true,
     campusWide: false,
     colors: ['#1F2933', '#5C7080'],

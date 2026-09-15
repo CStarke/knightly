@@ -3,13 +3,12 @@ import { StyleSheet, View } from "react-native";
 
 import { PostCard } from "@/components/post-card";
 import { ThemedText } from "@/components/themed-text";
-import { AppHeader } from "@/components/ui/app-header";
 import { Card } from "@/components/ui/card";
 import { ChipRow } from "@/components/ui/chip";
 import { Screen } from "@/components/ui/screen";
 import { SearchField } from "@/components/ui/search-field";
 import { Segmented } from "@/components/ui/segmented";
-import { Brand, Spacing } from "@/constants/theme";
+import { Spacing } from "@/constants/theme";
 import {
   feedCategories,
   followedOrgs,
@@ -17,7 +16,6 @@ import {
   searchPosts,
   type FeedCategory,
 } from "@/data/feed";
-import { student } from "@/data/student";
 
 const tabs = ["Following", "All campus"] as const;
 type FeedTab = (typeof tabs)[number];
@@ -37,25 +35,11 @@ export default function FeedScreen() {
   const visible = tab === "Following" ? forYou : explore;
 
   return (
-    <Screen
-      header={
-        <AppHeader
-          title="Knightly"
-          right={
-            <View style={styles.avatar}>
-              <ThemedText type="smallBold" style={styles.avatarText}>
-                {student.firstName[0]}
-                {student.lastName[0]}
-              </ThemedText>
-            </View>
-          }
-        >
-          <Segmented options={tabs} value={tab} onChange={setTab} />
-        </AppHeader>
-      }
-    >
+    <Screen>
+      <Segmented options={tabs} value={tab} onChange={setTab} />
+
       {tab === "Following" ? (
-        <ThemedText type="caption" themeColor="textMuted">
+        <ThemedText type="caption" themeColor="textMuted" style={styles.followingCaption}>
           Following {followedOrgs.length} orgs · campus-wide events included
         </ThemedText>
       ) : (
@@ -92,18 +76,9 @@ export default function FeedScreen() {
 }
 
 const styles = StyleSheet.create({
-  avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 2,
-    borderColor: Brand.gold,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.2)",
-  },
-  avatarText: {
-    color: "#FFFFFF",
+  followingCaption: {
+    marginTop: -Spacing.two,
+    marginBottom: -Spacing.two,
   },
   filters: {
     gap: Spacing.two,

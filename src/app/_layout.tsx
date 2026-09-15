@@ -11,7 +11,7 @@ const lightTheme = {
   colors: {
     ...DefaultTheme.colors,
     primary: Colors.light.tint,
-    background: Colors.light.background,
+    background: '#0B0C0E',
     card: Colors.light.backgroundElement,
     text: Colors.light.text,
     border: Colors.light.border,
@@ -36,11 +36,15 @@ export default function RootLayout() {
 
   return (
     // Required for the tab fling gesture to reach the handlers on Android.
-    <GestureHandlerRootView style={StyleSheet.absoluteFill}>
+    <GestureHandlerRootView style={[StyleSheet.absoluteFill, { backgroundColor: '#0B0C0E' }]}>
       <ThemeProvider value={isDark ? darkTheme : lightTheme}>
         <StatusBar style={isDark ? 'light' : 'dark'} />
 
-        <Stack screenOptions={{ headerShown: false }}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: '#0B0C0E' },
+          }}>
           <Stack.Screen name="(tabs)" />
           {/* Lives above the tab bar so the ID really does fill the screen. */}
           <Stack.Screen

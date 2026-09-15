@@ -7,6 +7,7 @@ import { useTheme } from '@/hooks/use-theme';
 
 type ButtonProps = {
   label: string;
+  caption?: string;
   onPress?: () => void;
   variant?: 'primary' | 'secondary' | 'danger';
   sf?: SfSymbolName;
@@ -17,6 +18,7 @@ type ButtonProps = {
 
 export function Button({
   label,
+  caption,
   onPress,
   variant = 'primary',
   sf,
@@ -34,6 +36,7 @@ export function Button({
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
+      accessibilityLabel={caption ? `${label}, ${caption}` : label}
       style={({ pressed }) => [
         styles.button,
         { backgroundColor: background },
@@ -42,12 +45,21 @@ export function Button({
         style,
       ]}>
       <View style={styles.inner}>
-        {sf && md ? <Icon sf={sf} md={md} size={size === 'large' ? 20 : 16} color={foreground} /> : null}
-        <ThemedText
-          type={size === 'large' ? 'sectionTitle' : 'smallBold'}
-          style={{ color: foreground }}>
-          {label}
-        </ThemedText>
+        {sf && md ? <Icon sf={sf} md={md} size={size === 'large' ? 22 : 16} color={foreground} /> : null}
+        <View style={styles.textWrap}>
+          <ThemedText
+            type={size === 'large' ? 'sectionTitle' : 'smallBold'}
+            style={{ color: foreground, textAlign: 'center' }}>
+            {label}
+          </ThemedText>
+          {caption ? (
+            <ThemedText
+              type="caption"
+              style={[styles.caption, { color: foreground }]}>
+              {caption}
+            </ThemedText>
+          ) : null}
+        </View>
       </View>
     </Pressable>
   );
@@ -62,6 +74,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   large: {
+    minHeight: 64,
     paddingVertical: Spacing.three,
     borderRadius: Radius.lg,
   },
@@ -71,6 +84,18 @@ const styles = StyleSheet.create({
   inner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
+    justifyContent: 'center',
+    gap: Spacing.two + 2,
+  },
+  textWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 1,
+  },
+  caption: {
+    fontSize: 12,
+    fontWeight: '600',
+    opacity: 0.9,
+    textAlign: 'center',
   },
 });

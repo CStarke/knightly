@@ -2,88 +2,189 @@ import { router } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
-import { AppHeader } from "@/components/ui/app-header";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { DashMeter } from "@/components/ui/dash-meter";
 import { Icon } from "@/components/ui/icon";
 import { Screen } from "@/components/ui/screen";
 import { SectionHeader } from "@/components/ui/section-header";
-import { Brand, Radius, Spacing } from "@/constants/theme";
+import { Brand, Fonts, Radius, Spacing } from "@/constants/theme";
+import { useDiningActivity } from "@/context/dining-activity-context";
 import {
   diningHalls,
-  formatAmount,
+  flexMealsRemaining,
+  getSwipeResetText,
   guestPassesRemaining,
   hallStatus,
   mealPlan,
   swipesRemaining,
-  transactions,
 } from "@/data/dining";
 import { fullName } from "@/data/student";
 import { useTheme } from "@/hooks/use-theme";
 
 export default function DiningScreen() {
   const theme = useTheme();
+  const { openActivity } = useDiningActivity();
   const commons = diningHalls[0];
 
   return (
-    <Screen header={<AppHeader title="Dining" subtitle={mealPlan.name} />}>
+    <Screen>
       <Pressable
-        onPress={() => router.push('/card')}
+        onPress={() => router.push("/card")}
         accessibilityRole="button"
         accessibilityLabel="Show student ID full screen"
         style={({ pressed }) => pressed && styles.pressed}
       >
-        <View
-          style={[
-            styles.cardHero,
-            {
-              experimental_backgroundImage: `linear-gradient(140deg, ${Brand.maroon}, ${Brand.maroonDark})`,
-            },
-          ]}
-        >
+        <View style={styles.cardHero}>
           <View style={styles.cardTop}>
-            <View style={styles.cardIdentity}>
-              <ThemedText type="caption" style={styles.cardLabel}>
-                Calvin University
-              </ThemedText>
-              <ThemedText type="subtitle" style={styles.cardName}>
-                {fullName}
-              </ThemedText>
+            <View style={styles.cardIdentityRow}>
+              <View style={styles.cardIdentity}>
+                <ThemedText type="subtitle" style={styles.cardName}>
+                  {fullName}
+                </ThemedText>
+                <ThemedText style={styles.cardMealPlan}>
+                  {mealPlan.name.toUpperCase()}
+                </ThemedText>
+              </View>
             </View>
             <Icon
               sf="viewfinder.rectangular"
               md="barcode_scanner"
-              size={26}
+              size={24}
               color={Brand.gold}
             />
           </View>
 
+          {/* 3 Metrics: Swipes Left, KnightBucks, Dining Dollars */}
           <View style={styles.cardStats}>
             <View style={styles.cardStat}>
-              <ThemedText style={styles.cardStatValue}>
+              <ThemedText style={styles.cardStatValue} numberOfLines={1}>
                 {swipesRemaining}
               </ThemedText>
-              <ThemedText type="caption" style={styles.cardLabel}>
-                Swipes left this week
+              <ThemedText
+                type="caption"
+                style={styles.cardLabel}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
+              >
+                Swipes left
               </ThemedText>
             </View>
+
+            <View style={styles.cardStatDivider} />
+
             <View style={styles.cardStat}>
-              <ThemedText style={styles.cardStatValue}>
+              <ThemedText style={styles.cardStatValue} numberOfLines={1}>
                 ${mealPlan.knightBucks.toFixed(2)}
               </ThemedText>
-              <ThemedText type="caption" style={styles.cardLabel}>
+              <ThemedText
+                type="caption"
+                style={styles.cardLabel}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
+              >
                 KnightBucks
+              </ThemedText>
+            </View>
+
+            <View style={styles.cardStatDivider} />
+
+            <View style={styles.cardStat}>
+              <ThemedText style={styles.cardStatValue} numberOfLines={1}>
+                ${mealPlan.diningDollars.toFixed(2)}
+              </ThemedText>
+              <ThemedText
+                type="caption"
+                style={styles.cardLabel}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
+              >
+                Dining Dollars
               </ThemedText>
             </View>
           </View>
 
+          {/* Main Swipes DashMeter in Calvin Gold */}
           <DashMeter
-            total={mealPlan.swipesPerWeek}
+            total={mealPlan.swipesTotal ?? mealPlan.swipesPerWeek}
             remaining={swipesRemaining}
             color={Brand.gold}
             emptyColor="rgba(255,255,255,0.22)"
           />
+
+          {/* Secondary Allotments: Flex Meals (Renew Blue dot) & Guest Passes (True Green dot) */}
+          <View style={styles.subMetersRow}>
+            <View style={styles.subMeterCol}>
+              <View style={styles.subMeterHeader}>
+                <View style={styles.subMeterTitleRow}>
+                  <View
+                    style={[
+                      styles.colorPip,
+                      { backgroundColor: Brand.renewBlue },
+                    ]}
+                  />
+                  <ThemedText
+                    type="caption"
+                    style={styles.subMeterLabel}
+                    numberOfLines={1}
+                  >
+                    Flex meals
+                  </ThemedText>
+                </View>
+                <ThemedText
+                  type="caption"
+                  style={styles.subMeterLabel}
+                  numberOfLines={1}
+                >
+                  {flexMealsRemaining} of {mealPlan.flexMeals ?? 2}
+                </ThemedText>
+              </View>
+              <DashMeter
+                total={mealPlan.flexMeals ?? 2}
+                remaining={flexMealsRemaining}
+                color={Brand.renewBlue}
+                height={6}
+                emptyColor="rgba(255,255,255,0.2)"
+              />
+            </View>
+
+            <View style={styles.subMeterCol}>
+              <View style={styles.subMeterHeader}>
+                <View style={styles.subMeterTitleRow}>
+                  <View
+                    style={[
+                      styles.colorPip,
+                      { backgroundColor: Brand.trueGreen },
+                    ]}
+                  />
+                  <ThemedText
+                    type="caption"
+                    style={styles.subMeterLabel}
+                    numberOfLines={1}
+                  >
+                    Guest passes
+                  </ThemedText>
+                </View>
+                <ThemedText
+                  type="caption"
+                  style={styles.subMeterLabel}
+                  numberOfLines={1}
+                >
+                  {guestPassesRemaining} of {mealPlan.guestPasses}
+                </ThemedText>
+              </View>
+              <DashMeter
+                total={mealPlan.guestPasses}
+                remaining={guestPassesRemaining}
+                color={Brand.trueGreen}
+                height={6}
+                emptyColor="rgba(255,255,255,0.2)"
+              />
+            </View>
+          </View>
 
           <ThemedText type="caption" style={styles.cardHint}>
             Tap anywhere on the card to show your ID
@@ -91,41 +192,36 @@ export default function DiningScreen() {
         </View>
       </Pressable>
 
-      <Card>
-        <View style={styles.balance}>
-          <View style={styles.balanceRow}>
-            <ThemedText type="smallBold">Guest passes</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {guestPassesRemaining} of {mealPlan.guestPasses} left
-            </ThemedText>
-          </View>
-          <DashMeter
-            total={mealPlan.guestPasses}
-            remaining={guestPassesRemaining}
-          />
-        </View>
-
-        <View style={[styles.moneyRow, { borderTopColor: theme.border }]}>
-          <ThemedText type="smallBold">Dining Dollars</ThemedText>
-          <ThemedText type="smallBold">
-            ${mealPlan.diningDollars.toFixed(2)}
-          </ThemedText>
-        </View>
-        <View style={[styles.moneyRow, { borderTopColor: theme.border }]}>
-          <ThemedText type="smallBold">KnightBucks</ThemedText>
-          <ThemedText type="smallBold">
-            ${mealPlan.knightBucks.toFixed(2)}
-          </ThemedText>
-        </View>
-
-        <ThemedText
-          type="caption"
-          themeColor="textMuted"
-          style={styles.resetNote}
-        >
-          Swipes reset {mealPlan.weekResetsOn}
+      {/* Info Bar immediately below the Knight Card on ambient background */}
+      <View style={styles.subCardBar}>
+        <ThemedText type="caption" themeColor="textMuted">
+          {getSwipeResetText(mealPlan)}
         </ThemedText>
-      </Card>
+
+        <Pressable
+          onPress={openActivity}
+          style={({ pressed }) => [
+            styles.historyLink,
+            pressed && styles.pressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="View recent transaction history"
+          hitSlop={8}
+        >
+          <ThemedText
+            type="caption"
+            style={[styles.historyLinkText, { color: theme.tint }]}
+          >
+            Recent history
+          </ThemedText>
+          <Icon
+            sf="chevron.right"
+            md="chevron_right"
+            size={13}
+            color={theme.tint}
+          />
+        </Pressable>
+      </View>
 
       <Card style={[styles.nfc, { borderColor: theme.tint }]}>
         <Icon sf="wave.3.right" md="contactless" size={22} color={theme.tint} />
@@ -159,8 +255,14 @@ export default function DiningScreen() {
                 ]}
               >
                 <View style={styles.hallTitle}>
-                  <ThemedText type="smallBold">{hall.name}</ThemedText>
-                  <ThemedText type="caption" themeColor="textMuted">
+                  <ThemedText type="smallBold" numberOfLines={1}>
+                    {hall.name}
+                  </ThemedText>
+                  <ThemedText
+                    type="caption"
+                    themeColor="textMuted"
+                    numberOfLines={1}
+                  >
                     {status.detail} ·{" "}
                     {hall.acceptsSwipes ? "Accepts swipes" : "KnightBucks only"}
                   </ThemedText>
@@ -190,37 +292,6 @@ export default function DiningScreen() {
           ))}
         </Card>
       </View>
-
-      <View style={styles.section}>
-        <SectionHeader title="Recent activity" caption="Last 7 days" />
-        <Card flush>
-          {transactions.map((tx, index) => (
-            <View
-              key={tx.id}
-              style={[
-                styles.tx,
-                index < transactions.length - 1 && {
-                  borderBottomWidth: StyleSheet.hairlineWidth,
-                  borderBottomColor: theme.border,
-                },
-              ]}
-            >
-              <View style={styles.txBody}>
-                <ThemedText type="smallBold">{tx.location}</ThemedText>
-                <ThemedText type="caption" themeColor="textMuted">
-                  {tx.detail} · {tx.at}
-                </ThemedText>
-              </View>
-              <ThemedText
-                type="smallBold"
-                style={{ color: tx.amount > 0 ? theme.success : theme.text }}
-              >
-                {formatAmount(tx)}
-              </ThemedText>
-            </View>
-          ))}
-        </Card>
-      </View>
     </Screen>
   );
 }
@@ -231,59 +302,128 @@ const styles = StyleSheet.create({
   },
   cardHero: {
     borderRadius: Radius.xl,
-    padding: Spacing.three,
+    padding: Spacing.four,
     gap: Spacing.three,
+    position: "relative",
+    overflow: "hidden",
+    backgroundColor: Brand.maroon,
   },
   cardTop: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
     gap: Spacing.three,
   },
+  cardIdentityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two + 2,
+    flex: 1,
+  },
   cardIdentity: {
     flex: 1,
-    gap: 1,
+    gap: 3,
+  },
+  cardMealPlan: {
+    color: Brand.gold,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
   },
   cardLabel: {
-    color: "rgba(255,255,255,0.7)",
+    color: Brand.gold,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.2,
+    textAlign: "center",
+    width: "100%",
   },
   cardName: {
     color: "#FFFFFF",
+    fontFamily: Fonts.serif,
+    fontSize: 22,
+    lineHeight: 26,
+    fontWeight: "700",
   },
   cardStats: {
     flexDirection: "row",
-    gap: Spacing.five,
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   cardStat: {
+    flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
+    alignItems: "center",
+    justifyContent: "center",
     gap: Spacing.half,
+    paddingHorizontal: 2,
+  },
+  cardStatDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: "rgba(255, 255, 255, 0.18)",
   },
   cardStatValue: {
     color: "#FFFFFF",
-    fontSize: 28,
-    lineHeight: 32,
+    fontSize: 21,
+    lineHeight: 26,
     fontWeight: "800",
+    textAlign: "center",
   },
-  cardHint: {
-    color: "rgba(255,255,255,0.6)",
-  },
-  balance: {
-    gap: Spacing.two,
-  },
-  balanceRow: {
+  subMetersRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "baseline",
+    gap: Spacing.three,
+    paddingTop: Spacing.two,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(255, 255, 255, 0.18)",
   },
-  moneyRow: {
+  subMeterCol: {
+    flex: 1,
+    gap: Spacing.one,
+  },
+  subMeterHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingTop: Spacing.three,
-    marginTop: Spacing.three,
-    borderTopWidth: StyleSheet.hairlineWidth,
   },
-  resetNote: {
-    marginTop: Spacing.three,
+  subMeterTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  colorPip: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  subMeterLabel: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.2,
+  },
+  cardHint: {
+    color: "rgba(255,255,255,0.6)",
+    textAlign: "center",
+  },
+  subCardBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: Spacing.half,
+    paddingTop: Spacing.one,
+    paddingBottom: Spacing.two,
+    gap: Spacing.two,
+  },
+  historyLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+  },
+  historyLinkText: {
+    fontWeight: "700",
   },
   nfc: {
     flexDirection: "row",
@@ -313,21 +453,11 @@ const styles = StyleSheet.create({
   },
   hallTitle: {
     flex: 1,
+    minWidth: 0,
     gap: 1,
   },
   station: {
     gap: Spacing.half,
     marginBottom: Spacing.three,
-  },
-  tx: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: Spacing.three,
-    padding: Spacing.three,
-  },
-  txBody: {
-    flex: 1,
-    gap: 1,
   },
 });

@@ -1,128 +1,252 @@
+import { Image } from 'expo-image';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { Badge, type BadgeTone } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
-import { Spacing } from '@/constants/theme';
+import { Brand, Fonts, Radius, Spacing } from '@/constants/theme';
 import type { Post } from '@/data/feed';
 import { useTheme } from '@/hooks/use-theme';
 
-/** A whole post, readable without tapping into anything. */
+function categoryBadgeTone(category: string): BadgeTone {
+  switch (category) {
+    case 'Academics':
+      return 'info';
+    case 'Outdoors':
+      return 'success';
+    case 'Athletics':
+      return 'danger';
+    case 'Faith':
+      return 'brand';
+    case 'The Arts':
+    case 'Music':
+    case 'Social':
+    case 'Service':
+    default:
+      return 'gold';
+  }
+}
+
+/**
+ * Modern post card featuring:
+ * - Edge-to-edge stock imagery with overlaid organization pill tag
+ * - Sleek follow checkmark icon replacing verbose "Following" text
+ * - Prominent display headline as the largest text on the card
+ * - Graceful layout for non-image posts with an editorial header strip
+ * - High-contrast event metadata & readable body copy
+ */
 export function PostCard({ post }: { post: Post }) {
   const theme = useTheme();
-  const [from, to] = post.colors;
 
   return (
-    <Card flush>
-      <View style={styles.top}>
-        <View
-          style={[
-            styles.mark,
-            { experimental_backgroundImage: `linear-gradient(140deg, ${from}, ${to})` },
-          ]}>
-          <ThemedText type="caption" style={styles.markText}>
-            {post.mark}
-          </ThemedText>
+    <Card flush style={styles.card}>
+      {post.image ? (
+        <View style={styles.imageContainer}>
+          <Image
+            source={{ uri: post.image }}
+            style={styles.image}
+            contentFit="cover"
+            transition={250}
+          />
+          {/* Subtle top scrim ensuring overlay badges contrast cleanly */}
+          <View style={styles.scrim} />
+
+          <View style={styles.overlayBar}>
+            <View style={styles.orgPill}>
+              {post.followed ? (
+                <Icon sf="checkmark.seal.fill" md="verified" size={14} color={Brand.gold} />
+              ) : null}
+              <ThemedText style={styles.overlayOrgText} numberOfLines={1}>
+                {post.org}
+              </ThemedText>
+            </View>
+
+            <View style={styles.badgeWrapper}>
+              <Badge label={post.category} tone={categoryBadgeTone(post.category)} />
+            </View>
+          </View>
         </View>
+      ) : null}
 
-        <View style={styles.topText}>
-          <ThemedText type="smallBold">{post.org}</ThemedText>
-          <ThemedText type="caption" themeColor="textMuted">
-            {post.category}
-            {post.followed ? ' · Following' : ''}
-          </ThemedText>
-        </View>
+      <View style={styles.content}>
+        {/* Editorial header strip for posts without an image */}
+        {!post.image ? (
+          <View style={styles.noImageHeader}>
+            <View style={styles.noImageOrgRow}>
+              {post.followed ? (
+                <Icon sf="checkmark.seal.fill" md="verified" size={15} color={Brand.goldDark} />
+              ) : null}
+              <ThemedText type="smallBold" style={styles.noImageOrgText}>
+                {post.org}
+              </ThemedText>
+            </View>
 
-        <ThemedText type="caption" themeColor="textMuted">
-          {post.postedAt}
-        </ThemedText>
-      </View>
+            <Badge label={post.category} tone={categoryBadgeTone(post.category)} />
+          </View>
+        ) : null}
 
-      <View
-        style={[
-          styles.poster,
-          { experimental_backgroundImage: `linear-gradient(145deg, ${from}, ${to})` },
-        ]}>
-        <Icon sf={post.sf} md={post.md} size={30} color="rgba(255,255,255,0.85)" />
-        <ThemedText type="subtitle" style={styles.posterTitle}>
-          {post.headline}
-        </ThemedText>
-      </View>
+        {/* The title is the biggest and most commanding text */}
+        <ThemedText style={styles.title}>{post.headline}</ThemedText>
 
-      <View style={styles.caption}>
+        {post.when || post.where ? (
+          <View style={styles.metaSection}>
+            {post.when ? (
+              <View style={styles.metaRow}>
+                <View style={[styles.metaIconWrap, { backgroundColor: theme.tintSoft }]}>
+                  <Icon sf="calendar" md="event" size={13} color={Brand.maroon} />
+                </View>
+                <ThemedText type="smallBold" style={styles.metaText}>
+                  {post.when}
+                </ThemedText>
+              </View>
+            ) : null}
+
+            {post.where ? (
+              <View style={styles.metaRow}>
+                <View style={[styles.metaIconWrap, { backgroundColor: theme.tintSoft }]}>
+                  <Icon sf="mappin.and.ellipse" md="place" size={13} color={Brand.maroon} />
+                </View>
+                <ThemedText type="small" themeColor="textSecondary" style={styles.metaText}>
+                  {post.where}
+                </ThemedText>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
         <ThemedText type="small" themeColor="textSecondary" style={styles.body}>
           {post.body}
         </ThemedText>
 
-        {post.when ? (
-          <View style={styles.metaRow}>
-            <Icon sf="calendar" md="event" size={14} color={theme.tint} />
-            <ThemedText type="caption" themeColor="text">
-              {post.when}
+        <View style={styles.footer}>
+          <ThemedText type="caption" themeColor="textMuted">
+            {post.postedAt} ago
+          </ThemedText>
+          {post.campusWide ? (
+            <ThemedText type="caption" themeColor="textMuted">
+              Campus-wide
             </ThemedText>
-          </View>
-        ) : null}
-
-        {post.where ? (
-          <View style={styles.metaRow}>
-            <Icon sf="mappin.and.ellipse" md="place" size={14} color={theme.tint} />
-            <ThemedText type="caption" themeColor="textSecondary">
-              {post.where}
-            </ThemedText>
-          </View>
-        ) : null}
+          ) : null}
+        </View>
       </View>
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  top: {
+  card: {
+    borderRadius: Radius.lg,
+    overflow: 'hidden',
+  },
+  imageContainer: {
+    width: '100%',
+    height: 195,
+    position: 'relative',
+    backgroundColor: '#1C1D21',
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+  },
+  scrim: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 72,
+    experimental_backgroundImage:
+      'linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 100%)',
+  },
+  overlayBar: {
+    position: 'absolute',
+    top: Spacing.two,
+    left: Spacing.two,
+    right: Spacing.two,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-  },
-  mark: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  markText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-  },
-  topText: {
-    flex: 1,
-    gap: 1,
-  },
-  poster: {
-    minHeight: 168,
-    padding: Spacing.three,
-    gap: Spacing.two,
     justifyContent: 'space-between',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(0,0,0,0.08)',
+    gap: Spacing.two,
   },
-  posterTitle: {
+  orgPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(17, 24, 28, 0.75)',
+    paddingHorizontal: Spacing.two + 2,
+    paddingVertical: 5,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    maxWidth: '70%',
+  },
+  overlayOrgText: {
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0,0,0,0.25)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
-  caption: {
+  badgeWrapper: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+  },
+  noImageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 2,
+    gap: Spacing.two,
+  },
+  noImageOrgRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  noImageOrgText: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  content: {
     padding: Spacing.three,
     gap: Spacing.two,
   },
-  body: {
-    lineHeight: 21,
+  title: {
+    fontFamily: Fonts.serif,
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  metaSection: {
+    gap: 6,
+    paddingVertical: 2,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
+    gap: Spacing.one + 3,
+  },
+  metaIconWrap: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  metaText: {
+    fontSize: 13,
+  },
+  body: {
+    lineHeight: 21,
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: Spacing.one,
   },
 });
