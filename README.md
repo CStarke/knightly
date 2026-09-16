@@ -5,7 +5,7 @@ native tabs, React Native 0.86). **Every piece of data in here is hardcoded** â€
 network calls, no auth, no backend.
 
 ## Vision Statement
-**Knightly envisions simplifying everyday campus life by giving Calvin students one convenient starting point for frequently used resources such as dorm access, dining, printing, campus safety, news, and other student services, rather than requiring students to navigate multiple apps, websites, and platforms.**
+**Knightly envisions simplifying everyday campus life by giving Calvin students one convenient starting point for frequently used resources such as dining, printing, campus safety, news, and other student services, rather than requiring students to navigate multiple apps, websites, and platforms.**
 
 
 ## The creators
