@@ -4,6 +4,10 @@ A prototype of a Calvin University student app, built on Expo SDK 57 (expo-route
 native tabs, React Native 0.86). **Every piece of data in here is hardcoded** — no
 network calls, no auth, no backend.
 
+## The creators
+
+David Idowu, Daniel Okereke, Caleb Starkenburg, Kellen Morford, and John Zhan
+
 ## Running it
 
 ```bash
@@ -18,8 +22,8 @@ Four tabs. You can swipe left and right between them, or tap the bottom bar.
 **Knightly** (`src/app/(tabs)/index.tsx`) — the feed. Scrollable club and campus posts that
 read fully in place; there is no article detail screen to tap into. Two modes:
 
-- *For you* — orgs the student follows, plus anything campus-wide.
-- *All campus* — every post, with a search field and category filters (The Arts,
+- _For you_ — orgs the student follows, plus anything campus-wide.
+- _All campus_ — every post, with a search field and category filters (The Arts,
   Athletics, Music, Academics, Faith, Service, Social, Outdoors).
 
 **Dining** (`src/app/(tabs)/dining.tsx`) — meal plan and Knight Card. The maroon card
@@ -52,10 +56,10 @@ students, faculty, and staff. Rows open the mail client.
 
 ## Data
 
-| File | Holds |
-| --- | --- |
-| `src/data/student.ts` | The signed-in student |
-| `src/data/feed.ts` | Club and campus posts |
-| `src/data/dining.ts` | Meal plan, halls, hours, transactions |
-| `src/data/directory.ts` | People |
-| `src/data/safety.ts` | Alerts and emergency numbers |
+| File                    | Holds                                 |
+| ----------------------- | ------------------------------------- |
+| `src/data/student.ts`   | The signed-in student                 |
+| `src/data/feed.ts`      | Club and campus posts                 |
+| `src/data/dining.ts`    | Meal plan, halls, hours, transactions |
+| `src/data/directory.ts` | People                                |
+| `src/data/safety.ts`    | Alerts and emergency numbers          |

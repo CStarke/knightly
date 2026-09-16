@@ -1,16 +1,17 @@
 {
   "expo": {
-    "name": "Calvin",
-    "slug": "calvinapp",
+    "name": "Knightly",
+    "slug": "knightly",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "calvinapp",
+    "scheme": "knightly",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"
     },
     "android": {
+      "package": "edu.calvin.knightly",
       "adaptiveIcon": {
         "backgroundColor": "#8C2131",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -37,6 +38,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "7102bb53-632e-43bc-aeb3-da139032ae6f"
+      }
     }
   }
 }
