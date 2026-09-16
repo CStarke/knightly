@@ -4,6 +4,10 @@ A prototype of a Calvin University student app, built on Expo SDK 57 (expo-route
 native tabs, React Native 0.86). **Every piece of data in here is hardcoded** — no
 network calls, no auth, no backend.
 
+## Vision Statement
+**1Resource envisions simplifying everyday campus life by giving Calvin students one convenient starting point for frequently used resources such as dorm access, dining, printing, campus safety, news, and other student services, rather than requiring students to navigate multiple apps, websites, and platforms.**
+
+
 ## The creators
 
 David Idowu, Daniel Okereke, Caleb Starkenburg, Kellen Morford, and John Zhan
