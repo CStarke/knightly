@@ -1,55 +1,223 @@
-export type MealPlanCadence = 'weekly' | 'semester';
+import {
+  student,
+  type CalvinMealPlanId,
+  type StudentDining,
+} from "@/data/student";
 
+export { type CalvinMealPlanId, type StudentDining };
+
+export type MealPlanCadence = "weekly" | "semester";
+
+/**
+ * Universal definition of a Calvin University meal plan.
+ * Pure plan configuration and rules without any student-specific consumption data.
+ * Can be assigned to any student.
+ */
 export type MealPlan = {
+  id: CalvinMealPlanId;
   name: string;
-  cadence?: MealPlanCadence;
+  cadence: MealPlanCadence;
   /** Swipes allocated for the period (per week for weekly plans, per semester for semester block plans). */
-  swipesTotal?: number;
-  swipesPerWeek: number;
-  swipesUsed: number;
-  /** Flex meal equivalencies (e.g. 2/week at Johnny's or Peet's). */
+  swipesTotal: number;
+  /** Flex meal equivalencies (e.g. 1-3/week for Core plans). Omitted or 0 on block plans. */
   flexMeals?: number;
-  flexMealsUsed?: number;
-  guestPasses: number;
+  /** Guest passes (per semester). Omitted or 0 on block plans and Core 5. */
+  guestPasses?: number;
+  /** KnightBucks bundled by default with this plan per semester. */
+  bundledKnightBucks: number;
+  /** Reset schedule text if plan resets weekly (e.g. "Sunday at 12:00 a.m."). */
+  weekResetsOn?: string;
+  /** Descriptive overview of the plan. */
+  description?: string;
+};
+
+/**
+ * Official Calvin University Meal Plans catalog (Core Weekly & Semester Block).
+ * Purely plan archetypes available to all students.
+ */
+export const CALVIN_MEAL_PLANS: Record<CalvinMealPlanId, MealPlan> = {
+  core21: {
+    id: "core21",
+    name: "Core 21",
+    cadence: "weekly",
+    swipesTotal: 21,
+    flexMeals: 3,
+    guestPasses: 2,
+    bundledKnightBucks: 160.0,
+    weekResetsOn: "Sunday at 12:00 a.m.",
+    description:
+      "21 meals/week + 3 flex meals + 2 guest passes. Best for students eating 3 meals/day.",
+  },
+  core17: {
+    id: "core17",
+    name: "Core 17",
+    cadence: "weekly",
+    swipesTotal: 17,
+    flexMeals: 3,
+    guestPasses: 2,
+    bundledKnightBucks: 125.0,
+    weekResetsOn: "Sunday at 12:00 a.m.",
+    description: "17 meals/week + 3 flex meals + 2 guest passes.",
+  },
+  core14: {
+    id: "core14",
+    name: "Core 14",
+    cadence: "weekly",
+    swipesTotal: 14,
+    flexMeals: 2,
+    guestPasses: 2,
+    bundledKnightBucks: 80.0,
+    weekResetsOn: "Sunday at 12:00 a.m.",
+    description:
+      "14 meals/week + 2 flex meals + 2 guest passes. Most popular choice.",
+  },
+  core10: {
+    id: "core10",
+    name: "Core 10",
+    cadence: "weekly",
+    swipesTotal: 10,
+    flexMeals: 2,
+    guestPasses: 2,
+    bundledKnightBucks: 70.0,
+    weekResetsOn: "Sunday at 12:00 a.m.",
+    description: "10 meals/week + 2 flex meals + 2 guest passes.",
+  },
+  core5: {
+    id: "core5",
+    name: "Core 5",
+    cadence: "weekly",
+    swipesTotal: 5,
+    flexMeals: 1,
+    guestPasses: 0,
+    bundledKnightBucks: 35.0,
+    weekResetsOn: "Sunday at 12:00 a.m.",
+    description: "5 meals/week + 1 flex meal. No guest passes.",
+  },
+  knollcrest60: {
+    id: "knollcrest60",
+    name: "Knollcrest 60 Block",
+    cadence: "semester",
+    swipesTotal: 60,
+    bundledKnightBucks: 30.0,
+    description: "60 meals per semester for apartments or commuters.",
+  },
+  joust30: {
+    id: "joust30",
+    name: "Joust 30 Block",
+    cadence: "semester",
+    swipesTotal: 30,
+    bundledKnightBucks: 15.0,
+    description: "30 meals per semester for light campus dining.",
+  },
+};
+
+/** Combined student meal plan and active balance state. */
+export type ActiveStudentMealPlan = MealPlan & {
+  swipesUsed: number;
+  flexMealsUsed: number;
   guestPassesUsed: number;
   knightBucks: number;
   diningDollars: number;
-  /** Reset schedule text if plan resets weekly (e.g. "Sunday at 12:00 a.m."). */
-  weekResetsOn?: string;
 };
 
-export const mealPlan: MealPlan = {
-  name: "Core 14",
-  cadence: "weekly",
-  swipesTotal: 14,
-  swipesPerWeek: 14,
-  swipesUsed: 6,
-  flexMeals: 2,
-  flexMealsUsed: 0,
-  guestPasses: 2,
-  guestPassesUsed: 1,
-  knightBucks: 142.75,
-  diningDollars: 68.5,
-  weekResetsOn: "Sunday at 12:00 a.m.",
-};
+/**
+ * Resolves a student's dining account and joins it with the corresponding plan definition.
+ * Defaults to John Doe's dining account from student.ts.
+ */
+export function getStudentMealPlan(
+  diningAccount: StudentDining = student.dining,
+): ActiveStudentMealPlan {
+  const plan =
+    CALVIN_MEAL_PLANS[diningAccount.mealPlanId] ?? CALVIN_MEAL_PLANS.core21;
+  return {
+    ...plan,
+    swipesUsed: diningAccount.swipesUsed,
+    flexMealsUsed: diningAccount.flexMealsUsed,
+    guestPassesUsed: diningAccount.guestPassesUsed,
+    knightBucks: diningAccount.knightBucks,
+    diningDollars: diningAccount.diningDollars,
+  };
+}
 
-export const swipesRemaining = (mealPlan.swipesTotal ?? mealPlan.swipesPerWeek) - mealPlan.swipesUsed;
-export const flexMealsRemaining = (mealPlan.flexMeals ?? 2) - (mealPlan.flexMealsUsed ?? 0);
-export const guestPassesRemaining =
-  mealPlan.guestPasses - mealPlan.guestPassesUsed;
+/** Active student's meal plan (dynamically resolved from John Doe's profile in student.ts). */
+export const mealPlan: ActiveStudentMealPlan = getStudentMealPlan(
+  student.dining,
+);
+
+/** Returns true if the plan is a semester lump-sum block plan without weekly resets. */
+export function isBlockPlan(
+  plan: { cadence?: MealPlanCadence } = mealPlan,
+): boolean {
+  return plan.cadence === "semester";
+}
+
+/** Returns the total swipe allotment for the current cycle (weekly or block). */
+export function getSwipesTotal(
+  plan: { swipesTotal?: number } = mealPlan,
+): number {
+  return plan.swipesTotal ?? 0;
+}
+
+/** Returns the remaining swipes for the plan given current usage. */
+export function getSwipesRemaining(
+  plan: { swipesTotal?: number; swipesUsed?: number } = mealPlan,
+): number {
+  return Math.max(0, getSwipesTotal(plan) - (plan.swipesUsed ?? 0));
+}
+
+/** Returns true if the plan provides flex meals (e.g. Core plans). */
+export function hasFlexMeals(plan: { flexMeals?: number } = mealPlan): boolean {
+  return typeof plan.flexMeals === "number" && plan.flexMeals > 0;
+}
+
+/** Returns remaining flex meals, or 0 if the plan has none. */
+export function getFlexMealsRemaining(
+  plan: { flexMeals?: number; flexMealsUsed?: number } = mealPlan,
+): number {
+  if (!hasFlexMeals(plan)) return 0;
+  return Math.max(0, (plan.flexMeals ?? 0) - (plan.flexMealsUsed ?? 0));
+}
+
+/** Returns true if the plan provides separate guest passes (Core 10, 14, 17, 21). */
+export function hasGuestPasses(
+  plan: { guestPasses?: number } = mealPlan,
+): boolean {
+  return typeof plan.guestPasses === "number" && plan.guestPasses > 0;
+}
+
+/** Returns remaining guest passes, or 0 if the plan has none. */
+export function getGuestPassesRemaining(
+  plan: { guestPasses?: number; guestPassesUsed?: number } = mealPlan,
+): number {
+  if (!hasGuestPasses(plan)) return 0;
+  return Math.max(0, (plan.guestPasses ?? 0) - (plan.guestPassesUsed ?? 0));
+}
+
+/** Returns the appropriate metric card label ("Meals left" for block plans, "Swipes left" for weekly). */
+export function getSwipeMetricLabel(
+  plan: { cadence?: MealPlanCadence } = mealPlan,
+): string {
+  return isBlockPlan(plan) ? "Meals left" : "Swipes left";
+}
+
+export const swipesRemaining = getSwipesRemaining(mealPlan);
+export const flexMealsRemaining = getFlexMealsRemaining(mealPlan);
+export const guestPassesRemaining = getGuestPassesRemaining(mealPlan);
 
 /**
  * Returns the descriptive swipe cadence/reset note based on whether the plan
- * is weekly (e.g. Core 14) or semester-based (e.g. Block 60).
+ * is weekly (e.g. Core 21) or semester-based (e.g. Knollcrest 60 Block).
  */
-export function getSwipeResetText(plan: MealPlan = mealPlan): string {
-  if (plan.cadence === 'semester') {
-    return 'Swipes last through the semester';
+export function getSwipeResetText(
+  plan: { cadence?: MealPlanCadence; weekResetsOn?: string } = mealPlan,
+): string {
+  if (isBlockPlan(plan)) {
+    return "Swipes last through the semester";
   }
   if (plan.weekResetsOn) {
     return `Swipes reset ${plan.weekResetsOn}`;
   }
-  return 'Swipes last through the semester';
+  return "Swipes last through the semester";
 }
 
 export type ServiceWindow = {
@@ -264,14 +432,17 @@ export const transactions: Transaction[] = [
 ];
 
 export function formatAmount(tx: Transaction) {
-  if (tx.kind === "swipe") return `${tx.amount} swipe`;
+  if (tx.kind === "swipe") {
+    const isSingular = Math.abs(tx.amount) === 1;
+    return `${tx.amount} swipe${isSingular ? "" : "s"}`;
+  }
 
   const sign = tx.amount < 0 ? "-" : "+";
   return `${sign}$${Math.abs(tx.amount).toFixed(2)}`;
 }
 
-export function knightBucksLabel() {
-  return `$${mealPlan.knightBucks.toFixed(2)}`;
+export function knightBucksLabel(amount = mealPlan.knightBucks) {
+  return `$${amount.toFixed(2)}`;
 }
 
 export const swipesUsedLastWeek = transactions
@@ -285,4 +456,3 @@ export const knightBucksSpentLastWeek = transactions
 export const diningDollarsSpentLastWeek = transactions
   .filter((tx) => tx.kind === "dining-dollars" && tx.amount < 0)
   .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
-

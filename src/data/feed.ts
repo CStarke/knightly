@@ -23,6 +23,8 @@ export const feedCategories: FeedCategory[] = [
 
 export type Post = {
   id: string;
+  /** Primary club or department ID matching CALVIN_CLUBS. */
+  clubId?: string;
   /** Club, department, or office that posted. */
   org: string;
   /** Monogram shown in the post avatar. */
@@ -48,6 +50,7 @@ export type Post = {
 export const posts: Post[] = [
   {
     id: 'p1',
+    clubId: 'student-activities',
     org: 'Student Activities',
     mark: 'SA',
     category: 'Social',
@@ -65,6 +68,7 @@ export const posts: Post[] = [
   },
   {
     id: 'p2',
+    clubId: 'calvin-theatre',
     org: 'Calvin Theatre Company',
     mark: 'CT',
     category: 'The Arts',
@@ -82,6 +86,7 @@ export const posts: Post[] = [
   },
   {
     id: 'p3',
+    clubId: 'knights-athletics',
     org: 'Knights Athletics',
     mark: 'KA',
     category: 'Athletics',
@@ -99,6 +104,7 @@ export const posts: Post[] = [
   },
   {
     id: 'p4',
+    clubId: 'campus-ministries',
     org: 'Campus Ministries',
     mark: 'CM',
     category: 'Faith',
@@ -116,6 +122,7 @@ export const posts: Post[] = [
   },
   {
     id: 'p5',
+    clubId: 'acm',
     org: 'ACM Student Chapter',
     mark: 'AC',
     category: 'Academics',
@@ -133,6 +140,7 @@ export const posts: Post[] = [
   },
   {
     id: 'p6',
+    clubId: 'dining-services',
     org: 'Dining Services',
     mark: 'DS',
     category: 'Social',
@@ -150,6 +158,7 @@ export const posts: Post[] = [
   },
   {
     id: 'p7',
+    clubId: 'calvin-orchestra',
     org: 'Calvin Orchestra',
     mark: 'CO',
     category: 'Music',
@@ -167,6 +176,7 @@ export const posts: Post[] = [
   },
   {
     id: 'p8',
+    clubId: 'outdoor-rec',
     org: 'Outdoor Recreation',
     mark: 'OR',
     category: 'Outdoors',
@@ -184,6 +194,7 @@ export const posts: Post[] = [
   },
   {
     id: 'p9',
+    clubId: 'service-learning',
     org: 'Service Learning Center',
     mark: 'SL',
     category: 'Service',
@@ -201,6 +212,7 @@ export const posts: Post[] = [
   },
   {
     id: 'p10',
+    clubId: 'art-department',
     org: 'Art Department',
     mark: 'AD',
     category: 'The Arts',
@@ -218,6 +230,7 @@ export const posts: Post[] = [
   },
   {
     id: 'p11',
+    clubId: 'knights-athletics',
     org: 'Knights Athletics',
     mark: 'KA',
     category: 'Athletics',
@@ -235,6 +248,7 @@ export const posts: Post[] = [
   },
   {
     id: 'p12',
+    clubId: 'chemistry-department',
     org: 'Chemistry Department',
     mark: 'CD',
     category: 'Academics',
@@ -251,6 +265,7 @@ export const posts: Post[] = [
   },
   {
     id: 'p13',
+    clubId: 'student-senate',
     org: 'Student Senate',
     mark: 'SS',
     category: 'Social',
@@ -267,6 +282,7 @@ export const posts: Post[] = [
   },
   {
     id: 'p14',
+    clubId: 'jazz-collective',
     org: 'Jazz Collective',
     mark: 'JC',
     category: 'Music',
@@ -282,10 +298,71 @@ export const posts: Post[] = [
     sf: 'guitars.fill',
     md: 'piano',
   },
+  {
+    id: 'p15',
+    clubId: 'knights-robotics',
+    org: 'Knights Robotics',
+    mark: 'KR',
+    category: 'Academics',
+    postedAt: '2d',
+    headline: 'Autonomous rover trials in the MakerLab',
+    body: 'Testing navigation sensors and chassis suspension ahead of the fall rover challenge. Open shop hours for new team members.',
+    when: 'Wed, Sep 23 · 6:30 PM',
+    where: 'Engineering Building MakerLab',
+    image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80',
+    followed: false,
+    campusWide: false,
+    colors: ['#1E3A8A', '#3B82F6'],
+    sf: 'gearshape.2.fill',
+    md: 'precision_manufacturing',
+  },
+  {
+    id: 'p16',
+    clubId: 'dance-guild',
+    org: 'Dance Guild',
+    mark: 'DG',
+    category: 'The Arts',
+    postedAt: '3d',
+    headline: 'Choreography submissions open for Fall showcase',
+    body: 'Got a piece you want to choreograph? Submissions are open to all genres and experience levels. Thirty choreographers selected.',
+    when: 'Submissions due Sep 25',
+    where: 'CFAC Dance Studio',
+    image: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=800&q=80',
+    followed: false,
+    campusWide: false,
+    colors: ['#7C2D12', '#F97316'],
+    sf: 'figure.dance',
+    md: 'self_improvement',
+  },
+  {
+    id: 'p17',
+    clubId: 'environmental-club',
+    org: 'Environmental Club',
+    mark: 'EC',
+    category: 'Outdoors',
+    postedAt: '4d',
+    headline: 'Native tree planting at Plaster Creek',
+    body: 'Grab work gloves and boots. We are planting sixty native saplings along the watershed buffer zone to combat stormwater runoff.',
+    when: 'Sat, Sep 26 · 10:00 AM - 1:00 PM',
+    where: 'Preserve Parking Lot C',
+    image: 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&w=800&q=80',
+    followed: false,
+    campusWide: false,
+    colors: ['#14532D', '#22C55E'],
+    sf: 'leaf.fill',
+    md: 'eco',
+  },
 ];
 
-export function forYouPosts() {
-  return posts.filter((post) => post.followed || post.campusWide);
+export function forYouPosts(isFollowing?: (clubId: string) => boolean) {
+  if (!isFollowing) {
+    return posts.filter((post) => post.followed || post.campusWide);
+  }
+  return posts.filter((post) => {
+    if (post.campusWide) return true;
+    const clubId = post.clubId ?? post.org.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    return isFollowing(clubId);
+  });
 }
 
 export function searchPosts(query: string, category: FeedCategory | 'All') {
@@ -303,6 +380,15 @@ export function searchPosts(query: string, category: FeedCategory | 'All') {
 
     return matchesCategory && matchesQuery;
   });
+}
+
+export function getPostsByClubId(clubId: string): Post[] {
+  const cleanId = clubId.trim().toLowerCase();
+  return posts.filter(
+    (post) =>
+      (post.clubId && post.clubId.toLowerCase() === cleanId) ||
+      post.org.toLowerCase().replace(/[^a-z0-9]+/g, '-') === cleanId
+  );
 }
 
 export const followedOrgs = Array.from(

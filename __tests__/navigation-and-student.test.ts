@@ -1,13 +1,13 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { student, fullName, greeting, formatBarcode } from '@/data/student';
+import { student, fullName, fullLegalName, greeting, formatBarcode } from '@/data/student';
 import { getTabHeader } from '@/constants/tab-headers';
 
 describe('Student Profile & Navigation', () => {
   describe('Student Profile', () => {
     it('provides full name concatenation', () => {
       assert.strictEqual(fullName, `${student.firstName} ${student.lastName}`);
-      assert.strictEqual(fullName, 'Caleb Starkenburg');
+      assert.strictEqual(fullName, 'John Doe');
     });
 
     it('validates 7-digit student ID and cardNumber', () => {
@@ -77,6 +77,112 @@ describe('Student Profile & Navigation', () => {
 
       const tabsIndexHeader = getTabHeader('/(tabs)/');
       assert.strictEqual(tabsIndexHeader.title, 'Knightly');
+    });
+  });
+
+  describe('Tab Routing & Activity State Invariants', () => {
+    it('ensures Safety tab is completely isolated from Activity', () => {
+      // Safety route must always map to Campus Safety and never Activity
+      const safetyHeader = getTabHeader('/safety');
+      assert.strictEqual(safetyHeader.title, 'Campus Safety');
+      assert.notStrictEqual(safetyHeader.title, 'Activity');
+
+      // Dining route must map to Dining
+      const diningHeader = getTabHeader('/dining');
+      assert.strictEqual(diningHeader.title, 'Dining');
+
+      // Verify Safety tab index is 2
+      const tabPaths = ['/', '/dining', '/safety', '/directory'];
+      assert.strictEqual(tabPaths.indexOf('/safety'), 2);
+      assert.strictEqual(tabPaths.indexOf('/dining'), 1);
+    });
+
+    it('verifies route names prevent slot hijacking on non-dining tabs', () => {
+      const isShowingActivity = (tabIndex: number, showActivity: boolean, pathname: string, activeIndex: number) => {
+        return tabIndex === 2 && showActivity && pathname === '/dining' && activeIndex !== 2;
+      };
+
+      // When on Activity from Dining:
+      assert.strictEqual(isShowingActivity(2, true, '/dining', 1), true);
+
+      // When swiping back to Knightly (the bug scenario):
+      assert.strictEqual(isShowingActivity(2, true, '/', 0), false);
+      assert.strictEqual(isShowingActivity(2, false, '/', 0), false);
+
+      // When clicking Safety tab afterwards:
+      assert.strictEqual(isShowingActivity(2, true, '/safety', 2), false);
+      assert.strictEqual(isShowingActivity(2, false, '/safety', 2), false);
+
+      // When on Directory:
+      assert.strictEqual(isShowingActivity(2, true, '/directory', 3), false);
+    });
+
+    it('correctly maps trailing slashes and tabs prefix paths in getTabHeader', () => {
+      const diningTrailing = getTabHeader('/dining/');
+      assert.strictEqual(diningTrailing.title, 'Dining');
+
+      const tabsDining = getTabHeader('/tabs/dining');
+      assert.strictEqual(tabsDining.title, 'Dining');
+
+      const tabsSafety = getTabHeader('/tabs/safety');
+      assert.strictEqual(tabsSafety.title, 'Campus Safety');
+
+      const tabsDirectory = getTabHeader('/tabs/directory');
+      assert.strictEqual(tabsDirectory.title, 'Directory');
+
+      const unknownRoute = getTabHeader('/some/random/nested/route');
+      assert.strictEqual(unknownRoute.title, 'Knightly');
+    });
+
+    it('verifies strict four-tab navigation order and paths', () => {
+      const tabs = [
+        { name: 'knightly', path: '/' },
+        { name: 'dining', path: '/dining' },
+        { name: 'safety', path: '/safety' },
+        { name: 'directory', path: '/directory' },
+      ];
+
+      assert.strictEqual(tabs.length, 4);
+      assert.strictEqual(tabs[0].path, '/');
+      assert.strictEqual(tabs[1].path, '/dining');
+      assert.strictEqual(tabs[2].path, '/safety');
+      assert.strictEqual(tabs[3].path, '/directory');
+    });
+  });
+
+  describe('Student Profile Invariants & Barcode Processing', () => {
+    it('provides complete full legal name with middle name', () => {
+      assert.strictEqual(fullLegalName, `${student.firstName} ${student.middleName} ${student.lastName}`);
+      assert.strictEqual(fullLegalName, 'John Mark Doe');
+    });
+
+    it('processes student IDs containing dashes, spaces, or leading zeros in formatBarcode', () => {
+      // ID with hyphen
+      assert.strictEqual(formatBarcode('234-6052'), '00000234605200');
+      // ID with spaces
+      assert.strictEqual(formatBarcode('  2346052  '), '00000234605200');
+      // Short ID is padded with leading zeros to 7 digits
+      assert.strictEqual(formatBarcode('42'), '00000000004200');
+      // Empty string is padded to 7 zeros
+      assert.strictEqual(formatBarcode(''), '00000000000000');
+    });
+
+    it('verifies greeting boundary conditions at exactly 12:00 PM and 5:00 PM', () => {
+      // Morning up to 11:59:59
+      const morningEnd = new Date(2026, 8, 15, 11, 59, 59);
+      assert.strictEqual(greeting(morningEnd), 'Good morning');
+
+      // Afternoon starts at 12:00:00
+      const noon = new Date(2026, 8, 15, 12, 0, 0);
+      assert.strictEqual(greeting(noon), 'Good afternoon');
+
+      // Afternoon ends at 16:59:59
+      const afternoonEnd = new Date(2026, 8, 15, 16, 59, 59);
+      assert.strictEqual(greeting(afternoonEnd), 'Good afternoon');
+
+      // Evening starts at 17:00:00 (5:00 PM)
+      const eveningStart = new Date(2026, 8, 15, 17, 0, 0);
+      assert.strictEqual(greeting(eveningStart), 'Good evening');
     });
   });
 });

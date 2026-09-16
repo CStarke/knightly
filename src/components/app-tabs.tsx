@@ -25,13 +25,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { DiningActivityView } from '@/components/dining-activity';
+import { ClubsDirectoryView } from '@/components/clubs-directory-view';
+import { ClubDetailView } from '@/components/club-detail-view';
 import { AppHeader } from '@/components/ui/app-header';
+import { HeaderBackButton } from '@/components/ui/header-back-button';
 import { Icon, type MaterialSymbolName, type SfSymbolName } from '@/components/ui/icon';
 import { ParallaxStarfield } from '@/components/ui/starfield';
 import { getTabHeader } from '@/constants/tab-headers';
-import { Brand, Radius, Spacing } from '@/constants/theme';
+import { Brand, Spacing } from '@/constants/theme';
 import { DiningActivityProvider } from '@/context/dining-activity-context';
+import { ClubsNavigationProvider } from '@/context/clubs-navigation-context';
+import { TabPagerPriorityProvider } from '@/context/tab-pager-priority-context';
 import { StarfieldContext } from '@/context/starfield-context';
+import { getClubById } from '@/data/clubs';
 import { useTheme } from '@/hooks/use-theme';
 
 type TabMeta = {
@@ -111,8 +117,8 @@ export default function AppTabs() {
 }
 
 /**
- * Interactive follow-my-finger horizontal pager for tab navigation.
- * All tabs sit side-by-side in an animated track that moves 1:1 with finger drag,
+ * Interactive follow-my-finger horizontal pager for tab navigation and inline sub-pages.
+ * All tabs and sub-pages sit side-by-side in an animated track that moves 1:1 with finger drag,
  * rubber-bands at the outer edges, and smoothly snaps with physics on release.
  */
 function SwipeableTabPager({ bottomBarTranslateY }: { bottomBarTranslateY: SharedValue<number> }) {
@@ -122,7 +128,6 @@ function SwipeableTabPager({ bottomBarTranslateY }: { bottomBarTranslateY: Share
 
   const tabIndex = TABS.findIndex((tab) => tab.href === pathname);
   // Only update active tab index when pathname matches an actual tab.
-  // Sub-routes (like /dining-history or /card) must preserve the active tab (e.g. Dining).
   const [activeIndex, setActiveIndex] = useState(() => (tabIndex >= 0 ? tabIndex : 0));
   const [headerIndex, setHeaderIndex] = useState(() => (tabIndex >= 0 ? tabIndex : 0));
 
@@ -131,32 +136,86 @@ function SwipeableTabPager({ bottomBarTranslateY }: { bottomBarTranslateY: Share
   const [showActivity, setShowActivity] = useState(false);
   const isActivityOpenShared = useSharedValue(false);
 
+  // Clubs navigation state (inline sub-pages on Knightly Home)
+  // Level 0: Knightly Home feed
+  // Level 1: Campus Clubs directory
+  // Level 2: Individual Club detail
+  const [clubsLevel, setClubsLevel] = useState<0 | 1 | 2>(0);
+  const [showClubsDirectory, setShowClubsDirectory] = useState(false);
+  const [showClubDetail, setShowClubDetail] = useState(false);
+  const [activeClubId, setActiveClubId] = useState<string | null>(null);
+  const clubsLevelShared = useSharedValue<number>(0);
+
   useEffect(() => {
     if (tabIndex >= 0) {
       setActiveIndex(tabIndex);
       setHeaderIndex(tabIndex);
+      // When navigated to any tab other than Dining, Activity must be completely closed
+      if (tabIndex !== 1 && isActivityOpenShared.value) {
+        isActivityOpenShared.value = false;
+        setIsActivityOpen(false);
+        setShowActivity(false);
+        bottomBarTranslateY.value = 0;
+      }
+      // When navigated to any tab other than Knightly, Clubs sub-pages must be completely closed
+      if (tabIndex !== 0 && clubsLevelShared.value > 0) {
+        clubsLevelShared.value = 0;
+        setClubsLevel(0);
+        setShowClubsDirectory(false);
+        setShowClubDetail(false);
+        setActiveClubId(null);
+        bottomBarTranslateY.value = 0;
+      }
     }
-  }, [tabIndex]);
-
-  const activeIndexRef = useRef(activeIndex);
-  activeIndexRef.current = activeIndex;
+  }, [tabIndex, bottomBarTranslateY, isActivityOpenShared, clubsLevelShared]);
 
   const translateX = useSharedValue(-activeIndex * width);
   const scrollY = useSharedValue(0);
   const startX = useSharedValue(0);
   const isGestureActive = useSharedValue(false);
 
+  // Priority coordination for inner horizontal scrollable content (e.g. tag filter chips)
+  const isInnerScrollActive = useSharedValue(false);
+
+  const setInnerScrollActive = useCallback(
+    (active: boolean) => {
+      'worklet';
+      isInnerScrollActive.value = active;
+    },
+    [isInnerScrollActive]
+  );
+
+  const tabPagerPriorityValue = useMemo(
+    () => ({
+      isInnerScrollActive,
+      setInnerScrollActive,
+    }),
+    [isInnerScrollActive, setInnerScrollActive]
+  );
+
   // Avoid fighting the gesture spring when pathname updates after swipe release
-  const lastGestureTarget = useRef<number | null>(null);
+  const lastGestureTarget = useSharedValue<number | null>(null);
 
   // Keep translateX in sync on screen rotation or resize
   const prevWidth = useRef(width);
   useEffect(() => {
     if (prevWidth.current !== width) {
       prevWidth.current = width;
-      translateX.value = isActivityOpenShared.value ? -2 * width : -activeIndex * width;
+      if (pathname === '/') {
+        if (clubsLevelShared.value === 2) {
+          translateX.value = -2 * width;
+        } else if (clubsLevelShared.value === 1) {
+          translateX.value = -1 * width;
+        } else {
+          translateX.value = 0;
+        }
+      } else if (pathname === '/dining') {
+        translateX.value = isActivityOpenShared.value ? -2 * width : -1 * width;
+      } else {
+        translateX.value = -activeIndex * width;
+      }
     }
-  }, [width, activeIndex, translateX, isActivityOpenShared]);
+  }, [width, activeIndex, pathname, translateX, isActivityOpenShared, clubsLevelShared]);
 
   // Open Activity with a smooth horizontal slide identical to switching tabs from Dining to Safety
   const openActivity = useCallback(() => {
@@ -177,32 +236,150 @@ function SwipeableTabPager({ bottomBarTranslateY }: { bottomBarTranslateY: Share
   const closeActivity = useCallback(() => {
     isActivityOpenShared.value = false;
     setIsActivityOpen(false);
-    cancelAnimation(translateX);
     isGestureActive.value = false;
 
     // Animate bottom bar back up into view
     bottomBarTranslateY.value = withTiming(0, { duration: 260, easing: CURVE });
 
     // Animate pager track back to Dining (-1 * width)
-    translateX.value = withTiming(-1 * width, { duration: DURATION, easing: CURVE }, (finished) => {
-      if (finished) {
-        runOnJS(setShowActivity)(false);
-      }
+    const targetX = -1 * width;
+    cancelAnimation(translateX);
+    translateX.value = withTiming(targetX, { duration: DURATION, easing: CURVE }, () => {
+      runOnJS(setShowActivity)(false);
     });
   }, [width, translateX, isGestureActive, isActivityOpenShared, bottomBarTranslateY]);
 
-  // Intercept Android hardware back button when Activity is open
+  const closeActivityFromGesture = useCallback(() => {
+    isActivityOpenShared.value = false;
+    setIsActivityOpen(false);
+    isGestureActive.value = false;
+
+    bottomBarTranslateY.value = withTiming(0, { duration: 260, easing: CURVE });
+
+    setTimeout(() => {
+      setShowActivity(false);
+    }, 350);
+  }, [isActivityOpenShared, isGestureActive, bottomBarTranslateY]);
+
+  // Clubs Sub-page navigation callbacks
+  const openClubsDirectory = useCallback(() => {
+    setShowClubsDirectory(true);
+    setClubsLevel(1);
+    clubsLevelShared.value = 1;
+    cancelAnimation(translateX);
+    isGestureActive.value = false;
+
+    // Animate bottom bar down off-screen
+    bottomBarTranslateY.value = withTiming(120, { duration: 260, easing: CURVE });
+
+    // Animate pager track to index 1 (Campus Clubs position)
+    translateX.value = withTiming(-1 * width, { duration: DURATION, easing: CURVE });
+  }, [width, translateX, isGestureActive, clubsLevelShared, bottomBarTranslateY]);
+
+  const closeClubsDirectory = useCallback(() => {
+    clubsLevelShared.value = 0;
+    setClubsLevel(0);
+    isGestureActive.value = false;
+
+    // Animate bottom bar back up into view
+    bottomBarTranslateY.value = withTiming(0, { duration: 260, easing: CURVE });
+
+    // Animate pager track back to Knightly Home (0)
+    cancelAnimation(translateX);
+    translateX.value = withTiming(0, { duration: DURATION, easing: CURVE }, () => {
+      runOnJS(setShowClubsDirectory)(false);
+      runOnJS(setActiveClubId)(null);
+    });
+  }, [translateX, isGestureActive, clubsLevelShared, bottomBarTranslateY]);
+
+  const closeClubsDirectoryFromGesture = useCallback(() => {
+    clubsLevelShared.value = 0;
+    setClubsLevel(0);
+    isGestureActive.value = false;
+
+    bottomBarTranslateY.value = withTiming(0, { duration: 260, easing: CURVE });
+
+    setTimeout(() => {
+      setShowClubsDirectory(false);
+      setActiveClubId(null);
+    }, 350);
+  }, [clubsLevelShared, isGestureActive, bottomBarTranslateY]);
+
+  const openClubDetail = useCallback(
+    (clubId: string) => {
+      setActiveClubId(clubId);
+      setShowClubDetail(true);
+      setClubsLevel(2);
+      clubsLevelShared.value = 2;
+      cancelAnimation(translateX);
+      isGestureActive.value = false;
+
+      // Animate pager track to index 2 (Club Detail position)
+      translateX.value = withTiming(-2 * width, { duration: DURATION, easing: CURVE });
+    },
+    [width, translateX, isGestureActive, clubsLevelShared]
+  );
+
+  const closeClubDetail = useCallback(() => {
+    clubsLevelShared.value = 1;
+    setClubsLevel(1);
+    isGestureActive.value = false;
+
+    // Animate pager track back to Campus Clubs (-1 * width)
+    const targetX = -1 * width;
+    cancelAnimation(translateX);
+    translateX.value = withTiming(targetX, { duration: DURATION, easing: CURVE }, () => {
+      runOnJS(setShowClubDetail)(false);
+    });
+  }, [width, translateX, isGestureActive, clubsLevelShared]);
+
+  const closeClubDetailFromGesture = useCallback(() => {
+    clubsLevelShared.value = 1;
+    setClubsLevel(1);
+    isGestureActive.value = false;
+
+    setTimeout(() => {
+      setShowClubDetail(false);
+    }, 350);
+  }, [clubsLevelShared, isGestureActive]);
+
+  const forceCloseSubpageStates = useCallback(() => {
+    setIsActivityOpen(false);
+    setShowActivity(false);
+    isActivityOpenShared.value = false;
+
+    setClubsLevel(0);
+    setShowClubsDirectory(false);
+    setShowClubDetail(false);
+    setActiveClubId(null);
+    clubsLevelShared.value = 0;
+
+    bottomBarTranslateY.value = withTiming(0, { duration: 200, easing: CURVE });
+  }, [bottomBarTranslateY, isActivityOpenShared, clubsLevelShared]);
+
+  // Intercept Android hardware back button when Activity or Clubs sub-pages are open
   useEffect(() => {
-    if (!isActivityOpen) return;
+    if (!isActivityOpen && clubsLevel === 0) return;
 
     const onBackPress = () => {
-      closeActivity();
-      return true;
+      if (clubsLevel === 2) {
+        closeClubDetail();
+        return true;
+      }
+      if (clubsLevel === 1) {
+        closeClubsDirectory();
+        return true;
+      }
+      if (isActivityOpen) {
+        closeActivity();
+        return true;
+      }
+      return false;
     };
 
     const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
     return () => sub.remove();
-  }, [isActivityOpen, closeActivity]);
+  }, [isActivityOpen, clubsLevel, closeClubDetail, closeClubsDirectory, closeActivity]);
 
   const activityContextValue = useMemo(
     () => ({
@@ -213,17 +390,29 @@ function SwipeableTabPager({ bottomBarTranslateY }: { bottomBarTranslateY: Share
     [isActivityOpen, openActivity, closeActivity]
   );
 
+  const clubsNavigationValue = useMemo(
+    () => ({
+      clubsLevel,
+      activeClubId,
+      openClubsDirectory,
+      openClubDetail,
+      closeClubDetail,
+      closeClubsDirectory,
+    }),
+    [clubsLevel, activeClubId, openClubsDirectory, openClubDetail, closeClubDetail, closeClubsDirectory]
+  );
+
   // Animate smoothly when tab changes via bottom bar taps
   useEffect(() => {
     if (tabIndex < 0) return;
-    if (isActivityOpenShared.value) return;
+    if (isActivityOpenShared.value || clubsLevelShared.value > 0) return;
 
     // If this pathname change was triggered by swipe release, skip since withSpring is already handling it
-    if (lastGestureTarget.current === tabIndex) {
-      lastGestureTarget.current = null;
+    if (lastGestureTarget.value === tabIndex) {
+      lastGestureTarget.value = null;
       return;
     }
-    lastGestureTarget.current = null;
+    lastGestureTarget.value = null;
 
     // Tapping a tab overrides any active gesture or settling spring
     cancelAnimation(translateX);
@@ -233,39 +422,74 @@ function SwipeableTabPager({ bottomBarTranslateY }: { bottomBarTranslateY: Share
     if (Math.abs(translateX.value - targetX) < 1) return;
 
     translateX.value = withTiming(targetX, { duration: DURATION, easing: CURVE });
-  }, [tabIndex, width, translateX, isGestureActive, isActivityOpenShared]);
+  }, [tabIndex, width, translateX, isGestureActive, isActivityOpenShared, clubsLevelShared, lastGestureTarget]);
 
-  const onTabChange = useCallback((targetIndex: number) => {
-    const target = TABS[targetIndex];
-    if (target) {
-      setActiveIndex(targetIndex);
-      setHeaderIndex(targetIndex);
-      if (targetIndex !== activeIndexRef.current) {
-        lastGestureTarget.current = targetIndex;
-        router.navigate(target.href);
+  const onTabChange = useCallback(
+    (targetIndex: number) => {
+      const target = TABS[targetIndex];
+      if (target) {
+        if (isActivityOpenShared.value) {
+          isActivityOpenShared.value = false;
+          setIsActivityOpen(false);
+          setShowActivity(false);
+          bottomBarTranslateY.value = withTiming(0, { duration: 200, easing: CURVE });
+        }
+        if (clubsLevelShared.value > 0) {
+          clubsLevelShared.value = 0;
+          setClubsLevel(0);
+          setShowClubsDirectory(false);
+          setShowClubDetail(false);
+          setActiveClubId(null);
+          bottomBarTranslateY.value = withTiming(0, { duration: 200, easing: CURVE });
+        }
+        setActiveIndex(targetIndex);
+        setHeaderIndex(targetIndex);
+        if (targetIndex !== tabIndex) {
+          lastGestureTarget.value = targetIndex;
+          router.navigate(target.href);
+        }
       }
-    }
-  }, []);
+    },
+    [bottomBarTranslateY, isActivityOpenShared, clubsLevelShared, tabIndex, lastGestureTarget]
+  );
 
   const pan = useMemo(
     () =>
       Gesture.Pan()
-        .activeOffsetX([-10, 10])
+        .activeOffsetX([-20, 20])
         .failOffsetY([-15, 15])
         .onStart(() => {
           'worklet';
+          if (isInnerScrollActive.value) {
+            isGestureActive.value = false;
+            return;
+          }
           cancelAnimation(translateX);
           startX.value = translateX.value;
           isGestureActive.value = true;
           runOnJS(dismissKeyboard)();
+          if (!isActivityOpenShared.value && clubsLevelShared.value === 0) {
+            runOnJS(forceCloseSubpageStates)();
+          }
         })
         .onUpdate((event) => {
           'worklet';
-          if (!isGestureActive.value) return;
+          if (isInnerScrollActive.value || !isGestureActive.value) return;
 
           const raw = startX.value + event.translationX;
-          const minX = isActivityOpenShared.value ? -2 * width : -(TABS.length - 1) * width;
-          const maxX = isActivityOpenShared.value ? -1 * width : 0;
+          let minX = -(TABS.length - 1) * width;
+          let maxX = 0;
+
+          if (isActivityOpenShared.value) {
+            minX = -2 * width;
+            maxX = -1 * width;
+          } else if (clubsLevelShared.value === 2) {
+            minX = -2 * width;
+            maxX = -1 * width;
+          } else if (clubsLevelShared.value === 1) {
+            minX = -1 * width;
+            maxX = 0;
+          }
 
           if (raw > maxX) {
             // Elastic resistance when dragging right past boundary
@@ -281,7 +505,7 @@ function SwipeableTabPager({ bottomBarTranslateY }: { bottomBarTranslateY: Share
         })
         .onEnd((event) => {
           'worklet';
-          if (!isGestureActive.value) return;
+          if (isInnerScrollActive.value || !isGestureActive.value) return;
           isGestureActive.value = false;
 
           const currentX = translateX.value;
@@ -304,7 +528,49 @@ function SwipeableTabPager({ bottomBarTranslateY }: { bottomBarTranslateY: Share
             });
 
             if (targetIndex === 1) {
-              runOnJS(closeActivity)();
+              runOnJS(closeActivityFromGesture)();
+            }
+            return;
+          }
+
+          if (clubsLevelShared.value === 2) {
+            // In Club Detail mode, user can drag right back to Campus Clubs (index 1)
+            let targetIndex = 2; // stay on Club Detail
+            if (vx > 400 || rawIndex < 1.6) {
+              targetIndex = 1; // back to Campus Clubs
+            }
+
+            const targetX = -targetIndex * width;
+            translateX.value = withSpring(targetX, {
+              damping: 26,
+              stiffness: 240,
+              mass: 0.9,
+              velocity: event.velocityX,
+            });
+
+            if (targetIndex === 1) {
+              runOnJS(closeClubDetailFromGesture)();
+            }
+            return;
+          }
+
+          if (clubsLevelShared.value === 1) {
+            // In Campus Clubs mode, user can drag right back to Knightly Home (index 0)
+            let targetIndex = 1; // stay on Campus Clubs
+            if (vx > 400 || rawIndex < 0.6) {
+              targetIndex = 0; // back to Knightly Home
+            }
+
+            const targetX = -targetIndex * width;
+            translateX.value = withSpring(targetX, {
+              damping: 26,
+              stiffness: 240,
+              mass: 0.9,
+              velocity: event.velocityX,
+            });
+
+            if (targetIndex === 0) {
+              runOnJS(closeClubsDirectoryFromGesture)();
             }
             return;
           }
@@ -333,75 +599,170 @@ function SwipeableTabPager({ bottomBarTranslateY }: { bottomBarTranslateY: Share
         .onFinalize(() => {
           'worklet';
           isGestureActive.value = false;
+          isInnerScrollActive.value = false;
         }),
-    [width, onTabChange, closeActivity, translateX, startX, isGestureActive, isActivityOpenShared]
+    [
+      width,
+      onTabChange,
+      closeActivityFromGesture,
+      closeClubDetailFromGesture,
+      closeClubsDirectoryFromGesture,
+      forceCloseSubpageStates,
+      translateX,
+      startX,
+      isGestureActive,
+      isInnerScrollActive,
+      isActivityOpenShared,
+      clubsLevelShared,
+    ]
   );
 
   const style = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
   }));
 
+  const activeClub = useMemo(() => {
+    return activeClubId ? getClubById(activeClubId) : undefined;
+  }, [activeClubId]);
+
   const currentTab = TABS[headerIndex] ?? TABS[0];
   const headerInfo = getTabHeader(currentTab.name);
 
+  const headerProps = useMemo(() => {
+    if (pathname === '/' && clubsLevel === 2) {
+      return {
+        title: activeClub ? activeClub.name : 'Club',
+        subtitle: activeClub ? activeClub.category : 'Details',
+        left: (
+          <HeaderBackButton
+            onPress={closeClubDetail}
+            accessibilityLabel="Go back to clubs"
+          />
+        ),
+        right: undefined,
+      };
+    }
+
+    if (pathname === '/' && clubsLevel === 1) {
+      return {
+        title: 'Campus Clubs',
+        subtitle: 'Student orgs & communities',
+        left: (
+          <HeaderBackButton
+            onPress={closeClubsDirectory}
+            accessibilityLabel="Go back to feed"
+          />
+        ),
+        right: undefined,
+      };
+    }
+
+    if (pathname === '/dining' && isActivityOpen) {
+      return {
+        title: 'Activity',
+        subtitle: 'LAST 7 DAYS',
+        left: (
+          <HeaderBackButton
+            onPress={closeActivity}
+            accessibilityLabel="Go back to Dining"
+          />
+        ),
+        right: undefined,
+      };
+    }
+
+    return {
+      title: headerInfo.title,
+      subtitle: headerInfo.subtitle,
+      left: undefined,
+      right: headerInfo.right,
+    };
+  }, [
+    pathname,
+    clubsLevel,
+    activeClub,
+    closeClubDetail,
+    closeClubsDirectory,
+    isActivityOpen,
+    closeActivity,
+    headerInfo,
+  ]);
+
   return (
     <DiningActivityProvider value={activityContextValue}>
-      <StarfieldContext.Provider value={{ translateX, scrollY }}>
-        <View style={styles.pagerContainer}>
-          {/* Parallax Starfield with 3 depth layers reacting to both horizontal and vertical scrolling */}
-          <ParallaxStarfield translateX={translateX} scrollY={scrollY} />
+      <ClubsNavigationProvider value={clubsNavigationValue}>
+        <TabPagerPriorityProvider value={tabPagerPriorityValue}>
+          <StarfieldContext.Provider value={{ translateX, scrollY }}>
+            <View style={styles.pagerContainer}>
+              {/* Parallax Starfield with 3 depth layers reacting to both horizontal and vertical scrolling */}
+              <ParallaxStarfield translateX={translateX} scrollY={scrollY} />
 
-          <AppHeader
-            title={isActivityOpen ? 'Activity' : headerInfo.title}
-            subtitle={isActivityOpen ? 'LAST 7 DAYS' : headerInfo.subtitle}
-            left={
-              isActivityOpen ? (
-                <Pressable
-                  onPress={closeActivity}
-                  style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Go back to Dining"
-                  hitSlop={12}>
-                  <Icon sf="chevron.left" md="arrow_back" size={22} color="#FFFFFF" />
-                </Pressable>
-              ) : undefined
-            }
-            right={isActivityOpen ? undefined : headerInfo.right}
-          />
+              <AppHeader
+                title={headerProps.title}
+                subtitle={headerProps.subtitle}
+                left={headerProps.left}
+                right={headerProps.right}
+              />
 
-          <GestureDetector gesture={pan}>
-            <Animated.View style={[styles.pagerTrack, { width: width * TABS.length }, style]}>
-              {TABS.map((tab, i) => {
-                const routeName = getRouteName(tab.href);
-                const route =
-                  state.routes.find((r) => r.name === routeName || r.name === tab.name) ??
-                  state.routes[i];
-                const descriptor = route ? descriptors[route.key] : undefined;
+              <GestureDetector gesture={pan}>
+                <Animated.View style={[styles.pagerTrack, { width: width * TABS.length }, style]}>
+                  {TABS.map((tab, i) => {
+                    const routeName = getRouteName(tab.href);
+                    const route =
+                      state.routes.find((r) => r.name === routeName || r.name === tab.name) ??
+                      state.routes[i];
+                    const descriptor = route ? descriptors[route.key] : undefined;
 
-                const isCurrentPage =
-                  (showActivity && i === 2) || (!showActivity && activeIndex === i);
+                    // Slot 1 renders ClubsDirectoryView ONLY when explicitly opened from Knightly
+                    const isShowingClubs =
+                      i === 1 && showClubsDirectory && pathname === '/' && activeIndex === 0;
 
-                return (
-                  <View
-                    key={tab.name}
-                    style={[styles.page, { width }]}
-                    aria-hidden={!isCurrentPage}
-                    accessibilityElementsHidden={!isCurrentPage}
-                    importantForAccessibility={isCurrentPage ? 'auto' : 'no-hide-descendants'}>
-                    {i === 2 && showActivity ? (
-                      <DiningActivityView />
-                    ) : descriptor ? (
-                      <TabContext.Provider value={descriptor.options}>
-                        {descriptor.render()}
-                      </TabContext.Provider>
-                    ) : null}
-                  </View>
-                );
-              })}
-            </Animated.View>
-          </GestureDetector>
-        </View>
-      </StarfieldContext.Provider>
+                    // Slot 2 renders ClubDetailView when opened from Knightly, OR DiningActivityView when opened from Dining
+                    const isShowingClubDetail =
+                      i === 2 && showClubDetail && pathname === '/' && activeIndex === 0 && !!activeClubId;
+
+                    const isShowingActivity =
+                      i === 2 && showActivity && pathname === '/dining' && activeIndex !== 2;
+
+                    let isCurrentPage = false;
+                    if (pathname === '/' && activeIndex === 0) {
+                      if (clubsLevel === 2) isCurrentPage = i === 2;
+                      else if (clubsLevel === 1) isCurrentPage = i === 1;
+                      else isCurrentPage = i === 0;
+                    } else if (pathname === '/dining') {
+                      if (isActivityOpen) isCurrentPage = i === 2;
+                      else isCurrentPage = i === 1;
+                    } else {
+                      isCurrentPage = activeIndex === i;
+                    }
+
+                    return (
+                      <View
+                        key={tab.name}
+                        style={[styles.page, { width }]}
+                        aria-hidden={!isCurrentPage}
+                        accessibilityElementsHidden={!isCurrentPage}
+                        importantForAccessibility={isCurrentPage ? 'auto' : 'no-hide-descendants'}>
+                        {isShowingClubDetail ? (
+                          <ClubDetailView clubId={activeClubId!} />
+                        ) : isShowingClubs ? (
+                          <ClubsDirectoryView />
+                        ) : isShowingActivity ? (
+                          <DiningActivityView />
+                        ) : descriptor ? (
+                          <TabContext.Provider value={descriptor.options}>
+                            {descriptor.render()}
+                          </TabContext.Provider>
+                        ) : null}
+                      </View>
+                    );
+                  })}
+                </Animated.View>
+              </GestureDetector>
+            </View>
+          </StarfieldContext.Provider>
+        </TabPagerPriorityProvider>
+      </ClubsNavigationProvider>
     </DiningActivityProvider>
   );
 }
@@ -597,14 +958,6 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.6,
-  },
-  backBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   label: {
     fontSize: 11,

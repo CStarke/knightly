@@ -1,4 +1,4 @@
-import { usePathname } from 'expo-router';
+import { router, usePathname } from 'expo-router';
 import {
   TabList,
   TabSlot,
@@ -7,6 +7,7 @@ import {
   type TabListProps,
   type TabTriggerSlotProps,
 } from 'expo-router/ui';
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 
@@ -15,6 +16,9 @@ import { AppHeader } from '@/components/ui/app-header';
 import { ParallaxStarfield } from '@/components/ui/starfield';
 import { getTabHeader } from '@/constants/tab-headers';
 import { Brand, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
+import { ClubsNavigationProvider } from '@/context/clubs-navigation-context';
+import { DiningActivityProvider } from '@/context/dining-activity-context';
+import { TabPagerPriorityProvider } from '@/context/tab-pager-priority-context';
 import { StarfieldContext } from '@/context/starfield-context';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -24,38 +28,82 @@ export default function AppTabs() {
   const translateX = useSharedValue(0);
   const scrollY = useSharedValue(0);
 
+  const diningActivityValue = useMemo(
+    () => ({
+      isActivityOpen: false,
+      openActivity: () => {},
+      closeActivity: () => {},
+    }),
+    []
+  );
+
+  const clubsNavigationValue = useMemo(
+    () => ({
+      clubsLevel: 0 as const,
+      activeClubId: null,
+      openClubsDirectory: () => {
+        router.push('/clubs/index');
+      },
+      openClubDetail: (clubId: string) => {
+        router.push({ pathname: '/clubs/[id]', params: { id: clubId } });
+      },
+      closeClubDetail: () => {
+        router.back();
+      },
+      closeClubsDirectory: () => {
+        router.back();
+      },
+    }),
+    []
+  );
+
+  const isInnerScrollActive = useSharedValue(false);
+  const tabPagerPriorityValue = useMemo(
+    () => ({
+      isInnerScrollActive,
+      setInnerScrollActive: () => {},
+    }),
+    [isInnerScrollActive]
+  );
+
   return (
-    <StarfieldContext.Provider value={{ translateX, scrollY }}>
-      <View style={{ flex: 1, position: 'relative' }}>
-        <ParallaxStarfield translateX={translateX} scrollY={scrollY} />
+    <DiningActivityProvider value={diningActivityValue}>
+      <ClubsNavigationProvider value={clubsNavigationValue}>
+        <TabPagerPriorityProvider value={tabPagerPriorityValue}>
+          <StarfieldContext.Provider value={{ translateX, scrollY }}>
+            <View style={{ flex: 1, position: 'relative' }}>
+              <ParallaxStarfield translateX={translateX} scrollY={scrollY} />
 
-        <Tabs>
-          <TabList asChild>
-            <TopBar>
-              <TabTrigger name="knightly" href="/" asChild>
-                <TabButton>Knightly</TabButton>
-              </TabTrigger>
-              <TabTrigger name="dining" href="/dining" asChild>
-                <TabButton>Dining</TabButton>
-              </TabTrigger>
-              <TabTrigger name="safety" href="/safety" asChild>
-                <TabButton>Safety</TabButton>
-              </TabTrigger>
-              <TabTrigger name="directory" href="/directory" asChild>
-                <TabButton>Directory</TabButton>
-              </TabTrigger>
-            </TopBar>
-          </TabList>
+          <Tabs>
+            <TabList asChild>
+              <TopBar>
+                <TabTrigger name="knightly" href="/" asChild>
+                  <TabButton>Knightly</TabButton>
+                </TabTrigger>
+                <TabTrigger name="dining" href="/dining" asChild>
+                  <TabButton>Dining</TabButton>
+                </TabTrigger>
+                <TabTrigger name="safety" href="/safety" asChild>
+                  <TabButton>Safety</TabButton>
+                </TabTrigger>
+                <TabTrigger name="directory" href="/directory" asChild>
+                  <TabButton>Directory</TabButton>
+                </TabTrigger>
+              </TopBar>
+            </TabList>
 
-          <AppHeader
-            title={headerInfo.title}
-            subtitle={headerInfo.subtitle}
-            right={headerInfo.right}
-          />
-          <TabSlot style={styles.slot} />
-        </Tabs>
-      </View>
-    </StarfieldContext.Provider>
+            <AppHeader
+              title={headerInfo.title}
+              subtitle={headerInfo.subtitle}
+              right={headerInfo.right}
+            />
+            <TabSlot style={styles.slot} />
+          </Tabs>
+            </View>
+          </StarfieldContext.Provider>
+        </TabPagerPriorityProvider>
+      </ClubsNavigationProvider>
+    </DiningActivityProvider>
   );
 }
 

@@ -1,11 +1,13 @@
 import { Image } from 'expo-image';
-import { StyleSheet, View } from 'react-native';
+import { router } from 'expo-router';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Badge, type BadgeTone } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { Brand, Fonts, Radius, Spacing } from '@/constants/theme';
+import { useClubFollow } from '@/context/club-follow-context';
 import type { Post } from '@/data/feed';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -35,9 +37,21 @@ function categoryBadgeTone(category: string): BadgeTone {
  * - Prominent display headline as the largest text on the card
  * - Graceful layout for non-image posts with an editorial header strip
  * - High-contrast event metadata & readable body copy
+ * - Tap on club name navigates directly to that club's short page
  */
 export function PostCard({ post }: { post: Post }) {
   const theme = useTheme();
+  const { isFollowing } = useClubFollow();
+
+  const clubId = post.clubId ?? post.org.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const followed = isFollowing(clubId);
+
+  const handlePressOrg = () => {
+    router.push({
+      pathname: '/clubs/[id]',
+      params: { id: clubId },
+    });
+  };
 
   return (
     <Card flush style={styles.card}>
@@ -53,14 +67,19 @@ export function PostCard({ post }: { post: Post }) {
           <View style={styles.scrim} />
 
           <View style={styles.overlayBar}>
-            <View style={styles.orgPill}>
-              {post.followed ? (
+            <Pressable
+              onPress={handlePressOrg}
+              accessibilityRole="button"
+              accessibilityLabel={`View ${post.org} club page`}
+              style={({ pressed }) => [styles.orgPill, pressed && styles.pressedPill]}
+            >
+              {followed ? (
                 <Icon sf="checkmark.seal.fill" md="verified" size={14} color={Brand.gold} />
               ) : null}
               <ThemedText style={styles.overlayOrgText} numberOfLines={1}>
                 {post.org}
               </ThemedText>
-            </View>
+            </Pressable>
 
             <View style={styles.badgeWrapper}>
               <Badge label={post.category} tone={categoryBadgeTone(post.category)} />
@@ -73,14 +92,19 @@ export function PostCard({ post }: { post: Post }) {
         {/* Editorial header strip for posts without an image */}
         {!post.image ? (
           <View style={styles.noImageHeader}>
-            <View style={styles.noImageOrgRow}>
-              {post.followed ? (
+            <Pressable
+              onPress={handlePressOrg}
+              accessibilityRole="button"
+              accessibilityLabel={`View ${post.org} club page`}
+              style={({ pressed }) => [styles.noImageOrgRow, pressed && styles.pressedPill]}
+            >
+              {followed ? (
                 <Icon sf="checkmark.seal.fill" md="verified" size={15} color={Brand.goldDark} />
               ) : null}
               <ThemedText type="smallBold" style={styles.noImageOrgText}>
                 {post.org}
               </ThemedText>
-            </View>
+            </Pressable>
 
             <Badge label={post.category} tone={categoryBadgeTone(post.category)} />
           </View>
@@ -248,5 +272,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: Spacing.one,
+  },
+  pressedPill: {
+    opacity: 0.75,
   },
 });

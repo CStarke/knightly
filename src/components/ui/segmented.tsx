@@ -55,7 +55,7 @@ export function Segmented<T extends string>({ options, value, onChange }: Segmen
         mass: 0.8,
       });
     }
-  }, [selectedIndex, trackWidth, options.length]);
+  }, [selectedIndex, trackWidth, options.length, translateX, isInitialized]);
 
   const pillAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],

@@ -1,5 +1,5 @@
 import type { PropsWithChildren, ReactNode } from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import { type LayoutChangeEvent, Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
@@ -16,7 +16,14 @@ type AppHeaderProps = PropsWithChildren<{
   subtitle?: string;
   left?: ReactNode;
   right?: ReactNode;
+  onLayout?: (event: LayoutChangeEvent) => void;
 }>;
+
+export function getAppHeaderHeight(insetsTop: number): number {
+  const paddingTop =
+    Platform.OS === "web" ? WebHeaderInset : insetsTop + Spacing.one;
+  return paddingTop + 50 + Spacing.three + 3;
+}
 
 /**
  * Calvin Maroon masthead with the title, gold period, and signature 33° scaffolding gold rule.
@@ -27,6 +34,7 @@ export function AppHeader({
   left,
   right,
   children,
+  onLayout,
 }: AppHeaderProps) {
   const insets = useSafeAreaInsets();
   const paddingTop =
@@ -34,6 +42,7 @@ export function AppHeader({
 
   return (
     <View
+      onLayout={onLayout}
       style={[styles.header, { paddingTop, backgroundColor: Brand.maroon }]}
     >
       <View style={styles.inner}>

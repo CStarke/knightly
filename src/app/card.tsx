@@ -6,8 +6,9 @@ import { AppState, Platform, Pressable, StyleSheet, Text, View } from "react-nat
 
 import { Avatar } from "@/components/avatar";
 import { Barcode } from "@/components/barcode";
+import { HeaderBackButton } from "@/components/ui/header-back-button";
 import { Brand, Fonts, Radius, Spacing } from "@/constants/theme";
-import { mealPlan, swipesRemaining } from "@/data/dining";
+import { getSwipeMetricLabel, mealPlan, swipesRemaining } from "@/data/dining";
 import { fullName, student } from "@/data/student";
 
 /**
@@ -94,7 +95,13 @@ export default function KnightCardScreen() {
       <View style={styles.cardFrame}>
         {/* Calvin Maroon Header Bar */}
         <View style={styles.cardHeader}>
-          <Text style={styles.universityTitle}>Calvin University</Text>
+          <View style={styles.cardHeaderLeft}>
+            <HeaderBackButton
+              onPress={handleClose}
+              accessibilityLabel="Close student ID"
+            />
+            <Text style={styles.universityTitle}>Calvin University</Text>
+          </View>
           <Text style={styles.cardTypeLabel}>KNIGHT CARD</Text>
         </View>
 
@@ -108,7 +115,11 @@ export default function KnightCardScreen() {
         <View style={styles.cardBody}>
           {/* Student Identity Row */}
           <View style={styles.studentRow}>
-            <Avatar name={fullName} initials="CS" size={64} />
+            <Avatar
+              name={fullName}
+              initials={`${student.firstName[0]}${student.lastName[0]}`}
+              size={64}
+            />
             <View style={styles.studentInfo}>
               <Text style={styles.studentName}>{fullName}</Text>
               <Text style={styles.studentMeta}>
@@ -135,7 +146,7 @@ export default function KnightCardScreen() {
                 adjustsFontSizeToFit
                 minimumFontScale={0.75}
               >
-                Swipes left
+                {getSwipeMetricLabel(mealPlan)}
               </Text>
             </View>
             <View style={styles.statDivider} />
@@ -196,12 +207,18 @@ const styles = StyleSheet.create({
     elevation: 16,
   },
   cardHeader: {
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three + 2,
+    paddingLeft: Spacing.two,
+    paddingRight: Spacing.four,
+    paddingVertical: Spacing.three,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     backgroundColor: Brand.maroon,
+  },
+  cardHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.one,
   },
   universityTitle: {
     color: "#FFFFFF",

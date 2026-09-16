@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import { HeaderAvatar } from '@/components/header-avatar';
+import { KnightlyHeaderRight } from '@/components/knightly-header-right';
 
 export type TabHeaderInfo = {
   title: string;
@@ -9,7 +9,10 @@ export type TabHeaderInfo = {
 };
 
 export function getTabHeader(tabNameOrPath: string): TabHeaderInfo {
-  const normalized = tabNameOrPath.replace(/^\/(tabs)?\/?/, '').toLowerCase();
+  const normalized = tabNameOrPath
+    .replace(/^\/(\(tabs\)|tabs)?\/?/, '')
+    .replace(/\/+$/, '')
+    .toLowerCase();
 
   switch (normalized) {
     case 'dining':
@@ -34,7 +37,7 @@ export function getTabHeader(tabNameOrPath: string): TabHeaderInfo {
       return {
         title: 'Knightly',
         subtitle: 'Campus community & feed',
-        right: <HeaderAvatar />,
+        right: <KnightlyHeaderRight />,
       };
   }
 }

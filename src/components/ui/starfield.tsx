@@ -15,54 +15,31 @@ import { Brand } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useTheme } from "@/hooks/use-theme";
 
-type Star = {
-  id: number;
-  x: number;
-  y: number;
-  size: number;
-  opacity: number;
-  color: string;
-  isSparkle?: boolean;
+import {
+  BASE_CANVAS_AREA,
+  BASE_FOREGROUND_COUNT,
+  calculateStarCounts,
+  generateStars,
+  PIXEL_9A_HEIGHT,
+  PIXEL_9A_WIDTH,
+  type Star,
+} from "@/constants/starfield";
+
+export {
+  BASE_CANVAS_AREA,
+  BASE_FOREGROUND_COUNT,
+  calculateStarCounts,
+  generateStars,
+  PIXEL_9A_HEIGHT,
+  PIXEL_9A_WIDTH,
+  type Star,
 };
 
-type ParallaxStarfieldProps = {
+export type ParallaxStarfieldProps = {
   translateX: SharedValue<number>;
   scrollY: SharedValue<number>;
   style?: StyleProp<ViewStyle>;
 };
-
-function generateStars(
-  count: number,
-  canvasWidth: number,
-  canvasHeight: number,
-  seed: number,
-  sizeRange: [number, number],
-  opacityRange: [number, number],
-  colors: string[],
-): Star[] {
-  let s = seed;
-  const rand = () => {
-    s = (s * 9301 + 49297) % 233280;
-    return s / 233280;
-  };
-
-  const stars: Star[] = [];
-  for (let i = 0; i < count; i++) {
-    const x = rand() * canvasWidth;
-    const y = rand() * canvasHeight;
-    const size =
-      Math.round((sizeRange[0] + rand() * (sizeRange[1] - sizeRange[0])) * 10) /
-      10;
-    const opacity =
-      Math.round(
-        (opacityRange[0] + rand() * (opacityRange[1] - opacityRange[0])) * 100,
-      ) / 100;
-    const color = colors[Math.floor(rand() * colors.length)];
-    const isSparkle = size >= 2.8 && rand() > 0.45;
-    stars.push({ id: i, x, y, size, opacity, color, isSparkle });
-  }
-  return stars;
-}
 
 export const ParallaxStarfield = memo(function ParallaxStarfield({
   translateX,
@@ -78,6 +55,10 @@ export const ParallaxStarfield = memo(function ParallaxStarfield({
   const canvasWidth = width * 2.2;
   const canvasHeight = height + 900;
 
+  // Responsive star counts strictly maintaining 5:3:1 ratio (distant : midground : foreground)
+  const { distant: distantCount, midground: midgroundCount, foreground: foregroundCount } =
+    useMemo(() => calculateStarCounts(canvasWidth, canvasHeight), [canvasWidth, canvasHeight]);
+
   const darkColors = useMemo(
     () => ["#FFFFFF", "#FFFFFF", "#FFFFFF", Brand.gold, "#E0F2FE", "#FFFBEA"],
     [],
@@ -90,11 +71,11 @@ export const ParallaxStarfield = memo(function ParallaxStarfield({
 
   const activeColors = isDark ? darkColors : lightColors;
 
-  // Layer 1: Distant deep field (tiny, subtle stars, slow drift)
+  // Layer 1: Distant deep field (tiny, subtle stars, slow drift) - 5x ratio
   const layer1Stars = useMemo(
     () =>
       generateStars(
-        120,
+        distantCount,
         canvasWidth,
         canvasHeight,
         1337,
@@ -102,14 +83,14 @@ export const ParallaxStarfield = memo(function ParallaxStarfield({
         isDark ? [0.35, 0.58] : [0.2, 0.4],
         activeColors,
       ),
-    [canvasWidth, canvasHeight, isDark, activeColors],
+    [distantCount, canvasWidth, canvasHeight, isDark, activeColors],
   );
 
-  // Layer 2: Midground field (medium stars, balanced drift)
+  // Layer 2: Midground field (medium stars, balanced drift) - 3x ratio
   const layer2Stars = useMemo(
     () =>
       generateStars(
-        80,
+        midgroundCount,
         canvasWidth,
         canvasHeight,
         4242,
@@ -117,14 +98,14 @@ export const ParallaxStarfield = memo(function ParallaxStarfield({
         isDark ? [0.55, 0.85] : [0.32, 0.58],
         activeColors,
       ),
-    [canvasWidth, canvasHeight, isDark, activeColors],
+    [midgroundCount, canvasWidth, canvasHeight, isDark, activeColors],
   );
 
-  // Layer 3: Foreground field (bright stars with Calvin Gold accents, faster drift for 3D depth)
+  // Layer 3: Foreground field (bright stars with Calvin Gold accents, faster drift for 3D depth) - 1x ratio
   const layer3Stars = useMemo(
     () =>
       generateStars(
-        30,
+        foregroundCount,
         canvasWidth,
         canvasHeight,
         9999,
@@ -132,7 +113,7 @@ export const ParallaxStarfield = memo(function ParallaxStarfield({
         isDark ? [0.85, 1.0] : [0.48, 0.78],
         activeColors,
       ),
-    [canvasWidth, canvasHeight, isDark, activeColors],
+    [foregroundCount, canvasWidth, canvasHeight, isDark, activeColors],
   );
 
   // Parallax transforms: Layer 1 (slowest) -> Layer 2 (medium) -> Layer 3 (fastest)
@@ -169,7 +150,7 @@ export const ParallaxStarfield = memo(function ParallaxStarfield({
         style,
       ]}
     >
-      {/* Deep distant star layer */}
+      {/* Deep distant star layer (5x ratio) */}
       <Animated.View
         style={[
           styles.canvas,
@@ -196,7 +177,7 @@ export const ParallaxStarfield = memo(function ParallaxStarfield({
         ))}
       </Animated.View>
 
-      {/* Midground star layer */}
+      {/* Midground star layer (3x ratio) */}
       <Animated.View
         style={[
           styles.canvas,
@@ -227,7 +208,7 @@ export const ParallaxStarfield = memo(function ParallaxStarfield({
         ))}
       </Animated.View>
 
-      {/* Foreground bright star layer */}
+      {/* Foreground bright star layer (1x ratio) */}
       <Animated.View
         style={[
           styles.canvas,

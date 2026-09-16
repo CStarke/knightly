@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { Brand, Colors, Radius, Spacing, WebHeaderInset, MaxContentWidth } from '@/constants/theme';
+import { Brand, Colors, Fonts, Radius, Spacing, WebHeaderInset, MaxContentWidth } from '@/constants/theme';
 
 describe('Theme & Branding Tokens', () => {
   describe('Brand Palette', () => {
@@ -94,6 +94,73 @@ describe('Theme & Branding Tokens', () => {
     it('defines web layout constraints', () => {
       assert.strictEqual(WebHeaderInset, 72);
       assert.strictEqual(MaxContentWidth, 800);
+    });
+
+    it('validates exact pixel values across spacing scale', () => {
+      assert.strictEqual(Spacing.half, 2);
+      assert.strictEqual(Spacing.one, 4);
+      assert.strictEqual(Spacing.two, 8);
+      assert.strictEqual(Spacing.three, 16);
+      assert.strictEqual(Spacing.four, 24);
+      assert.strictEqual(Spacing.five, 32);
+      assert.strictEqual(Spacing.six, 64);
+    });
+
+    it('validates exact pixel values across radius scale', () => {
+      assert.strictEqual(Radius.sm, 8);
+      assert.strictEqual(Radius.md, 12);
+      assert.strictEqual(Radius.lg, 18);
+      assert.strictEqual(Radius.xl, 26);
+      assert.strictEqual(Radius.pill, 999);
+    });
+  });
+
+  describe('Color Format & Contrast Invariants', () => {
+    const hexPattern = /^#[0-9A-Fa-f]{6}$/;
+
+    it('verifies all brand colors are valid 7-character hex strings', () => {
+      for (const [key, color] of Object.entries(Brand)) {
+        assert.match(color, hexPattern, `Brand.${key} color "${color}" is not valid hex`);
+      }
+    });
+
+    it('verifies all light semantic colors are valid hex strings', () => {
+      for (const [key, color] of Object.entries(Colors.light)) {
+        assert.match(color, hexPattern, `Colors.light.${key} color "${color}" is not valid hex`);
+      }
+    });
+
+    it('verifies all dark semantic colors are valid hex strings', () => {
+      for (const [key, color] of Object.entries(Colors.dark)) {
+        assert.match(color, hexPattern, `Colors.dark.${key} color "${color}" is not valid hex`);
+      }
+    });
+
+    it('maintains expected contrast polarities between light and dark modes', () => {
+      // Helper to calculate approximate perceived luminance (0 to 1)
+      const getLuminance = (hex: string) => {
+        const r = parseInt(hex.slice(1, 3), 16) / 255;
+        const g = parseInt(hex.slice(3, 5), 16) / 255;
+        const b = parseInt(hex.slice(5, 7), 16) / 255;
+        return 0.299 * r + 0.587 * g + 0.114 * b;
+      };
+
+      // Light mode background should be bright (> 0.8), text dark (< 0.2)
+      assert.ok(getLuminance(Colors.light.background) > 0.8);
+      assert.ok(getLuminance(Colors.light.text) < 0.2);
+
+      // Dark mode background should be very dark (< 0.1), text light (> 0.8)
+      assert.ok(getLuminance(Colors.dark.background) < 0.1);
+      assert.ok(getLuminance(Colors.dark.text) > 0.8);
+    });
+  });
+
+  describe('Typography & Font Families', () => {
+    it('defines standard font family keys', () => {
+      assert.ok(Fonts.sans, 'Fonts must define sans');
+      assert.ok(Fonts.serif, 'Fonts must define serif');
+      assert.ok(Fonts.rounded, 'Fonts must define rounded');
+      assert.ok(Fonts.mono, 'Fonts must define mono');
     });
   });
 });
