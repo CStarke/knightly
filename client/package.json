@@ -36,7 +36,7 @@
   },
   "scripts": {
     "start": "expo start",
-    "test": "tsx -r ./test-setup.js --test \"tests/**/*.test.ts\"",
+    "test": "npx tsx -r ./test-setup.js --test \"tests/**/*.test.ts\"",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo start --android",
     "ios": "expo start --ios",

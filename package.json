@@ -2,14 +2,13 @@
   "name": "knightly",
   "version": "1.0.0",
   "private": true,
-  "workspaces": [
-    "client",
-    "server"
-  ],
   "scripts": {
+    "server": "npm --prefix server install && npm --prefix server run dev",
+    "client": "npm --prefix client install && npm --prefix client start",
+    "install:all": "npm --prefix server install && npm --prefix client install",
+    "test": "npm run test:unit",
+    "test:unit": "npm --prefix server test && npm --prefix client test",
     "start": "npm --prefix client start",
-    "test": "npm --prefix client test",
-    "lint": "npm --prefix client run lint",
     "android": "npm --prefix client run android",
     "ios": "npm --prefix client run ios",
     "web": "npm --prefix client run web"
