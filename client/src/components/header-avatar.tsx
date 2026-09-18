@@ -7,13 +7,18 @@ import {
   View,
 } from 'react-native';
 
+import { Icon } from '@/components/ui/icon';
 import { ThemedText } from '@/components/themed-text';
 import { Brand, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
+import { useClubLeadership } from '@/context/club-leadership-context';
+import { useTheme } from '@/hooks/use-theme';
 import { student } from '@/data/student';
 
 export function HeaderAvatar() {
+  const theme = useTheme();
   const { user, signOut } = useAuth();
+  const { openClaimModal } = useClubLeadership();
   const [sheetVisible, setSheetVisible] = useState(false);
 
   const firstName = user?.firstName ?? student.firstName;
@@ -25,6 +30,11 @@ export function HeaderAvatar() {
   const studentId = user?.id ?? student.id;
 
   const initials = `${firstName[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase() || 'JD';
+
+  const handleClaimClub = () => {
+    setSheetVisible(false);
+    openClaimModal('profile');
+  };
 
   const handleSignOut = () => {
     setSheetVisible(false);
@@ -52,6 +62,17 @@ export function HeaderAvatar() {
           <View style={styles.overlay}>
             <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
               <View style={styles.sheet}>
+                {/* Close X Button */}
+                <Pressable
+                  onPress={() => setSheetVisible(false)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close"
+                  style={styles.closeButton}
+                >
+                  <Icon sf="xmark" md="close" size={18} color={theme.textMuted} />
+                </Pressable>
+
                 {/* Drag Handle Indicator */}
                 <View style={styles.handle} />
 
@@ -104,8 +125,23 @@ export function HeaderAvatar() {
                   </View>
                 </View>
 
-                {/* Actions: Sign Out & Close */}
+                {/* Actions: Claim Club, Sign Out & Close */}
                 <View style={styles.actions}>
+                  <Pressable
+                    onPress={handleClaimClub}
+                    accessibilityRole="button"
+                    accessibilityLabel="Claim Club Leadership"
+                    style={({ pressed }) => [
+                      styles.actionButton,
+                      styles.claimClubButton,
+                      pressed && styles.buttonPressed,
+                    ]}>
+                    <Icon sf="key.fill" md="vpn_key" size={16} color={Brand.gold} />
+                    <ThemedText style={styles.claimClubButtonText}>
+                      Claim Club Leadership
+                    </ThemedText>
+                  </Pressable>
+
                   <Pressable
                     onPress={handleSignOut}
                     accessibilityRole="button"
@@ -169,10 +205,20 @@ const styles = StyleSheet.create({
     maxWidth: 420,
     backgroundColor: '#1C1D21',
     borderRadius: Radius.xl,
-    padding: Spacing.four,
+    paddingHorizontal: Spacing.three + 4,
+    paddingTop: Spacing.four,
+    paddingBottom: Spacing.three + 4,
     gap: Spacing.three,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
+    position: 'relative',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: Spacing.two + 4,
+    right: Spacing.three + 4,
+    zIndex: 10,
+    padding: 4,
   },
   handle: {
     width: 40,
@@ -243,6 +289,20 @@ const styles = StyleSheet.create({
   },
   buttonPressed: {
     opacity: 0.8,
+  },
+  claimClubButton: {
+    backgroundColor: 'rgba(243, 195, 0, 0.12)',
+    borderWidth: 1,
+    borderColor: Brand.gold,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  claimClubButtonText: {
+    color: Brand.gold,
+    fontWeight: '700',
+    fontSize: 15,
   },
   signOutButton: {
     backgroundColor: Brand.brightRed,

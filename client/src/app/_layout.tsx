@@ -3,10 +3,14 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { ClaimClubModal } from '@/components/claim-club-modal';
 import { LoginScreen } from '@/components/login-screen';
 import { Brand, Colors } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/context/auth-context';
 import { ClubFollowProvider } from '@/context/club-follow-context';
+import { ClubLeadershipProvider } from '@/context/club-leadership-context';
+import { FeedProvider } from '@/context/feed-context';
+import { ImageCropperProvider } from '@/context/image-cropper-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 const lightTheme = {
@@ -43,7 +47,13 @@ export default function RootLayout() {
       <ThemeProvider value={isDark ? darkTheme : lightTheme}>
         <AuthProvider>
           <ClubFollowProvider>
-            <RootNavigator isDark={isDark} />
+            <ClubLeadershipProvider>
+              <FeedProvider>
+                <ImageCropperProvider>
+                  <RootNavigator isDark={isDark} />
+                </ImageCropperProvider>
+              </FeedProvider>
+            </ClubLeadershipProvider>
           </ClubFollowProvider>
         </AuthProvider>
       </ThemeProvider>
@@ -86,6 +96,10 @@ function RootNavigator({ isDark }: { isDark: boolean }) {
             options={{ animation: 'slide_from_right' }}
           />
           <Stack.Screen
+            name="complete-club-profile"
+            options={{ animation: 'slide_from_right' }}
+          />
+          <Stack.Screen
             name="login"
             options={{ animation: 'fade' }}
           />
@@ -94,6 +108,9 @@ function RootNavigator({ isDark }: { isDark: boolean }) {
 
       {/* Startup Login Screen: full maroon, ensures no bottom bar or tabs show on startup */}
       {!isAuthenticated && <LoginScreen />}
+
+      {/* Global Claim Club Leadership Modal */}
+      {isAuthenticated && <ClaimClubModal />}
     </View>
   );
 }

@@ -23,39 +23,37 @@ const TRACK_PADDING = 4;
  */
 export function Segmented<T extends string>({ options, value, onChange }: SegmentedProps<T>) {
   const theme = useTheme();
-  const [trackWidth, setTrackWidth] = useState(0);
+  const [contentWidth, setContentWidth] = useState(0);
 
   const selectedIndex = Math.max(0, options.indexOf(value));
   const translateX = useSharedValue(0);
   const isInitialized = useSharedValue(false);
 
-  const handleLayout = (event: LayoutChangeEvent) => {
+  const handleInnerLayout = (event: LayoutChangeEvent) => {
     const width = event.nativeEvent.layout.width;
-    if (width > 0 && Math.abs(width - trackWidth) > 1) {
-      setTrackWidth(width);
+    if (width > 0 && Math.abs(width - contentWidth) > 0.5) {
+      setContentWidth(width);
     }
   };
 
-  const pillWidth =
-    trackWidth > 0 ? (trackWidth - TRACK_PADDING * 2) / options.length : 0;
+  const segmentWidth = contentWidth > 0 ? contentWidth / options.length : 0;
 
   useEffect(() => {
-    if (trackWidth <= 0) return;
-    const innerWidth = trackWidth - TRACK_PADDING * 2;
-    const widthPerSegment = innerWidth / options.length;
-    const targetX = selectedIndex * widthPerSegment;
+    if (contentWidth <= 0 || segmentWidth <= 0) return;
+    const targetX = selectedIndex * segmentWidth;
 
     if (!isInitialized.value) {
       translateX.value = targetX;
       isInitialized.value = true;
     } else {
       translateX.value = withSpring(targetX, {
-        damping: 24,
-        stiffness: 240,
-        mass: 0.8,
+        damping: 26,
+        stiffness: 260,
+        mass: 0.7,
+        overshootClamping: true,
       });
     }
-  }, [selectedIndex, trackWidth, options.length, translateX, isInitialized]);
+  }, [selectedIndex, contentWidth, segmentWidth, translateX, isInitialized]);
 
   const pillAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
@@ -63,7 +61,6 @@ export function Segmented<T extends string>({ options, value, onChange }: Segmen
 
   return (
     <View
-      onLayout={handleLayout}
       style={[
         styles.track,
         {
@@ -71,62 +68,69 @@ export function Segmented<T extends string>({ options, value, onChange }: Segmen
           borderColor: theme.border,
         },
       ]}>
-      {/* Animated sliding indicator pill */}
-      {pillWidth > 0 ? (
-        <Animated.View
-          style={[
-            styles.pill,
-            {
-              width: pillWidth,
-              backgroundColor: Brand.maroon,
-            },
-            pillAnimatedStyle,
-          ]}
-        />
-      ) : null}
+      <View style={styles.innerTrack} onLayout={handleInnerLayout}>
+        {/* Animated sliding indicator pill */}
+        {segmentWidth > 0 ? (
+          <Animated.View
+            style={[
+              styles.pill,
+              {
+                width: segmentWidth,
+                backgroundColor: Brand.maroon,
+              },
+              pillAnimatedStyle,
+            ]}
+          />
+        ) : null}
 
-      {options.map((option) => {
-        const selected = option === value;
+        {options.map((option) => {
+          const selected = option === value;
 
-        return (
-          <Pressable
-            key={option}
-            onPress={() => onChange(option)}
-            accessibilityRole="button"
-            accessibilityState={{ selected }}
-            style={({ pressed }) => [
-              styles.segment,
-              pressed && !selected && styles.pressed,
-            ]}>
-            <ThemedText
-              type="smallBold"
-              style={[
-                styles.label,
-                { color: selected ? '#FFFFFF' : theme.textSecondary },
-              ]}
-              numberOfLines={1}>
-              {option}
-            </ThemedText>
-          </Pressable>
-        );
-      })}
+          return (
+            <Pressable
+              key={option}
+              onPress={() => onChange(option)}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              style={({ pressed }) => [
+                styles.segment,
+                pressed && !selected && styles.pressed,
+              ]}>
+              <ThemedText
+                type="smallBold"
+                style={[
+                  styles.label,
+                  { color: selected ? '#FFFFFF' : theme.textSecondary },
+                ]}
+                numberOfLines={1}>
+                {option}
+              </ThemedText>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   track: {
-    flexDirection: 'row',
-    position: 'relative',
     borderRadius: Radius.pill,
     padding: TRACK_PADDING,
     borderWidth: 1,
+    overflow: 'hidden',
+  },
+  innerTrack: {
+    flexDirection: 'row',
+    position: 'relative',
+    alignItems: 'center',
+    width: '100%',
   },
   pill: {
     position: 'absolute',
-    top: TRACK_PADDING,
-    left: TRACK_PADDING,
-    bottom: TRACK_PADDING,
+    top: 0,
+    left: 0,
+    bottom: 0,
     borderRadius: Radius.pill,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
@@ -139,6 +143,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: Spacing.two + 1,
+    paddingHorizontal: Spacing.one,
     borderRadius: Radius.pill,
     zIndex: 1,
   },
@@ -149,5 +154,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 0.2,
+    textAlign: 'center',
   },
 });

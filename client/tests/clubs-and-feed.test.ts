@@ -8,6 +8,7 @@ import {
   searchClubs,
 } from '@/data/clubs';
 import {
+  feedCategories,
   forYouPosts,
   getPostsByClubId,
   posts,
@@ -357,16 +358,7 @@ describe('Clubs & Feed Follow Domain', () => {
 
   describe('Club Data Invariants & Schema Integrity', () => {
     it('verifies all club categories match registered feed categories', () => {
-      const allowedCategories = new Set([
-        'The Arts',
-        'Athletics',
-        'Music',
-        'Academics',
-        'Faith',
-        'Service',
-        'Social',
-        'Outdoors',
-      ]);
+      const allowedCategories = new Set(feedCategories);
       for (const club of CALVIN_CLUBS) {
         assert.ok(
           allowedCategories.has(club.category),

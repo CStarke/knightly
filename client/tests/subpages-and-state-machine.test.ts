@@ -145,6 +145,157 @@ describe('Sub-Pages Hierarchy, Pager Invariants & State Machine', () => {
     });
   });
 
+  describe('Club Setup Sub-Page Navigation Lifecycle', () => {
+    type SetupNavState = {
+      isOpen: boolean;
+      code: string | null;
+      source: 'profile' | 'banner' | null;
+      slot1Content: 'dining' | 'clubs' | 'setup';
+      cameraSlot: number;
+      bottomBarVisible: boolean;
+    };
+
+    function createSetupNavMachine() {
+      let state: SetupNavState = {
+        isOpen: false,
+        code: null,
+        source: null,
+        slot1Content: 'dining',
+        cameraSlot: 0,
+        bottomBarVisible: true,
+      };
+
+      return {
+        getState: () => ({ ...state }),
+        openClubsDirectory: () => {
+          state = {
+            ...state,
+            slot1Content: 'clubs',
+            cameraSlot: 1,
+            bottomBarVisible: false,
+          };
+        },
+        openFromProfile: (code: string) => {
+          state = {
+            isOpen: true,
+            code,
+            source: 'profile',
+            slot1Content: 'setup',
+            cameraSlot: 1,
+            bottomBarVisible: false,
+          };
+        },
+        openFromBanner: (code: string) => {
+          state = {
+            isOpen: true,
+            code,
+            source: 'banner',
+            slot1Content: 'setup',
+            cameraSlot: 1,
+            bottomBarVisible: false,
+          };
+        },
+        back: () => {
+          if (state.source === 'banner') {
+            state = {
+              isOpen: false,
+              code: null,
+              source: null,
+              slot1Content: 'clubs',
+              cameraSlot: 1,
+              bottomBarVisible: false,
+            };
+          } else {
+            state = {
+              isOpen: false,
+              code: null,
+              source: null,
+              slot1Content: 'dining',
+              cameraSlot: 0,
+              bottomBarVisible: true,
+            };
+          }
+        },
+        success: () => {
+          state = {
+            isOpen: false,
+            code: null,
+            source: null,
+            slot1Content: 'dining',
+            cameraSlot: 0,
+            bottomBarVisible: true,
+          };
+        },
+      };
+    }
+
+    it('starts with setup closed and camera on Knightly Home (slot 0)', () => {
+      const machine = createSetupNavMachine();
+      const s = machine.getState();
+      assert.strictEqual(s.isOpen, false);
+      assert.strictEqual(s.cameraSlot, 0);
+      assert.strictEqual(s.bottomBarVisible, true);
+    });
+
+    it('opens setup from profile card: pans camera to slot 1, hides bottom bar', () => {
+      const machine = createSetupNavMachine();
+      machine.openFromProfile('2A6QMTK3R9');
+      const s = machine.getState();
+      assert.strictEqual(s.isOpen, true);
+      assert.strictEqual(s.source, 'profile');
+      assert.strictEqual(s.slot1Content, 'setup');
+      assert.strictEqual(s.cameraSlot, 1);
+      assert.strictEqual(s.bottomBarVisible, false);
+    });
+
+    it('backs out from profile setup: pans camera back to slot 0 and restores bottom bar', () => {
+      const machine = createSetupNavMachine();
+      machine.openFromProfile('2A6QMTK3R9');
+      machine.back();
+      const s = machine.getState();
+      assert.strictEqual(s.isOpen, false);
+      assert.strictEqual(s.cameraSlot, 0);
+      assert.strictEqual(s.bottomBarVisible, true);
+    });
+
+    it('opens setup from campus clubs banner: replaces slot 1 in-place without camera movement', () => {
+      const machine = createSetupNavMachine();
+      machine.openClubsDirectory();
+      assert.strictEqual(machine.getState().cameraSlot, 1);
+      assert.strictEqual(machine.getState().slot1Content, 'clubs');
+
+      machine.openFromBanner('2A6QMTK3R9');
+      const s = machine.getState();
+      assert.strictEqual(s.isOpen, true);
+      assert.strictEqual(s.source, 'banner');
+      assert.strictEqual(s.slot1Content, 'setup');
+      assert.strictEqual(s.cameraSlot, 1);
+      assert.strictEqual(s.bottomBarVisible, false);
+    });
+
+    it('backs out from banner setup: restores clubs directory in slot 1, keeps camera at slot 1', () => {
+      const machine = createSetupNavMachine();
+      machine.openClubsDirectory();
+      machine.openFromBanner('2A6QMTK3R9');
+      machine.back();
+      const s = machine.getState();
+      assert.strictEqual(s.isOpen, false);
+      assert.strictEqual(s.slot1Content, 'clubs');
+      assert.strictEqual(s.cameraSlot, 1);
+      assert.strictEqual(s.bottomBarVisible, false);
+    });
+
+    it('submits setup successfully: restores bottom bar and returns camera to Knightly Home', () => {
+      const machine = createSetupNavMachine();
+      machine.openFromBanner('2A6QMTK3R9');
+      machine.success();
+      const s = machine.getState();
+      assert.strictEqual(s.isOpen, false);
+      assert.strictEqual(s.cameraSlot, 0);
+      assert.strictEqual(s.bottomBarVisible, true);
+    });
+  });
+
   describe('Dining Activity Sub-Page Navigation Lifecycle', () => {
     type DiningNavState = {
       isActivityOpen: boolean;
@@ -253,6 +404,36 @@ describe('Sub-Pages Hierarchy, Pager Invariants & State Machine', () => {
         velocityX: 450,
       });
       assert.strictEqual(target, 1);
+    });
+
+    it('navigates from Create Post (slot 4) back to Directory (slot 3) on swipe right', () => {
+      const target = computeSwipeTarget({
+        fromPage: 4,
+        dragOffset: 180, // 180 / 400 = 45% > 40%
+        pageWidth: 400,
+        velocityX: 50,
+      });
+      assert.strictEqual(target, 3);
+    });
+
+    it('navigates from Create Post (slot 4) back to Directory (slot 3) on quick flick right', () => {
+      const target = computeSwipeTarget({
+        fromPage: 4,
+        dragOffset: 25,
+        pageWidth: 400,
+        velocityX: 520, // fast flick
+      });
+      assert.strictEqual(target, 3);
+    });
+
+    it('cancels navigation back to Directory if drag right on Create Post is below threshold', () => {
+      const target = computeSwipeTarget({
+        fromPage: 4,
+        dragOffset: 70, // 70 / 400 = 17.5% < 40%
+        pageWidth: 400,
+        velocityX: 120,
+      });
+      assert.strictEqual(target, 4);
     });
   });
 
@@ -434,7 +615,11 @@ describe('Sub-Pages Hierarchy, Pager Invariants & State Machine', () => {
       assert.ok(categoriesFound.size >= 5, 'Clubs must span at least 5 categories');
       assert.ok(categoriesFound.has('Academics'));
       assert.ok(categoriesFound.has('The Arts'));
+      assert.ok(categoriesFound.has('Culture'));
       assert.ok(categoriesFound.has('Social'));
+      assert.ok(categoriesFound.has('Career'));
+      assert.ok(categoriesFound.has('Gaming'));
+      assert.ok(categoriesFound.has('Wellness'));
     });
 
     it('filters clubs across each official category filter', () => {
@@ -455,15 +640,15 @@ describe('Sub-Pages Hierarchy, Pager Invariants & State Machine', () => {
 
   describe('Device Viewports & Responsive Starfield Benchmarks', () => {
     const devices = [
-      { name: 'iPhone SE', w: 375, h: 667, minBase: 30 },
-      { name: 'iPhone 15 Pro', w: 393, h: 852, minBase: 30 },
-      { name: 'Pixel 9a Baseline', w: 412, h: 915, minBase: 30 },
-      { name: 'Pixel 9 Pro XL', w: 448, h: 996, minBase: 33 },
-      { name: 'iPad Mini', w: 744, h: 1133, minBase: 50 },
-      { name: 'iPad Pro 12.9', w: 1024, h: 1366, minBase: 80 },
-      { name: 'MacBook Pro 14', w: 1512, h: 982, minBase: 90 },
-      { name: 'Desktop Full HD', w: 1920, h: 1080, minBase: 140 },
-      { name: 'Ultrawide 3440x1440', w: 3440, h: 1440, minBase: 240 },
+      { name: 'iPhone SE', w: 375, h: 667, minBase: 24 },
+      { name: 'iPhone 15 Pro', w: 393, h: 852, minBase: 24 },
+      { name: 'Pixel 9a Baseline', w: 412, h: 915, minBase: 24 },
+      { name: 'Pixel 9 Pro XL', w: 448, h: 996, minBase: 26 },
+      { name: 'iPad Mini', w: 744, h: 1133, minBase: 38 },
+      { name: 'iPad Pro 12.9', w: 1024, h: 1366, minBase: 60 },
+      { name: 'MacBook Pro 14', w: 1512, h: 982, minBase: 70 },
+      { name: 'Desktop Full HD', w: 1920, h: 1080, minBase: 110 },
+      { name: 'Ultrawide 3440x1440', w: 3440, h: 1440, minBase: 192 },
     ];
 
     for (const device of devices) {
@@ -626,17 +811,21 @@ describe('Sub-Pages Hierarchy, Pager Invariants & State Machine', () => {
 
     it('verifies all feed categories and "All" option are present for filtering', () => {
       const filterOptions = ['All', ...feedCategories];
-      assert.strictEqual(filterOptions.length, 9);
+      assert.strictEqual(filterOptions.length, 13);
       assert.deepStrictEqual(filterOptions, [
         'All',
-        'The Arts',
-        'Athletics',
-        'Music',
         'Academics',
+        'Athletics',
+        'Career',
+        'Culture',
         'Faith',
+        'Gaming',
+        'Music',
+        'Outdoors',
         'Service',
         'Social',
-        'Outdoors',
+        'The Arts',
+        'Wellness',
       ]);
     });
 

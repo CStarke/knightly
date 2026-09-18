@@ -1,3 +1,23 @@
+/**
+ * Campus Safety & Emergency Dispatch Screen (Slot 2)
+ *
+ * ARCHITECTURAL CONTEXT & RATIONALE:
+ * In campus emergency situations (medical distress, suspicious activity, nighttime security),
+ * students need immediate, zero-friction access to assistance.
+ *
+ * ERGONOMIC & SAFETY DECISIONS:
+ * 1. Immediate 1-Tap Emergency Button:
+ *    A full-width, high-contrast red button is anchored at the very top of the viewport
+ *    (`tel:6165263333`). In a crisis or darkness, students must not have to search through
+ *    scroll views or menus to dial dispatch.
+ * 2. Safe Walk & Incident Reporting:
+ *    Provides one-tap pathways to Calvin's student-escort service and anonymous incident
+ *    reporting.
+ * 3. Recent Alerts Stream:
+ *    Displays campus safety advisories, weather emergencies, and active warnings issued within
+ *    the past 48 hours.
+ */
+
 import { Linking, StyleSheet, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
@@ -22,6 +42,7 @@ export default function SafetyScreen() {
 
   return (
     <Screen>
+      {/* Primary Emergency Action: Immediate 1-tap dialer to Calvin Dispatch */}
       <Button
         label="Call Campus Safety (Emergency)"
         variant="danger"

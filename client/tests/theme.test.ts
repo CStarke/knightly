@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { Brand, Colors, Fonts, Radius, Spacing, WebHeaderInset, MaxContentWidth } from '@/constants/theme';
+import { Brand, Colors, Fonts, Radius, Spacing, WebHeaderInset, MaxContentWidth, BottomTabContentInset } from '@/constants/theme';
 
 describe('Theme & Branding Tokens', () => {
   describe('Brand Palette', () => {
@@ -21,6 +21,7 @@ describe('Theme & Branding Tokens', () => {
       assert.strictEqual(Brand.brightRed, '#C2002F');
       assert.strictEqual(Brand.renewBlue, '#71B1C8');
       assert.strictEqual(Brand.trueGreen, '#A2D683');
+      assert.strictEqual(Brand.renewGreen, '#A2D683');
     });
 
     it('defines standard neutrals', () => {
@@ -94,6 +95,10 @@ describe('Theme & Branding Tokens', () => {
     it('defines web layout constraints', () => {
       assert.strictEqual(WebHeaderInset, 72);
       assert.strictEqual(MaxContentWidth, 800);
+    });
+
+    it('defines standardized bottom tab content inset', () => {
+      assert.strictEqual(BottomTabContentInset, 96);
     });
 
     it('validates exact pixel values across spacing scale', () => {

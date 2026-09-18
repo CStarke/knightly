@@ -11,15 +11,15 @@ import {
 
 describe('Starfield Responsive Scaling & 5:3:1 Ratio Domain', () => {
   describe('Pixel 9a Baseline Reference', () => {
-    it('produces exactly 150 distant, 90 midground, and 30 foreground stars on Pixel 9a', () => {
+    it('produces exactly 120 distant, 72 midground, and 24 foreground stars on Pixel 9a', () => {
       const canvasWidth = PIXEL_9A_WIDTH * 2.2;
       const canvasHeight = PIXEL_9A_HEIGHT + 900;
       const counts = calculateStarCounts(canvasWidth, canvasHeight);
 
-      assert.strictEqual(counts.baseUnit, 30);
-      assert.strictEqual(counts.distant, 150);
-      assert.strictEqual(counts.midground, 90);
-      assert.strictEqual(counts.foreground, 30);
+      assert.strictEqual(counts.baseUnit, 24);
+      assert.strictEqual(counts.distant, 120);
+      assert.strictEqual(counts.midground, 72);
+      assert.strictEqual(counts.foreground, 24);
       assert.deepStrictEqual(counts.ratio, [5, 3, 1]);
     });
 
@@ -40,8 +40,8 @@ describe('Starfield Responsive Scaling & 5:3:1 Ratio Domain', () => {
       const proMaxCanvasH = 932 + 900;
       const proMaxCounts = calculateStarCounts(proMaxCanvasW, proMaxCanvasH);
 
-      assert.ok(proMaxCounts.foreground >= 30, 'Should have at least baseline foreground stars');
-      assert.ok(proMaxCounts.distant >= 150, 'Should have at least baseline distant stars');
+      assert.ok(proMaxCounts.foreground >= 24, 'Should have at least baseline foreground stars');
+      assert.ok(proMaxCounts.distant >= 120, 'Should have at least baseline distant stars');
       assert.strictEqual(proMaxCounts.distant / proMaxCounts.foreground, 5);
       assert.strictEqual(proMaxCounts.midground / proMaxCounts.foreground, 3);
     });
@@ -52,10 +52,10 @@ describe('Starfield Responsive Scaling & 5:3:1 Ratio Domain', () => {
       const tabletCanvasH = 1194 + 900;
       const tabletCounts = calculateStarCounts(tabletCanvasW, tabletCanvasH);
 
-      assert.ok(tabletCounts.baseUnit >= 60, 'Tablet base unit should be at least double a phone');
-      assert.ok(tabletCounts.distant >= 300, 'Tablet distant stars should be at least 300');
-      assert.ok(tabletCounts.midground >= 180, 'Tablet midground stars should be at least 180');
-      assert.ok(tabletCounts.foreground >= 60, 'Tablet foreground stars should be at least 60');
+      assert.ok(tabletCounts.baseUnit >= 40, 'Tablet base unit should be at least double a phone');
+      assert.ok(tabletCounts.distant >= 200, 'Tablet distant stars should be at least 200');
+      assert.ok(tabletCounts.midground >= 120, 'Tablet midground stars should be at least 120');
+      assert.ok(tabletCounts.foreground >= 40, 'Tablet foreground stars should be at least 40');
 
       // Check 5:3:1 ratio
       assert.strictEqual(tabletCounts.distant, tabletCounts.baseUnit * 5);
@@ -69,10 +69,10 @@ describe('Starfield Responsive Scaling & 5:3:1 Ratio Domain', () => {
       const webCanvasH = 1080 + 900;
       const webCounts = calculateStarCounts(webCanvasW, webCanvasH);
 
-      assert.ok(webCounts.baseUnit >= 140, 'Desktop web should have at least 140 base unit');
-      assert.ok(webCounts.distant >= 700, 'Desktop web should have at least 700 distant stars');
-      assert.ok(webCounts.midground >= 420, 'Desktop web should have at least 420 midground stars');
-      assert.ok(webCounts.foreground >= 140, 'Desktop web should have at least 140 foreground stars');
+      assert.ok(webCounts.baseUnit >= 100, 'Desktop web should have at least 100 base unit');
+      assert.ok(webCounts.distant >= 500, 'Desktop web should have at least 500 distant stars');
+      assert.ok(webCounts.midground >= 300, 'Desktop web should have at least 300 midground stars');
+      assert.ok(webCounts.foreground >= 100, 'Desktop web should have at least 100 foreground stars');
 
       // Strictly 5:3:1
       assert.strictEqual(webCounts.distant / webCounts.foreground, 5);
@@ -85,10 +85,10 @@ describe('Starfield Responsive Scaling & 5:3:1 Ratio Domain', () => {
       const smallCanvasH = 640 + 900;
       const smallCounts = calculateStarCounts(smallCanvasW, smallCanvasH);
 
-      assert.strictEqual(smallCounts.baseUnit, 30, 'Should not drop below 30 base unit');
-      assert.strictEqual(smallCounts.distant, 150);
-      assert.strictEqual(smallCounts.midground, 90);
-      assert.strictEqual(smallCounts.foreground, 30);
+      assert.strictEqual(smallCounts.baseUnit, 24, 'Should not drop below 24 base unit');
+      assert.strictEqual(smallCounts.distant, 120);
+      assert.strictEqual(smallCounts.midground, 72);
+      assert.strictEqual(smallCounts.foreground, 24);
     });
 
     it('clamps scaling at maximum of 8x on extreme multi-monitor or ultra-wide setups', () => {
@@ -97,11 +97,11 @@ describe('Starfield Responsive Scaling & 5:3:1 Ratio Domain', () => {
       const extremeCanvasH = 4320 + 900;
       const extremeCounts = calculateStarCounts(extremeCanvasW, extremeCanvasH);
 
-      const maxBaseUnit = BASE_FOREGROUND_COUNT * 8; // 240
+      const maxBaseUnit = BASE_FOREGROUND_COUNT * 8; // 192
       assert.strictEqual(extremeCounts.baseUnit, maxBaseUnit);
-      assert.strictEqual(extremeCounts.distant, maxBaseUnit * 5); // 1200
-      assert.strictEqual(extremeCounts.midground, maxBaseUnit * 3); // 720
-      assert.strictEqual(extremeCounts.foreground, maxBaseUnit * 1); // 240
+      assert.strictEqual(extremeCounts.distant, maxBaseUnit * 5); // 960
+      assert.strictEqual(extremeCounts.midground, maxBaseUnit * 3); // 576
+      assert.strictEqual(extremeCounts.foreground, maxBaseUnit * 1); // 192
       assert.strictEqual(extremeCounts.distant / extremeCounts.foreground, 5);
       assert.strictEqual(extremeCounts.midground / extremeCounts.foreground, 3);
     });
@@ -187,13 +187,13 @@ describe('Starfield Responsive Scaling & 5:3:1 Ratio Domain', () => {
 
     it('handles degenerate zero or negative canvas sizes safely', () => {
       const zeroCounts = calculateStarCounts(0, 0);
-      assert.strictEqual(zeroCounts.baseUnit, 30);
-      assert.strictEqual(zeroCounts.distant, 150);
-      assert.strictEqual(zeroCounts.midground, 90);
-      assert.strictEqual(zeroCounts.foreground, 30);
+      assert.strictEqual(zeroCounts.baseUnit, 24);
+      assert.strictEqual(zeroCounts.distant, 120);
+      assert.strictEqual(zeroCounts.midground, 72);
+      assert.strictEqual(zeroCounts.foreground, 24);
 
       const negativeCounts = calculateStarCounts(-500, -500);
-      assert.strictEqual(negativeCounts.baseUnit, 30);
+      assert.strictEqual(negativeCounts.baseUnit, 24);
     });
   });
 });

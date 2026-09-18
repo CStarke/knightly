@@ -436,6 +436,8 @@ export function LoginScreen() {
                       }}
                       onFocus={() => setUserFocused(true)}
                       onBlur={() => setUserFocused(false)}
+                      cursorColor={Brand.gold}
+                      selectionColor={Brand.gold}
                       placeholder="Calvin username or email"
                       placeholderTextColor="rgba(255, 255, 255, 0.55)"
                       autoCapitalize="none"
@@ -459,6 +461,8 @@ export function LoginScreen() {
                         }}
                         onFocus={() => setPassFocused(true)}
                         onBlur={() => setPassFocused(false)}
+                        cursorColor={Brand.gold}
+                        selectionColor={Brand.gold}
                         placeholder="Password"
                         placeholderTextColor="rgba(255, 255, 255, 0.55)"
                         secureTextEntry={!showPassword}
@@ -499,6 +503,7 @@ export function LoginScreen() {
                   <Pressable
                     onPress={handleSignIn}
                     disabled={!canSubmit || isTransitioning}
+                    focusable={false}
                     accessibilityRole="button"
                     accessibilityLabel="Sign In"
                     style={({ pressed }) => [
@@ -512,6 +517,7 @@ export function LoginScreen() {
                   {/* Quick Fill Demo Helper */}
                   <Pressable
                     onPress={fillDemoCredentials}
+                    focusable={false}
                     style={({ pressed }) => [
                       styles.demoButton,
                       pressed && { opacity: 0.7 },
@@ -721,10 +727,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     paddingVertical: Spacing.two + 4,
     paddingHorizontal: 0,
+    outlineWidth: 0,
+    outlineColor: 'transparent',
   },
   singleLineInputFocused: {
     borderBottomColor: Brand.gold,
-    borderBottomWidth: 2,
+    borderBottomWidth: 1.5,
   },
   passwordRow: {
     position: 'relative',
@@ -738,6 +746,8 @@ const styles = StyleSheet.create({
     right: 0,
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.one,
+    outlineWidth: 0,
+    outlineColor: 'transparent',
   },
   errorContainer: {
     marginTop: -Spacing.two,
@@ -754,20 +764,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: Spacing.two,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
-    elevation: 3,
+    overflow: 'hidden',
+    outlineWidth: 0,
+    outlineColor: 'transparent',
   },
   goldButtonDisabled: {
     opacity: 0.45,
-    shadowOpacity: 0,
-    elevation: 0,
   },
   goldButtonPressed: {
-    opacity: 0.85,
     backgroundColor: Brand.goldDark,
+    outlineWidth: 0,
+    outlineColor: 'transparent',
   },
   goldButtonText: {
     fontFamily: Fonts.sans,
@@ -779,6 +786,8 @@ const styles = StyleSheet.create({
   demoButton: {
     alignItems: 'center',
     paddingVertical: Spacing.two,
+    outlineWidth: 0,
+    outlineColor: 'transparent',
   },
   demoButtonText: {
     fontFamily: Fonts.sans,

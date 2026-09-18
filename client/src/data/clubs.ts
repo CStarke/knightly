@@ -22,6 +22,24 @@ export type Club = {
 
 export const CALVIN_CLUBS: Club[] = [
   {
+    id: 'abstraction',
+    name: 'Abstraction',
+    category: 'Academics',
+    mark: 'AB',
+    tagline: 'Calvin’s premier software & creative coding guild',
+    description:
+      'A community of student developers building creative software projects, exploring algorithms, and participating in regional hackathons.',
+    meetingSchedule: 'Wednesdays · 6:30 PM - 8:30 PM',
+    location: 'North Hall 276 (CS Lab)',
+    contactEmail: 'abstraction@calvin.edu',
+    leader: 'Pending Claim (Student Leader)',
+    colors: ['#0A2E36', '#14B8A6'],
+    sf: 'chevron.left.forwardslash.chevron.right',
+    md: 'code',
+    image:
+      'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=800&q=80',
+  },
+  {
     id: 'acm',
     name: 'ACM Student Chapter',
     category: 'Academics',
@@ -150,7 +168,7 @@ export const CALVIN_CLUBS: Club[] = [
   {
     id: 'isa',
     name: 'International Student Association',
-    category: 'Social',
+    category: 'Culture',
     mark: 'IS',
     tagline: 'Celebrating global cultures and community at Calvin',
     description:
@@ -168,7 +186,7 @@ export const CALVIN_CLUBS: Club[] = [
   {
     id: 'calvin-esports',
     name: 'Calvin Esports',
-    category: 'Social',
+    category: 'Gaming',
     mark: 'CE',
     tagline: 'Competitive & casual collegiate gaming',
     description:
@@ -186,7 +204,7 @@ export const CALVIN_CLUBS: Club[] = [
   {
     id: 'pre-med',
     name: 'Pre-Med Society',
-    category: 'Academics',
+    category: 'Career',
     mark: 'PM',
     tagline: 'Clinical shadowing, suture clinics & MCAT cohorts',
     description:
@@ -373,6 +391,24 @@ export const CALVIN_CLUBS: Club[] = [
     image:
       'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80',
     isDepartment: true,
+  },
+  {
+    id: 'active-minds',
+    name: 'Active Minds',
+    category: 'Wellness',
+    mark: 'AM',
+    tagline: 'Mental health advocacy, peer wellness & community care',
+    description:
+      'Student-led chapter dedicated to opening campus conversations around mental health, wellness workshops, de-stress study breaks, and destigmatizing mental health care at Calvin.',
+    meetingSchedule: 'Thursdays · 6:00 PM',
+    location: 'Spoelhof Center 210',
+    contactEmail: 'activeminds@calvin.edu',
+    leader: 'Maya Lin (President)',
+    colors: ['#0E7490', '#06B6D4'],
+    sf: 'heart.text.square.fill',
+    md: 'health_and_safety',
+    image:
+      'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=800&q=80',
   },
 ];
 

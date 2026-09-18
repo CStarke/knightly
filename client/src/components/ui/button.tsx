@@ -9,6 +9,7 @@ type ButtonProps = {
   label: string;
   caption?: string;
   onPress?: () => void;
+  disabled?: boolean;
   variant?: 'primary' | 'secondary' | 'danger';
   sf?: SfSymbolName;
   md?: MaterialSymbolName;
@@ -20,6 +21,7 @@ export function Button({
   label,
   caption,
   onPress,
+  disabled = false,
   variant = 'primary',
   sf,
   md,
@@ -34,14 +36,17 @@ export function Button({
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={disabled ? undefined : onPress}
+      disabled={disabled}
       accessibilityRole="button"
+      accessibilityState={{ disabled }}
       accessibilityLabel={caption ? `${label}, ${caption}` : label}
       style={({ pressed }) => [
         styles.button,
         { backgroundColor: background },
+        disabled && { opacity: 0.5 },
         size === 'large' && styles.large,
-        pressed && styles.pressed,
+        pressed && !disabled && styles.pressed,
         style,
       ]}>
       <View style={styles.inner}>

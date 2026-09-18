@@ -1,3 +1,25 @@
+/**
+ * Parallax Starfield Component
+ *
+ * ARCHITECTURAL CONTEXT & RATIONALE:
+ * Provides the persistent 3-layer parallax starfield background that floats behind all tabs
+ * and subpages in Knightly.
+ *
+ * WHY 3 PARALLAX LAYERS (0.05 / 0.12 / 0.24 MULTIPLIERS):
+ * Motion parallax is the physiological cue by which the human visual cortex perceives depth
+ * in a 2D viewport. As the user swipes laterally across tabs (`translateX`) or scrolls vertically
+ * down the feed (`scrollY`):
+ * - Layer 1 (Distant stars): Shifts by 5% of tab pan and -4% vertical scroll.
+ * - Layer 2 (Midground stars): Shifts by 12% of tab pan and -10% vertical scroll.
+ * - Layer 3 (Foreground bright stars): Shifts by 24% of tab pan and -20% vertical scroll.
+ * This differential velocity creates an unmistakable sensation of deep three-dimensional space.
+ *
+ * WHY pointerEvents="none":
+ * The starfield occupies the entire window via `StyleSheet.absoluteFill`. Setting `pointerEvents="none"`
+ * ensures that 100% of touch and scroll interactions pass through directly to the active tab screen,
+ * list views, buttons, and gesture recognizers beneath it.
+ */
+
 import { memo, useMemo } from "react";
 import {
   StyleSheet,
@@ -244,7 +266,7 @@ export const ParallaxStarfield = memo(function ParallaxStarfield({
                     width: star.size * 1.8,
                     height: star.size * 1.8,
                     borderColor: star.color,
-                    opacity: 0.8,
+                    opacity: 0.6,
                   },
                 ]}
               />

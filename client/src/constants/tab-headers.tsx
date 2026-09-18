@@ -30,6 +30,11 @@ export function getTabHeader(tabNameOrPath: string): TabHeaderInfo {
         title: 'Directory',
         subtitle: 'Search campus contacts',
       };
+    case 'post':
+      return {
+        title: 'Create Post',
+        subtitle: 'Publish club announcement',
+      };
     case 'knightly':
     case 'index':
     case '':

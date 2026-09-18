@@ -1,24 +1,32 @@
 import type { MaterialSymbolName, SfSymbolName } from '@/components/ui/icon';
 
 export type FeedCategory =
-  | 'The Arts'
-  | 'Athletics'
-  | 'Music'
   | 'Academics'
+  | 'Athletics'
+  | 'Career'
+  | 'Culture'
   | 'Faith'
+  | 'Gaming'
+  | 'Music'
+  | 'Outdoors'
   | 'Service'
   | 'Social'
-  | 'Outdoors';
+  | 'The Arts'
+  | 'Wellness';
 
 export const feedCategories: FeedCategory[] = [
-  'The Arts',
-  'Athletics',
-  'Music',
   'Academics',
+  'Athletics',
+  'Career',
+  'Culture',
   'Faith',
+  'Gaming',
+  'Music',
+  'Outdoors',
   'Service',
   'Social',
-  'Outdoors',
+  'The Arts',
+  'Wellness',
 ];
 
 export type Post = {
@@ -354,21 +362,28 @@ export const posts: Post[] = [
   },
 ];
 
-export function forYouPosts(isFollowing?: (clubId: string) => boolean) {
+export function forYouPosts(
+  isFollowing?: (clubId: string) => boolean,
+  postList: Post[] = posts
+) {
   if (!isFollowing) {
-    return posts.filter((post) => post.followed || post.campusWide);
+    return postList.filter((post) => post.followed || post.campusWide);
   }
-  return posts.filter((post) => {
+  return postList.filter((post) => {
     if (post.campusWide) return true;
     const clubId = post.clubId ?? post.org.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     return isFollowing(clubId);
   });
 }
 
-export function searchPosts(query: string, category: FeedCategory | 'All') {
+export function searchPosts(
+  query: string,
+  category: FeedCategory | 'All',
+  postList: Post[] = posts
+) {
   const needle = query.trim().toLowerCase();
 
-  return posts.filter((post) => {
+  return postList.filter((post) => {
     const matchesCategory = category === 'All' || post.category === category;
     const matchesQuery =
       needle.length === 0 ||
@@ -382,9 +397,9 @@ export function searchPosts(query: string, category: FeedCategory | 'All') {
   });
 }
 
-export function getPostsByClubId(clubId: string): Post[] {
+export function getPostsByClubId(clubId: string, postList: Post[] = posts): Post[] {
   const cleanId = clubId.trim().toLowerCase();
-  return posts.filter(
+  return postList.filter(
     (post) =>
       (post.clubId && post.clubId.toLowerCase() === cleanId) ||
       post.org.toLowerCase().replace(/[^a-z0-9]+/g, '-') === cleanId

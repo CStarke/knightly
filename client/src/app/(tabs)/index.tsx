@@ -1,3 +1,20 @@
+/**
+ * Campus Feed Home Screen (Slot 0)
+ *
+ * ARCHITECTURAL CONTEXT & RATIONALE:
+ * This is the primary landing screen for Knightly (`/`). It presents an aggregated,
+ * reverse-chronological timeline of campus happenings, student organization meetings,
+ * and university announcements.
+ *
+ * FEED FILTERING PHILOSOPHY:
+ * 1. "Following": Tailored specifically to the student. Shows posts from organizations
+ *    the student has actively followed, PLUS essential campus-wide notices (`post.campusWide = true`)
+ *    such as Student Senate elections or university weather alerts.
+ * 2. "All campus": Unfiltered discovery feed with real-time text query and category chip filtering.
+ * 3. Navigation Springboard: Tapping the "Following X clubs" banner bar deep-links directly
+ *    to the Campus Clubs directory tab (`openClubsDirectory`).
+ */
+
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
@@ -12,6 +29,7 @@ import { Segmented } from "@/components/ui/segmented";
 import { Brand, Radius, Spacing } from "@/constants/theme";
 import { useClubFollow } from "@/context/club-follow-context";
 import { useClubsNavigation } from "@/context/clubs-navigation-context";
+import { useFeed } from "@/context/feed-context";
 import {
   feedCategories,
   posts,
@@ -28,22 +46,27 @@ export default function FeedScreen() {
   const [tab, setTab] = useState<FeedTab>("Following");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<"All" | FeedCategory>("All");
+  const { posts: dynamicPosts } = useFeed();
   const { isFollowing, followedCount } = useClubFollow();
   const { openClubsDirectory } = useClubsNavigation();
 
+  // Filtered posts for the Following feed.
+  // WHY CAMPUS-WIDE INCLUSION:
+  // Administrative and student government announcements affect the entire student body
+  // and must never be silenced by club follow preferences.
   const forYou = useMemo(() => {
-    return posts.filter((post) => {
+    return dynamicPosts.filter((post) => {
       // Campus-wide announcements always show in Following
       if (post.campusWide) return true;
       // Otherwise only show if user follows this club
       const clubId = post.clubId ?? post.org.toLowerCase().replace(/[^a-z0-9]+/g, "-");
       return isFollowing(clubId);
     });
-  }, [isFollowing]);
+  }, [dynamicPosts, isFollowing]);
 
   const explore = useMemo(
-    () => searchPosts(query, category),
-    [query, category],
+    () => searchPosts(query, category, dynamicPosts),
+    [query, category, dynamicPosts],
   );
   const visible = tab === "Following" ? forYou : explore;
 

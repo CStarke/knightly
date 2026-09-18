@@ -3,7 +3,7 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedScrollHandler } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabContentInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useStarfield } from '@/context/starfield-context';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -29,7 +29,7 @@ export function Screen({ children, style, header, scroll = true }: ScreenProps) 
 
   const body = <View style={[styles.inner, style]}>{children}</View>;
   const topPadding = Spacing.three;
-  const bottomPadding = Math.max(insets.bottom, Spacing.two) + 72;
+  const bottomPadding = Math.max(insets.bottom, Spacing.two) + BottomTabContentInset;
 
   return (
     <View style={[styles.fill, { backgroundColor: starfield ? 'transparent' : theme.background }]}>
@@ -40,13 +40,15 @@ export function Screen({ children, style, header, scroll = true }: ScreenProps) 
           style={styles.fill}
           contentContainerStyle={[styles.outer, { paddingTop: topPadding, paddingBottom: bottomPadding }]}
           keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets={true}
+          contentInsetAdjustmentBehavior="automatic"
           showsVerticalScrollIndicator={false}
           onScroll={scrollHandler}
           scrollEventThrottle={16}>
           {body}
         </Animated.ScrollView>
       ) : (
-        <View style={[styles.fill, styles.outer, { paddingTop: topPadding, paddingBottom: bottomPadding }]}>{body}</View>
+        <View style={styles.fill}>{children}</View>
       )}
     </View>
   );

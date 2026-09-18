@@ -1,3 +1,22 @@
+/**
+ * ============================================================================
+ * DESKTOP WEB TAB NAVIGATION LAYOUT (app-tabs.web.tsx)
+ * ============================================================================
+ *
+ * WHY A SEPARATE WEB IMPLEMENTATION?
+ * On mobile devices, Knightly uses a 1:1 physical gesture horizontal track (`app-tabs.tsx`).
+ * On desktop web browsers, touch gestures are replaced by mouse clicks, keyboard navigation,
+ * and standard URL address bar interactions:
+ * 1. Semantic Web Routes: Uses Expo Router's `<Tabs>` and `<TabSlot>` directly so each
+ *    tab renders at its canonical URL (`/`, `/dining`, `/safety`, `/directory`, `/post`).
+ * 2. Top Navigation Bar: Replaces the mobile bottom thumb-bar with a centered, top-fixed
+ *    desktop navigation header with Calvin branding and pill button triggers.
+ * 3. Content Width Constraints: Centered with `maxWidth: MaxContentWidth` (1200px)
+ *    to prevent stretched line lengths on ultrawide monitors.
+ * 4. Overlay Subpages: Renders the photo cropper (`ImageCropperView`) as an in-tree
+ *    overlay above the TabSlot rather than requiring horizontal gesture panning.
+ */
+
 import { router, usePathname } from 'expo-router';
 import {
   TabList,
@@ -7,8 +26,8 @@ import {
   type TabListProps,
   type TabTriggerSlotProps,
 } from 'expo-router/ui';
-import { useMemo } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
@@ -17,16 +36,82 @@ import { ParallaxStarfield } from '@/components/ui/starfield';
 import { getTabHeader } from '@/constants/tab-headers';
 import { Brand, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { ClubsNavigationProvider } from '@/context/clubs-navigation-context';
+import { useClubLeadership } from '@/context/club-leadership-context';
 import { DiningActivityProvider } from '@/context/dining-activity-context';
+import { ImageCropperView, useImageCropper } from '@/context/image-cropper-context';
 import { TabPagerPriorityProvider } from '@/context/tab-pager-priority-context';
 import { StarfieldContext } from '@/context/starfield-context';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function AppTabs() {
+  const theme = useTheme();
   const pathname = usePathname();
+  const { isLeader, claimSetupState, cancelClaimSetup } = useClubLeadership();
+  const {
+    isOpen: isCropperOpen,
+    activeOptions: cropperOptions,
+    closeCropper,
+    applyCrop,
+    isProcessing: isCropperProcessing,
+  } = useImageCropper();
   const headerInfo = getTabHeader(pathname);
   const translateX = useSharedValue(0);
   const scrollY = useSharedValue(0);
+
+  useEffect(() => {
+    if (claimSetupState.isOpen && claimSetupState.code) {
+      const code = claimSetupState.code;
+      cancelClaimSetup();
+      router.push({
+        pathname: '/complete-club-profile',
+        params: { code },
+      });
+    }
+  }, [claimSetupState.isOpen, claimSetupState.code, cancelClaimSetup]);
+
+  const headerProps = useMemo(() => {
+    if (isCropperOpen && cropperOptions) {
+      return {
+        title: 'Crop Banner',
+        subtitle: '16:9 Post Aspect Ratio',
+        left: (
+          <Pressable
+            onPress={closeCropper}
+            hitSlop={12}
+            style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, paddingVertical: 6, paddingHorizontal: 4 }]}
+          >
+            <ThemedText type="smallBold" style={{ color: theme.textSecondary }}>
+              Cancel
+            </ThemedText>
+          </Pressable>
+        ),
+        right: (
+          <Pressable
+            onPress={applyCrop}
+            disabled={isCropperProcessing}
+            style={({ pressed }) => [
+              styles.doneHeaderButton,
+              { backgroundColor: Brand.gold, opacity: isCropperProcessing ? 0.6 : pressed ? 0.8 : 1 },
+            ]}
+          >
+            {isCropperProcessing ? (
+              <ActivityIndicator size="small" color="#0B0C0E" />
+            ) : (
+              <ThemedText type="smallBold" style={styles.doneHeaderButtonText}>
+                Done
+              </ThemedText>
+            )}
+          </Pressable>
+        ),
+      };
+    }
+    return {
+      title: headerInfo.title,
+      subtitle: headerInfo.subtitle,
+      left: undefined,
+      right: headerInfo.right,
+    };
+  }, [isCropperOpen, cropperOptions, closeCropper, applyCrop, isCropperProcessing, headerInfo, theme]);
 
   const diningActivityValue = useMemo(
     () => ({
@@ -89,15 +174,31 @@ export default function AppTabs() {
                 <TabTrigger name="directory" href="/directory" asChild>
                   <TabButton>Directory</TabButton>
                 </TabTrigger>
+                {isLeader ? (
+                  <TabTrigger name="post" href="/post" asChild>
+                    <TabButton>Post</TabButton>
+                  </TabTrigger>
+                ) : null}
               </TopBar>
             </TabList>
 
             <AppHeader
-              title={headerInfo.title}
-              subtitle={headerInfo.subtitle}
-              right={headerInfo.right}
+              title={headerProps.title}
+              subtitle={headerProps.subtitle}
+              left={headerProps.left}
+              right={headerProps.right}
             />
             <TabSlot style={styles.slot} />
+            {isCropperOpen && cropperOptions ? (
+              <View style={[StyleSheet.absoluteFill, styles.cropperOverlay]}>
+                <ImageCropperView
+                  imageUri={cropperOptions.imageUri}
+                  imageDimensions={cropperOptions.imageDimensions}
+                  onClose={closeCropper}
+                  onCropComplete={cropperOptions.onCropComplete}
+                />
+              </View>
+            ) : null}
           </Tabs>
             </View>
           </StarfieldContext.Provider>
@@ -195,5 +296,22 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.one + 2,
     paddingHorizontal: Spacing.three,
     borderRadius: Radius.pill,
+  },
+  cropperOverlay: {
+    top: 56,
+    backgroundColor: '#000000',
+    zIndex: 100,
+  },
+  doneHeaderButton: {
+    paddingHorizontal: Spacing.three,
+    paddingVertical: 6,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  doneHeaderButtonText: {
+    color: '#0B0C0E',
+    fontWeight: '700',
+    fontSize: 13,
   },
 });

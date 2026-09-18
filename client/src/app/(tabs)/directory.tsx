@@ -1,3 +1,22 @@
+/**
+ * Campus People Directory Screen
+ *
+ * ARCHITECTURAL CONTEXT & RATIONALE:
+ * The People Directory allows students to look up contact information for faculty advisors,
+ * university staff, department heads, and fellow student peers across Calvin University.
+ *
+ * DESIGN & ACCESSIBILITY DECISIONS:
+ * 1. Role-Based Visual Hierarchy:
+ *    - Faculty: Brand tone (Calvin Maroon) reflects academic faculty authority.
+ *    - Staff: Info tone (Renew Blue) indicates campus administrative support.
+ *    - Student: Gold tone (Calvin Gold) highlights undergraduate peers.
+ * 2. Smart Subtitle Formatting (`formatPersonSubtitle`):
+ *    Avoids tautological text repetition when a professor's title already contains their department
+ *    (e.g. "Professor of Computer Science · Computer Science Department" -> "Professor of Computer Science").
+ * 3. Direct Contact Action:
+ *    Tapping any person row immediately opens the device mail client via `mailto:${person.email}`.
+ */
+
 import { useMemo, useState } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 

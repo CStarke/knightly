@@ -1,3 +1,16 @@
+/**
+ * Campus Dining & Digital ID Screen (Slot 1)
+ *
+ * ARCHITECTURAL CONTEXT & RATIONALE:
+ * The Dining screen serves two critical daily student routines:
+ * 1. Digital Student ID Barcode Card: Tapping the top hero card expands to a full-screen
+ *    high-brightness barcode (`/card`) for scanning at dining hall turnstiles and library checkouts,
+ *    eliminating the need to carry physical plastic student ID cards.
+ * 2. Real-Time Balance & Reset Meters: Visualizes remaining meal swipes, Flex dollars, and guest
+ *    passes alongside exact reset schedules (e.g. Sunday midnight reset vs semester block counts),
+ *    preventing unexpected meal swipe expirations.
+ */
+
 import { router } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
 

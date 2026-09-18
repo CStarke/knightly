@@ -1,3 +1,20 @@
+/**
+ * Campus Clubs Directory View
+ *
+ * ARCHITECTURAL CONTEXT & RATIONALE:
+ * The Campus Clubs tab acts as the central directory of all student organizations,
+ * academic societies, faith groups, and university departments at Calvin University.
+ *
+ * KEY CAPABILITIES:
+ * 1. Multi-Vector Fuzzy Filtering: Searches simultaneously across club name, tagline,
+ *    mission description, category, and physical meeting location.
+ * 2. Category Quick Filters: Horizontal chip row allowing students to narrow 50+ clubs
+ *    down to specific interests (Academics, Arts & Media, Sports, Faith, etc.).
+ * 3. Club Leader Action Strip: Direct entry point for student officers to claim their
+ *    organization using their Student Life code. Displays persistent leader status
+ *    if already verified, and respects permanent dismissal if hidden.
+ */
+
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -8,40 +25,36 @@ import { ChipRow } from '@/components/ui/chip';
 import { Icon } from '@/components/ui/icon';
 import { Screen } from '@/components/ui/screen';
 import { SearchField } from '@/components/ui/search-field';
-import { Segmented } from '@/components/ui/segmented';
 import { Brand, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useClubFollow } from '@/context/club-follow-context';
+import { useClubLeadership } from '@/context/club-leadership-context';
 import { useClubsNavigation } from '@/context/clubs-navigation-context';
 import { CALVIN_CLUBS, type Club } from '@/data/clubs';
 import { feedCategories, type FeedCategory } from '@/data/feed';
 
 const filterCategories: ('All' | FeedCategory)[] = ['All', ...feedCategories];
-const viewTabs = ['All clubs', 'Following'] as const;
-type ViewTab = (typeof viewTabs)[number];
 
 export function ClubsDirectoryView() {
-  const { isFollowing, toggleFollow, followedCount } = useClubFollow();
+  const { isFollowing, toggleFollow } = useClubFollow();
   const { openClubDetail } = useClubsNavigation();
 
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<'All' | FeedCategory>('All');
-  const [viewTab, setViewTab] = useState<ViewTab>('All clubs');
 
+  // Multi-field search matching
+  // WHY COMBINED PREDICATE:
+  // Students often remember where a club meets ("North Hall CS Lab") or general mission keywords
+  // ("coding", "robotics") rather than the exact club name ("Abstraction").
   const filteredClubs = useMemo(() => {
     const needle = query.trim().toLowerCase();
 
     return CALVIN_CLUBS.filter((club) => {
-      // 1. Follow filter
-      if (viewTab === 'Following' && !isFollowing(club.id)) {
-        return false;
-      }
-
-      // 2. Category filter
+      // 1. Category filter
       if (category !== 'All' && club.category !== category) {
         return false;
       }
 
-      // 3. Search query filter
+      // 2. Search query filter
       if (needle.length > 0) {
         const matchesName = club.name.toLowerCase().includes(needle);
         const matchesTagline = club.tagline.toLowerCase().includes(needle);
@@ -53,15 +66,55 @@ export function ClubsDirectoryView() {
 
       return true;
     });
-  }, [query, category, viewTab, isFollowing]);
+  }, [query, category]);
+
+  const { openClaimModal, linkedClubs, isLeader, isClaimBannerDismissed } = useClubLeadership();
 
   return (
     <Screen style={styles.screenInner}>
-      <Segmented
-        options={viewTabs}
-        value={viewTab}
-        onChange={setViewTab}
-      />
+      {/* Club Leader Action Strip */}
+      {!isClaimBannerDismissed && (
+        <Pressable
+          onPress={() => openClaimModal('banner')}
+          accessibilityRole="button"
+          accessibilityLabel="Club Leader Access. Tap to claim a club with your 10-digit code."
+          style={({ pressed }) => [
+            styles.claimBanner,
+            {
+              backgroundColor: isLeader ? 'rgba(20, 184, 166, 0.08)' : 'rgba(243, 195, 0, 0.08)',
+              borderColor: isLeader ? '#14B8A6' : Brand.gold,
+              opacity: pressed ? 0.8 : 1,
+            },
+          ]}
+        >
+          <View style={styles.claimBannerLeft}>
+            <Icon
+              sf={isLeader ? 'checkmark.shield.fill' : 'key.fill'}
+              md={isLeader ? 'verified_user' : 'vpn_key'}
+              size={18}
+              color={isLeader ? '#14B8A6' : Brand.gold}
+            />
+            <View>
+              <ThemedText type="caption" style={{ fontWeight: '700', color: isLeader ? '#14B8A6' : Brand.gold }}>
+                {isLeader
+                  ? linkedClubs.length > 1
+                    ? 'Leading multiple clubs'
+                    : `Leading ${linkedClubs[0]?.name ?? ''}`
+                  : 'Club Leader? Claim with code'}
+              </ThemedText>
+              <ThemedText type="caption" themeColor="textMuted" style={{ fontSize: 11 }}>
+                {isLeader
+                  ? 'Tap to link to another club'
+                  : 'Enter 10-character code from Student Life'}
+              </ThemedText>
+            </View>
+          </View>
+          <Badge
+            label={isLeader ? 'LEADER ACTIVE' : 'CLAIM'}
+            tone={isLeader ? 'success' : 'gold'}
+          />
+        </Pressable>
+      )}
 
       <View style={styles.filterControls}>
         <SearchField
@@ -78,9 +131,7 @@ export function ClubsDirectoryView() {
 
       <View style={styles.countRow}>
         <ThemedText type="caption" themeColor="textMuted">
-          {viewTab === 'Following'
-            ? `${filteredClubs.length} of ${followedCount} followed clubs`
-            : `Showing ${filteredClubs.length} ${filteredClubs.length === 1 ? 'organization' : 'organizations'}`}
+          Showing {filteredClubs.length} {filteredClubs.length === 1 ? 'organization' : 'organizations'}
         </ThemedText>
       </View>
 
@@ -99,14 +150,10 @@ export function ClubsDirectoryView() {
           <Card style={styles.emptyCard}>
             <Icon sf="magnifyingglass" md="search" size={28} color={Brand.gold} />
             <ThemedText type="smallBold" style={styles.emptyTitle}>
-              {viewTab === 'Following'
-                ? 'No followed clubs match your filter'
-                : 'No clubs match that search'}
+              No clubs match that search
             </ThemedText>
             <ThemedText type="small" themeColor="textSecondary" style={styles.emptySub}>
-              {viewTab === 'Following'
-                ? 'Try clearing your category filter or switch to "All clubs" to discover more communities.'
-                : 'Try searching for a different keyword or select another category.'}
+              Try searching for a different keyword or select another category.
             </ThemedText>
             {(query || category !== 'All') && (
               <Pressable
@@ -238,6 +285,22 @@ function ClubCard({
 const styles = StyleSheet.create({
   screenInner: {
     gap: Spacing.three,
+  },
+  claimBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two + 2,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    gap: Spacing.two,
+  },
+  claimBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    flex: 1,
   },
   pressed: {
     opacity: 0.75,

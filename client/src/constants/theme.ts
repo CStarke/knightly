@@ -1,6 +1,21 @@
 /**
- * Design tokens for the Calvin University student app.
- * Brand colors follow Calvin's maroon + gold palette.
+ * Design Tokens & Brand System
+ *
+ * ARCHITECTURAL CONTEXT & RATIONALE:
+ * Knightly adheres to Calvin University's official brand guidelines (Maroon & Gold) while adapting
+ * them specifically for modern high-DPI OLED and LCD displays.
+ *
+ * WHY COLOR TUNING (CALVIN MAROON #5E1A24 VS #8C2131):
+ * Calvin University's official print spot color is Pantone 201 C (#8C2131).
+ * On printed cardstock and fabric, ink absorbs ambient light to produce a dark, regal wine tone.
+ * However, on backlit mobile OLED displays, emitting raw #8C2131 appears bright saturated red/magenta,
+ * which looks like a critical error alert rather than collegiate maroon.
+ * Tuning `Brand.maroon` to `#5E1A24` restores the rich, stately visual depth on digital screens.
+ *
+ * WHY DUAL-MODE SEMANTIC TOKENS (Colors.light & Colors.dark):
+ * Every UI element references semantic tokens (`text`, `textSecondary`, `background`, `border`)
+ * rather than hardcoded hex values, enabling seamless system appearance switching and WCAG AA
+ * contrast compliance in both dark and light modes.
  */
 
 import "@/global.css";
@@ -8,7 +23,7 @@ import "@/global.css";
 import { Platform } from "react-native";
 
 export const Brand = {
-  // Primary Palette (Deep rich Calvin Maroon; avoids the bright red appearance of uncoated digital #8C2131)
+  // Primary Palette
   maroon: '#5E1A24',
   maroonClassic: '#8C2131',
   maroonDark: '#450F18',
@@ -22,7 +37,9 @@ export const Brand = {
   renewBlue: '#71B1C8',
   renewBlueSoft: '#EEF6F9',
   trueGreen: '#A2D683',
+  renewGreen: '#A2D683',
   trueGreenSoft: '#F2F9EE',
+  renewGreenSoft: '#F2F9EE',
 
   // Official Neutrals
   charcoal: '#1C1D21',
@@ -130,3 +147,6 @@ export const Radius = {
 /** Space reserved for the fixed top bar on web. */
 export const WebHeaderInset = 72;
 export const MaxContentWidth = 800;
+
+/** Standard bottom content inset to provide generous breathing room above the floating tab bar across all tab screens. */
+export const BottomTabContentInset = 96;

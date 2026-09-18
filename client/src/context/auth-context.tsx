@@ -84,9 +84,18 @@ export function AuthProvider({ children }: PropsWithChildren) {
       const firstName = words[0] ? words[0].charAt(0).toUpperCase() + words[0].slice(1) : 'Calvin';
       const lastName = words[1] ? words[1].charAt(0).toUpperCase() + words[1].slice(1) : 'Student';
 
+      // Derive stable 7-digit student ID from username hash (e.g. 2028XXX)
+      let hash = 0;
+      const lowerUser = cleanUser.toLowerCase();
+      for (let i = 0; i < lowerUser.length; i++) {
+        hash = (hash << 5) - hash + lowerUser.charCodeAt(i);
+        hash |= 0;
+      }
+      const suffix = Math.abs(hash % 900) + 100;
+
       setUser({
-        id: '2028' + Math.floor(100 + Math.random() * 900),
-        username: cleanUser,
+        id: `2028${suffix}`,
+        username: cleanUser.toLowerCase(),
         firstName,
         lastName,
         fullName: `${firstName} ${lastName}`,

@@ -1,14 +1,42 @@
+/**
+ * ============================================================================
+ * TAB PAGER GESTURE PRIORITY MEDIATION CONTEXT
+ * ============================================================================
+ *
+ * WHY DOES THIS CONTEXT EXIST?
+ * In a mobile UI where the root view is an interactive horizontal pan gesture pager
+ * (`Gesture.Pan()` in `app-tabs.tsx`), any horizontal finger movement across the
+ * screen will naturally be captured by the pager to swipe between tabs.
+ *
+ * THE TOUCH COLLISION PROBLEM:
+ * When inner child components also require horizontal interaction—such as:
+ * 1. Horizontal category tag filter chips (`ChipRow` in the feed and clubs directories)
+ * 2. The 16:9 photo cropping viewfinder (`ImageCropperView` in Slot 5)
+ * The outer pager's Pan gesture and the inner child's pan/scroll responder compete
+ * for the same touch events. Without arbitration, swiping through category chips
+ * or panning an image horizontally accidentally swipes the whole screen to the next tab!
+ *
+ * THE REANIMATED WORKLET SOLUTION:
+ * This context exposes `isInnerScrollActive`, a Reanimated `SharedValue<boolean>`.
+ * When a user initiates a touch inside a nested horizontal view, the child immediately
+ * sets `isInnerScrollActive = true`.
+ * In `app-tabs.tsx`, the outer pager's `onStart`, `onUpdate`, and `onEnd` worklets
+ * synchronously check `if (isInnerScrollActive.value) return;` directly on the UI thread.
+ * This completely locks out the tab pager with ZERO bridge latency, allowing the child
+ * to enjoy 100% uninterrupted gesture tracking.
+ */
+
 import React, { createContext, useContext } from 'react';
 import type { SharedValue } from 'react-native-reanimated';
 
 export type TabPagerPriorityContextType = {
   /**
    * Shared value indicating whether an inner horizontal scrollable element
-   * (e.g. tag filter chips, carousels) is currently being interacted with.
-   * When true, the outer tab pager pan gesture is prevented from intercepting touches.
+   * (e.g. tag filter chips, photo cropper viewfinder) is currently active.
+   * Read synchronously inside Reanimated UI worklets to block outer pager swipes.
    */
   isInnerScrollActive: SharedValue<boolean>;
-  /** Helper function to set inner scroll active state */
+  /** Bridge callback to update the shared priority state from JavaScript/React responders */
   setInnerScrollActive: (active: boolean) => void;
 };
 

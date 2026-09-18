@@ -1,3 +1,19 @@
+/**
+ * Club Detail View (In-Pager Level 2 Subpage)
+ *
+ * ARCHITECTURAL CONTEXT & RATIONALE:
+ * When a student taps any club card in the Campus Clubs directory, the app slides into this
+ * deep-dive view.
+ *
+ * WHY IN-PAGER SLIDE (VS STACK ROUTE PUSH):
+ * Rendering this view as a subpage inside the Directory tab preserves:
+ * 1. 3D Starfield Parallax: The background continuous canvas remains uninterrupted.
+ * 2. Gesture Continuity: Swiping right from the edge or tapping the top header's back arrow
+ *    slides smoothly back to the directory list with zero layout jumps.
+ * 3. Feed Aggregation: Pulls all posts published by this club ID (`getPostsByClubId`), giving
+ *    students a complete activity archive alongside logistics and contact details.
+ */
+
 import { Image } from 'expo-image';
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -22,6 +38,7 @@ export function ClubDetailView({ clubId }: { clubId: string }) {
     return clubId ? getClubById(clubId) : undefined;
   }, [clubId]);
 
+  // Feed posts authored by this club
   const clubPosts = useMemo(() => {
     return club ? getPostsByClubId(club.id) : [];
   }, [club]);

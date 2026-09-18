@@ -4,19 +4,24 @@ import { feedCategories, followedOrgs, posts, searchPosts, type FeedCategory, ty
 
 describe('Knightly Feed Domain', () => {
   describe('Feed Categories', () => {
-    it('contains all eight official feed categories', () => {
+    it('contains all twelve official feed categories', () => {
       const expectedCategories: FeedCategory[] = [
-        'The Arts',
-        'Athletics',
-        'Music',
         'Academics',
+        'Athletics',
+        'Career',
+        'Culture',
         'Faith',
+        'Gaming',
+        'Music',
+        'Outdoors',
         'Service',
         'Social',
-        'Outdoors',
+        'The Arts',
+        'Wellness',
       ];
 
-      assert.strictEqual(feedCategories.length, 8);
+      assert.strictEqual(feedCategories.length, 12);
+      assert.deepStrictEqual(feedCategories, expectedCategories);
       for (const cat of expectedCategories) {
         assert.ok(feedCategories.includes(cat), `Expected category ${cat} in feedCategories`);
       }
