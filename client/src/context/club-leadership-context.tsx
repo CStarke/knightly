@@ -44,6 +44,9 @@ export function getAccountStorageKey(
   return `${prefix}${accountId}`;
 }
 
+const inMemoryBannerDismissed: Record<string, boolean> = {};
+const inMemoryLinkedClubs: Record<string, string[]> = {};
+
 /**
  * Loads user-scoped claim banner dismissal state.
  *
@@ -54,23 +57,58 @@ export function getAccountStorageKey(
 export function loadClaimBannerDismissed(
   user: { id?: string; username?: string } | null
 ): boolean {
-  if (typeof window === 'undefined' || !window.localStorage) return false;
   if (!user) return false;
+  const accountId = (user.username || user.id || 'default').toLowerCase();
+  if (inMemoryBannerDismissed[accountId] !== undefined) {
+    return inMemoryBannerDismissed[accountId];
+  }
+  if (typeof window === 'undefined' || !window.localStorage) return false;
   const userKey = getAccountStorageKey(user, 'knightly_claim_banner_dismissed_');
   try {
     const userVal = window.localStorage.getItem(userKey);
     if (userVal !== null) {
-      return userVal === 'true';
+      const isDismissed = userVal === 'true';
+      inMemoryBannerDismissed[accountId] = isDismissed;
+      return isDismissed;
     }
     // Backward-compatibility fallback for John Doe (default demo user)
     const isJohn = user.username?.toLowerCase() === 'jmd42' || user.id === '2028420';
     if (isJohn) {
-      return window.localStorage.getItem('knightly_claim_banner_dismissed') === 'true';
+      const legacyVal = window.localStorage.getItem('knightly_claim_banner_dismissed') === 'true';
+      inMemoryBannerDismissed[accountId] = legacyVal;
+      return legacyVal;
     }
     return false;
   } catch {
     return false;
   }
+}
+
+/**
+ * Loads user-scoped linked clubs array synchronously from storage or memory cache.
+ * Prevents 4-tab to 5-tab flash and route miscalculation on mount/rehydration.
+ */
+export function loadLinkedClubIds(
+  user: { id?: string; username?: string } | null
+): string[] {
+  if (!user) return [];
+  const accountId = (user.username || user.id || 'default').toLowerCase();
+  if (inMemoryLinkedClubs[accountId]?.length) {
+    return inMemoryLinkedClubs[accountId];
+  }
+  if (typeof window === 'undefined' || !window.localStorage) return [];
+  try {
+    const clubsKey = getAccountStorageKey(user, 'knightly_linked_clubs_');
+    const savedClubs = window.localStorage.getItem(clubsKey);
+    if (savedClubs) {
+      const parsed = JSON.parse(savedClubs);
+      if (Array.isArray(parsed)) {
+        inMemoryLinkedClubs[accountId] = parsed;
+        return parsed;
+      }
+    }
+  } catch {}
+  return [];
 }
 
 export type ClaimSetupState = {
@@ -127,10 +165,11 @@ export function ClubLeadershipProvider({ children }: { children: ReactNode }) {
 
   // Overridden club details in local memory (e.g. customized description, schedule)
   const [customClubDetails, setCustomClubDetails] = useState<Record<string, Partial<Club>>>({});
-  // Set of linked club IDs for the active student account
-  const [linkedClubIds, setLinkedClubIds] = useState<string[]>([]);
+  // Set of linked club IDs for the active student account (synchronously loaded from storage)
+  const initialClubIds = useMemo(() => loadLinkedClubIds(user), [user?.username, user?.id]);
+  const [linkedClubIds, setLinkedClubIds] = useState<string[]>(initialClubIds);
   // Active club for the posting screen
-  const [activeClubId, setActiveClubId] = useState<string | null>(null);
+  const [activeClubId, setActiveClubId] = useState<string | null>(() => initialClubIds[0] ?? null);
   // Modal visibility and entry source
   const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
   const [claimModalSource, setClaimModalSource] = useState<ClaimModalSource>(null);
@@ -158,7 +197,14 @@ export function ClubLeadershipProvider({ children }: { children: ReactNode }) {
     // 1. Sync banner dismissal status for this user
     setIsClaimBannerDismissed(loadClaimBannerDismissed(user));
 
-    // 2. Sync linked clubs for this user from localStorage
+    // 2. Sync linked clubs for this user from memory cache or localStorage
+    const accountId = (user.username || user.id || 'default').toLowerCase();
+    if (inMemoryLinkedClubs[accountId]?.length) {
+      setLinkedClubIds(inMemoryLinkedClubs[accountId]);
+      setActiveClubId(inMemoryLinkedClubs[accountId][0] ?? null);
+      return;
+    }
+
     if (typeof window !== 'undefined' && window.localStorage) {
       try {
         const clubsKey = getAccountStorageKey(user, 'knightly_linked_clubs_');
@@ -166,6 +212,7 @@ export function ClubLeadershipProvider({ children }: { children: ReactNode }) {
         if (savedClubs) {
           const parsed = JSON.parse(savedClubs);
           if (Array.isArray(parsed)) {
+            inMemoryLinkedClubs[accountId] = parsed;
             setLinkedClubIds(parsed);
             setActiveClubId(parsed[0] ?? null);
             return;
@@ -174,21 +221,25 @@ export function ClubLeadershipProvider({ children }: { children: ReactNode }) {
       } catch {}
     }
 
-    setLinkedClubIds([]);
-    setActiveClubId(null);
+    // If there is existing state in memory (e.g. claimed during current session), preserve it
+    setLinkedClubIds((prev) => (prev.length > 0 ? prev : []));
   }, [user?.username, user?.id]);
 
   const dismissClaimBanner = useCallback(() => {
     setIsClaimBannerDismissed(true);
-    if (typeof window !== 'undefined' && window.localStorage && user) {
-      try {
-        const userKey = getAccountStorageKey(user, 'knightly_claim_banner_dismissed_');
-        window.localStorage.setItem(userKey, 'true');
-        const isJohn = user.username?.toLowerCase() === 'jmd42' || user.id === '2028420';
-        if (isJohn) {
-          window.localStorage.setItem(CLAIM_BANNER_DISMISSED_KEY, 'true');
-        }
-      } catch {}
+    if (user) {
+      const accountId = (user.username || user.id || 'default').toLowerCase();
+      inMemoryBannerDismissed[accountId] = true;
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          const userKey = getAccountStorageKey(user, 'knightly_claim_banner_dismissed_');
+          window.localStorage.setItem(userKey, 'true');
+          const isJohn = user.username?.toLowerCase() === 'jmd42' || user.id === '2028420';
+          if (isJohn) {
+            window.localStorage.setItem(CLAIM_BANNER_DISMISSED_KEY, 'true');
+          }
+        } catch {}
+      }
     }
   }, [user]);
 
@@ -255,11 +306,15 @@ export function ClubLeadershipProvider({ children }: { children: ReactNode }) {
       setLinkedClubIds((prev) => {
         if (prev.includes(targetClubId)) return prev;
         const next = [...prev, targetClubId];
-        if (typeof window !== 'undefined' && window.localStorage && user) {
-          try {
-            const clubsKey = getAccountStorageKey(user, 'knightly_linked_clubs_');
-            window.localStorage.setItem(clubsKey, JSON.stringify(next));
-          } catch {}
+        if (user) {
+          const accountId = (user.username || user.id || 'default').toLowerCase();
+          inMemoryLinkedClubs[accountId] = next;
+          if (typeof window !== 'undefined' && window.localStorage) {
+            try {
+              const clubsKey = getAccountStorageKey(user, 'knightly_linked_clubs_');
+              window.localStorage.setItem(clubsKey, JSON.stringify(next));
+            } catch {}
+          }
         }
         return next;
       });
@@ -303,11 +358,15 @@ export function ClubLeadershipProvider({ children }: { children: ReactNode }) {
   const unlinkClub = useCallback((clubId: string) => {
     setLinkedClubIds((prev) => {
       const next = prev.filter((id) => id !== clubId);
-      if (typeof window !== 'undefined' && window.localStorage && user) {
-        try {
-          const clubsKey = getAccountStorageKey(user, 'knightly_linked_clubs_');
-          window.localStorage.setItem(clubsKey, JSON.stringify(next));
-        } catch {}
+      if (user) {
+        const accountId = (user.username || user.id || 'default').toLowerCase();
+        inMemoryLinkedClubs[accountId] = next;
+        if (typeof window !== 'undefined' && window.localStorage) {
+          try {
+            const clubsKey = getAccountStorageKey(user, 'knightly_linked_clubs_');
+            window.localStorage.setItem(clubsKey, JSON.stringify(next));
+          } catch {}
+        }
       }
       return next;
     });

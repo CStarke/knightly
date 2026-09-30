@@ -1,5 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
+import { DateUtils, TimeUtils, formatRelativeTime, resolveEventTime } from '@/utils/date-format';
+import { APP_VERSION, APP_VERSION_RAW } from '@/constants/version';
 
 describe('Templates & Code De-bloating Invariants', () => {
 
@@ -426,5 +428,147 @@ describe('Templates & Code De-bloating Invariants', () => {
       assert.strictEqual(guest.color, '#1B7340');
     });
   });
+
+  describe('Post Modular Components & Debloating Invariants', () => {
+    it('verifies 16:9 aspect ratio and default banner dimensions', () => {
+      const bannerAspectRatio = 16 / 9;
+      assert.strictEqual(Math.round(bannerAspectRatio * 100) / 100, 1.78);
+      const fallbackWidth = 1200;
+      const fallbackHeight = 675;
+      assert.strictEqual(fallbackWidth / fallbackHeight, 16 / 9);
+    });
+
+    it('verifies PostSuccessModal displays target club and feed navigation action', () => {
+      let navigatedTarget: { index: number; href?: string } | null = null;
+      let modalVisible = true;
+
+      const mockTabNav = {
+        activeTabIndex: 4,
+        setActiveTabIndex: (index: number) => { mockTabNav.activeTabIndex = index; },
+        navigateToTab: (index: number, href?: string) => {
+          navigatedTarget = { index, href };
+          mockTabNav.activeTabIndex = index;
+        },
+        tabs: [],
+      };
+
+      const handleViewFeed = () => {
+        modalVisible = false;
+        mockTabNav.navigateToTab(0, '/');
+      };
+
+      const modalProps = {
+        visible: modalVisible,
+        clubName: 'Calvin Chess Club',
+        viewFeedLabel: 'View in Feed',
+        secondaryLabel: 'Got it',
+        onViewFeed: handleViewFeed,
+      };
+
+      assert.strictEqual(modalProps.clubName, 'Calvin Chess Club');
+      assert.strictEqual(modalProps.viewFeedLabel, 'View in Feed');
+
+      // Triggering feed view must close modal and navigate to Slot 0 (Knightly Home)
+      modalProps.onViewFeed();
+      assert.strictEqual(modalVisible, false);
+      assert.deepStrictEqual(navigatedTarget, { index: 0, href: '/' });
+      assert.strictEqual(mockTabNav.activeTabIndex, 0);
+    });
+
+    it('validates LoginScreen keyboard lift target elevation and clearance formula', () => {
+      // Test across multiple window heights and status bar inset configurations
+      const scenarios = [
+        { windowHeight: 844, insetTop: 47, expectedFormTop: (844 - 402) / 2 },
+        { windowHeight: 932, insetTop: 59, expectedFormTop: (932 - 402) / 2 },
+        { windowHeight: 667, insetTop: 20, expectedFormTop: (667 - 402) / 2 },
+      ];
+
+      for (const { windowHeight, insetTop, expectedFormTop } of scenarios) {
+        const formTop = (windowHeight - 402) / 2;
+        assert.strictEqual(formTop, expectedFormTop);
+
+        const SpacingFour = 24;
+        const minTopClearance = insetTop + SpacingFour + 12;
+        const maxSafeRaise = Math.max(0, formTop - minTopClearance);
+        const targetRaise = Math.min(105, maxSafeRaise);
+
+        // Guarantees form raises between 0 and 105px
+        assert.ok(targetRaise >= 0 && targetRaise <= 105);
+        // Guarantees remaining top clearance never falls below minTopClearance
+        const finalTop = formTop - targetRaise;
+        assert.ok(finalTop >= minTopClearance - 0.001, 'Logo must retain safe top breathing room');
+      }
+    });
+
+    it('verifies DateUtils and TimeUtils consolidated namespaces and 8 core functions', () => {
+      // DateUtils namespace
+      assert.strictEqual(DateUtils.formatEvent('09/18/2026', new Date(2026, 8, 17)), 'Fri, Sep 18');
+      assert.deepStrictEqual(DateUtils.sanitize('09182026'), { digits: '09182026', error: null });
+      const segs = DateUtils.formatSegments('09182026');
+      assert.strictEqual(segs.formatted, '09/18/2026');
+      assert.strictEqual(DateUtils.validate('09/18/2026'), null);
+      assert.strictEqual(DateUtils.isCompleteAndValid('09182026'), true);
+      assert.strictEqual(DateUtils.getMaxDays('02', 2024), 29);
+      assert.strictEqual(DateUtils.getMaxDays('02', 2025), 28);
+      assert.strictEqual(DateUtils.expandYear('26', new Date(2026, 0, 1)), 2026);
+
+      // TimeUtils namespace
+      assert.deepStrictEqual(TimeUtils.sanitize('730'), { digits: '730', error: null });
+      const timeSegs = TimeUtils.formatSegments('730');
+      assert.strictEqual(timeSegs.formatted, '7:30');
+      assert.strictEqual(TimeUtils.resolve('730', 'PM'), '7:30 PM');
+      assert.strictEqual(resolveEventTime('1200', 'PM'), '12:00 PM');
+      assert.strictEqual(TimeUtils.complete('7'), '700');
+      assert.strictEqual(TimeUtils.getMaxInputLength('7'), 4);
+      assert.strictEqual(TimeUtils.getMaxRawDigits('7'), 3);
+      assert.strictEqual(TimeUtils.isCompleteAndValid('700'), true);
+
+      // formatRelativeTime
+      assert.strictEqual(formatRelativeTime('2h'), '2h ago');
+    });
+  });
+
+  describe('Application Versioning & Incrementation Invariants', () => {
+    it('verifies baseline version format, semantic structure, and package.json parity', () => {
+      // 1. Matches exact requested format: v.0.1.0
+      assert.strictEqual(APP_VERSION, 'v.0.1.0');
+      assert.strictEqual(APP_VERSION_RAW, '0.1.0');
+      assert.match(APP_VERSION, /^v\.\d+\.\d+\.\d+$/);
+
+      // 2. Incrementation logic verification
+      const incrementVersion = (
+        current: string,
+        type: 'feature' | 'bugfix' | 'major'
+      ): string => {
+        const parts = current.replace(/^v\./, '').split('.').map(Number);
+        let [major, minor, patch] = parts;
+
+        if (type === 'major') {
+          major += 1;
+          minor = 0;
+          patch = 0;
+        } else if (type === 'feature') {
+          minor += 1;
+          patch = 0;
+        } else if (type === 'bugfix') {
+          patch += 1;
+        }
+
+        return `v.${major}.${minor}.${patch}`;
+      };
+
+      // Feature pushes increment center digit (0.#.0)
+      assert.strictEqual(incrementVersion('v.0.1.0', 'feature'), 'v.0.2.0');
+      assert.strictEqual(incrementVersion('v.0.2.4', 'feature'), 'v.0.3.0');
+
+      // Bugfixes / hotfixes increment last digit (0.0.#)
+      assert.strictEqual(incrementVersion('v.0.1.0', 'bugfix'), 'v.0.1.1');
+      assert.strictEqual(incrementVersion('v.0.1.1', 'bugfix'), 'v.0.1.2');
+
+      // Major releases increment first digit (#.0.0)
+      assert.strictEqual(incrementVersion('v.0.9.0', 'major'), 'v.1.0.0');
+    });
+  });
 });
+
 

@@ -165,6 +165,11 @@ export function CompleteClubProfileView({
     },
   ];
 
+  const handleDismissSuccess = useCallback(() => {
+    setStep('form');
+    onSuccess();
+  }, [onSuccess]);
+
   if (guardError) {
     return (
       <Screen style={styles.screenInner}>
@@ -388,9 +393,9 @@ export function CompleteClubProfileView({
         primaryButton={{
           label: 'Got it',
           variant: 'primary',
-          onPress: onSuccess,
+          onPress: handleDismissSuccess,
         }}
-        onClose={onSuccess}
+        onClose={handleDismissSuccess}
       />
     </Screen>
   );

@@ -26,7 +26,7 @@ import {
   type TabListProps,
   type TabTriggerSlotProps,
 } from 'expo-router/ui';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 
@@ -40,7 +40,20 @@ import { useClubLeadership } from '@/context/club-leadership-context';
 import { DiningActivityProvider } from '@/context/dining-activity-context';
 import { TabPagerPriorityProvider } from '@/context/tab-pager-priority-context';
 import { StarfieldContext } from '@/context/starfield-context';
+import {
+  TabNavigationContext,
+  useTabNavigation,
+  type TabNavigationContextValue,
+  type TabMeta,
+} from '@/context/tab-navigation-context';
 import { useTheme } from '@/hooks/use-theme';
+
+export {
+  TabNavigationContext,
+  useTabNavigation,
+  type TabNavigationContextValue,
+  type TabMeta,
+};
 
 export default function AppTabs() {
   const pathname = usePathname();
@@ -62,64 +75,76 @@ export default function AppTabs() {
 
   const isInnerScrollActive = useSharedValue(false);
 
+  const tabNavValue = useMemo<TabNavigationContextValue>(() => ({
+    activeTabIndex: pathname === '/post' ? 4 : pathname === '/dining' ? 1 : pathname === '/safety' ? 2 : pathname === '/directory' ? 3 : 0,
+    setActiveTabIndex: () => {},
+    navigateToTab: (targetIndex: number, targetHref?: string) => {
+      const href = targetHref || '/';
+      router.navigate(href as any);
+    },
+    tabs: [],
+  }), [pathname]);
+
   return (
-    <DiningActivityProvider value={{
-      isActivityOpen: false,
-      openActivity: () => {},
-      closeActivity: () => {},
-    }}>
-      <ClubsNavigationProvider value={{
-        clubsLevel: 0 as const,
-        activeClubId: null,
-        openClubsDirectory: () => { router.push('/clubs/index'); },
-        openClubDetail: (clubId: string) => { router.push({ pathname: '/clubs/[id]', params: { id: clubId } }); },
-        closeClubDetail: () => { router.back(); },
-        closeClubsDirectory: () => { router.back(); },
+    <TabNavigationContext.Provider value={tabNavValue}>
+      <DiningActivityProvider value={{
+        isActivityOpen: false,
+        openActivity: () => {},
+        closeActivity: () => {},
       }}>
-        <TabPagerPriorityProvider value={{
-          isInnerScrollActive,
-          setInnerScrollActive: () => {},
+        <ClubsNavigationProvider value={{
+          clubsLevel: 0 as const,
+          activeClubId: null,
+          openClubsDirectory: () => { router.push('/clubs/index'); },
+          openClubDetail: (clubId: string) => { router.push({ pathname: '/clubs/[id]', params: { id: clubId } }); },
+          closeClubDetail: () => { router.back(); },
+          closeClubsDirectory: () => { router.back(); },
         }}>
-          <StarfieldContext.Provider value={{ translateX, scrollY }}>
-            <View style={{ flex: 1, position: 'relative' }}>
-              <ParallaxStarfield translateX={translateX} scrollY={scrollY} />
+          <TabPagerPriorityProvider value={{
+            isInnerScrollActive,
+            setInnerScrollActive: () => {},
+          }}>
+            <StarfieldContext.Provider value={{ translateX, scrollY }}>
+              <View style={{ flex: 1, position: 'relative' }}>
+                <ParallaxStarfield translateX={translateX} scrollY={scrollY} />
 
-              <Tabs>
-                <TabList asChild>
-                  <TopBar>
-                    <TabTrigger name="knightly" href="/" asChild>
-                      <TabButton>Knightly</TabButton>
-                    </TabTrigger>
-                    <TabTrigger name="dining" href="/dining" asChild>
-                      <TabButton>Dining</TabButton>
-                    </TabTrigger>
-                    <TabTrigger name="safety" href="/safety" asChild>
-                      <TabButton>Safety</TabButton>
-                    </TabTrigger>
-                    <TabTrigger name="directory" href="/directory" asChild>
-                      <TabButton>Directory</TabButton>
-                    </TabTrigger>
-                    {isLeader ? (
-                      <TabTrigger name="post" href="/post" asChild>
-                        <TabButton>Post</TabButton>
+                <Tabs>
+                  <TabList asChild>
+                    <TopBar>
+                      <TabTrigger name="index" href="/" asChild>
+                        <TabButton>Knightly</TabButton>
                       </TabTrigger>
-                    ) : null}
-                  </TopBar>
-                </TabList>
+                      <TabTrigger name="dining" href="/dining" asChild>
+                        <TabButton>Dining</TabButton>
+                      </TabTrigger>
+                      <TabTrigger name="safety" href="/safety" asChild>
+                        <TabButton>Safety</TabButton>
+                      </TabTrigger>
+                      <TabTrigger name="directory" href="/directory" asChild>
+                        <TabButton>Directory</TabButton>
+                      </TabTrigger>
+                      {isLeader ? (
+                        <TabTrigger name="post" href="/post" asChild>
+                          <TabButton>Post</TabButton>
+                        </TabTrigger>
+                      ) : null}
+                    </TopBar>
+                  </TabList>
 
-                <AppHeader
-                  title={headerInfo.title}
-                  subtitle={headerInfo.subtitle}
-                  left={undefined}
-                  right={headerInfo.right}
-                />
-                <TabSlot style={styles.slot} />
-              </Tabs>
-            </View>
-          </StarfieldContext.Provider>
-        </TabPagerPriorityProvider>
-      </ClubsNavigationProvider>
-    </DiningActivityProvider>
+                  <AppHeader
+                    title={headerInfo.title}
+                    subtitle={headerInfo.subtitle}
+                    left={undefined}
+                    right={headerInfo.right}
+                  />
+                  <TabSlot style={styles.slot} />
+                </Tabs>
+              </View>
+            </StarfieldContext.Provider>
+          </TabPagerPriorityProvider>
+        </ClubsNavigationProvider>
+      </DiningActivityProvider>
+    </TabNavigationContext.Provider>
   );
 }
 

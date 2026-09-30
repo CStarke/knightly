@@ -275,7 +275,7 @@ export const InlineImageCropper = forwardRef<InlineImageCropperRef, InlineImageC
         PanResponder.create({
           onStartShouldSetPanResponder: () => true,
           onMoveShouldSetPanResponder: () => true,
-          onPanResponderTerminationRequest: () => false,
+          onPanResponderTerminationRequest: () => true,
 
           onPanResponderGrant: (evt) => {
             // Lock parent tab pager and vertical ScrollView
@@ -382,6 +382,16 @@ export const InlineImageCropper = forwardRef<InlineImageCropperRef, InlineImageC
         }),
       [setInnerScrollActive, onInteractionChange]
     );
+
+    // Guaranteed reset on mount, unmount, or when the imageUri changes
+    useEffect(() => {
+      setInnerScrollActive(false);
+      onInteractionChange?.(false);
+      return () => {
+        setInnerScrollActive(false);
+        onInteractionChange?.(false);
+      };
+    }, [imageUri, setInnerScrollActive, onInteractionChange]);
 
     // Desktop Web Mouse Wheel Listener
     const handleWebWheel = (e: any) => {

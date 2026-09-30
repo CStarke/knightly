@@ -10,7 +10,7 @@ import { Brand, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useClubFollow } from '@/context/club-follow-context';
 import type { Post } from '@/data/feed';
 import { useTheme } from '@/hooks/use-theme';
-import { formatPostRelativeTime } from '@/utils/date-format';
+import { formatRelativeTime } from '@/utils/date-format';
 
 function categoryBadgeTone(category: string): BadgeTone {
   switch (category) {
@@ -152,7 +152,7 @@ export function PostCard({ post }: { post: Post }) {
 
         <View style={styles.footer}>
           <ThemedText type="caption" themeColor="textMuted">
-            {formatPostRelativeTime(post.postedAt, post.createdAt, post.monotonicCreatedAt)}
+            {formatRelativeTime(post.postedAt, post.createdAt, post.monotonicCreatedAt)}
           </ThemedText>
           {post.campusWide ? (
             <ThemedText type="caption" themeColor="textMuted">

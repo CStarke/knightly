@@ -13,25 +13,16 @@
  * - MAX_LOCATION_LENGTH (25 chars): Fits comfortably beside the map pin icon in single-line card headers.
  * - MAX_CUSTOM_WHEN_LENGTH (25 chars): Fits inside the date pill badge for non-calendar time descriptions
  *   (e.g. "Every Tues at Sunset").
- *
- * IMAGE CROPPING ARCHITECTURE:
- * When an image is picked via `ImagePicker.launchImageLibraryAsync`, native editing is disabled
- * (`allowsEditing: false`). Instead, the composer invokes `useImageCropper().openCropper()`,
- * smoothly sliding the horizontal tab pager to the Slot 5 Phantom Tab cropper.
- * This guarantees the exact 16:9 aspect ratio without the focus loss bugs of native modals.
  */
 
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
-  AppState,
   Dimensions,
   Image as RNImage,
   Keyboard,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -43,41 +34,40 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { Image } from 'expo-image';
 import { manipulateAsync } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DatePickerModal, parseDateOrDefault } from '@/components/date-picker-modal';
-import { InlineImageCropper, type InlineImageCropperRef, type CropTransformState } from '@/components/inline-image-cropper';
-import { MaskedTimeInput, type MaskedTimeInputRef } from '@/components/masked-time-input';
+import type { CropTransformState, InlineImageCropperRef } from '@/components/inline-image-cropper';
+import type { MaskedTimeInputRef } from '@/components/masked-time-input';
+import { PostBannerSection } from '@/components/post-banner-section';
+import { PostClubSelector } from '@/components/post-club-selector';
+import { PostDateTimeSection } from '@/components/post-date-time-section';
+import { PostSuccessModal } from '@/components/post-success-modal';
 import { ThemedText } from '@/components/themed-text';
-import { AccessoryButton } from '@/components/ui/accessory-button';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { FieldLabel } from '@/components/ui/field-label';
 import { Icon } from '@/components/ui/icon';
 import { Screen } from '@/components/ui/screen';
-import { Segmented } from '@/components/ui/segmented';
-import { SuccessModal } from '@/components/ui/success-modal';
-import { SegmentedDateInput } from '@/components/segmented-date-input';
 import { BottomTabContentInset, Brand, Radius, Spacing } from '@/constants/theme';
 import { useClubLeadership } from '@/context/club-leadership-context';
 import { useFeed } from '@/context/feed-context';
+import { useTabNavigation } from '@/context/tab-navigation-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 import {
   completeDateDigits,
   completeTimeDigits,
+  formatDateSegments,
   formatEventDate,
-  formatRawDateSegments,
   isDateCompleteAndValid,
   isTimeCompleteAndValid,
   parseDateSegments,
-  resolveTimeWithPeriod,
-  sanitizeTimeDigitsWithError,
-  validateDateOnBlur,
+  resolveEventTime,
+  sanitizeTime,
+  validateDate,
 } from '@/utils/date-format';
 import { attachNumericDomFilters } from '@/utils/numeric-input';
 import { handleSmoothInputFocus } from '@/utils/smooth-input-focus';
@@ -96,6 +86,7 @@ export default function CreatePostScreen() {
     useClubLeadership();
   const { createPost } = useFeed();
   const insets = useSafeAreaInsets();
+  const tabNav = useTabNavigation();
   const scrollViewRef = useRef<ScrollView>(null);
   const keyboardHeight = useSharedValue(0);
 
@@ -151,7 +142,6 @@ export default function CreatePostScreen() {
     }, Platform.OS === 'android' ? 100 : 50);
   };
 
-
   // Form State
   const [title, setTitle] = useState('');
   const [isTitleFocused, setIsTitleFocused] = useState(false);
@@ -169,6 +159,8 @@ export default function CreatePostScreen() {
   // Pick an image from the user's device photo library
   const handlePickImage = async () => {
     setIsCroppingInteracting(false);
+    setIsCropping(false);
+    tabNav?.setActiveTabIndex(4);
     try {
       if (Platform.OS !== 'web') {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -186,6 +178,9 @@ export default function CreatePostScreen() {
         allowsEditing: false, // Standardize 16:9 interactive crop across iOS, Android, and Web
         quality: 1,
       });
+
+      // Synchronously re-pin tab focus upon native activity resume
+      tabNav?.setActiveTabIndex(4);
 
       if (result.canceled || !result.assets || result.assets.length === 0) {
         return;
@@ -207,7 +202,6 @@ export default function CreatePostScreen() {
         console.warn('[CreatePostScreen] probe image failed, fallback to picker/getSize dimensions:', probeErr);
       }
 
-      // In case native picker and probe both did not report dimensions
       if (width <= 0 || height <= 0) {
         await new Promise<void>((resolve) => {
           RNImage.getSize(
@@ -226,18 +220,20 @@ export default function CreatePostScreen() {
         });
       }
 
+      tabNav?.setActiveTabIndex(4);
       setRawImage({ uri: finalUri, width, height });
       setImageUrl(finalUri);
-      setSavedTransform(null); // Fresh photo starts at centered zoom = 1.0x
-      setIsEditing(true); // Open cropper immediately so user can adjust
+      setSavedTransform(null);
+      setIsEditing(true);
     } catch (err) {
       console.error('[CreatePostScreen] Error launching image picker:', err);
     } finally {
       setIsCroppingInteracting(false);
+      setIsCropping(false);
+      tabNav?.setActiveTabIndex(4);
     }
   };
 
-  // Commit crop when tapping Done
   const handleSaveCrop = async () => {
     if (isCropping) return;
     setIsCropping(true);
@@ -256,20 +252,20 @@ export default function CreatePostScreen() {
     }
   };
 
-  // Resume editing photo at exact previous position
   const handleStartEdit = () => {
     setIsEditing(true);
   };
 
-  // Remove photo and reset cropper state
   const handleRemovePhoto = () => {
+    setIsCropping(false);
+    setIsCroppingInteracting(false);
     setImageUrl(null);
     setRawImage(null);
     setSavedTransform(null);
     setIsEditing(false);
   };
 
-  // Date State (Numeric masked input: MMDDYYYY, slashes appear dynamically on char 3 and char 5)
+  // Date State
   const dateInputRef = useRef<TextInput>(null);
   const [rawDate, setRawDate] = useState('');
   const [dateSegmentsState, setDateSegmentsState] = useState({ month: '', day: '', year: '' });
@@ -277,27 +273,27 @@ export default function CreatePostScreen() {
   const [selectedDate, setSelectedDate] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // Time State (Numeric masked input: e.g. 700 -> 7:00, fake colon appears dynamically)
+  // Time State
   const timeInputRef = useRef<MaskedTimeInputRef>(null);
   const [rawTime, setRawTime] = useState('');
   const [isTimeFocused, setIsTimeFocused] = useState(false);
   const [timePeriod, setTimePeriod] = useState<'AM' | 'PM'>('PM');
 
-  // Event Date & Time validation error states (shown in red on respective input borders & card footer)
+  // Validation error states
   const [dateError, setDateError] = useState<string | null>(null);
   const [timeError, setTimeError] = useState<string | null>(null);
   const whenError = dateError || timeError;
 
-  // Freeform mode toggle (Standard Time vs Custom Text)
+  // Freeform mode toggle
   const [isCustomWhen, setIsCustomWhen] = useState(false);
   const [customWhenText, setCustomWhenText] = useState('');
   const [isCustomWhenFocused, setIsCustomWhenFocused] = useState(false);
 
-  // Location State - open by default, blank
+  // Location State
   const [whereText, setWhereText] = useState('');
   const [isWhereFocused, setIsWhereFocused] = useState(false);
 
-  // Web-only DOM numeric filters to strictly block non-numeric characters and paste at browser level
+  // Web-only DOM numeric filters
   useEffect(() => {
     if (Platform.OS !== 'web') return;
     const cleanupDate = attachNumericDomFilters(dateInputRef.current);
@@ -312,36 +308,32 @@ export default function CreatePostScreen() {
     setTimePeriod((prev) => (prev === 'AM' ? 'PM' : 'AM'));
   };
 
-  // Club Selector Dropdown State
-  const [isClubSelectorOpen, setIsClubSelectorOpen] = useState(false);
-
   // Success Confirmation Modal State
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [publishedClubName, setPublishedClubName] = useState('');
 
-  // Derived Date Segments for non-selectable visual masking
-  const dateSegments = useMemo(() => formatRawDateSegments(rawDate), [rawDate]);
+  // Derived Date Segments
+  const dateSegments = useMemo(() => formatDateSegments(rawDate), [rawDate]);
 
-  // Translated human-friendly date and time preview shown below inputs
+  // Translated human-friendly date and time preview
   const eventPreview = useMemo(() => {
-    // If the date has an error or is incomplete/invalid, do not include date in preview
     const isDateValidForPreview =
       !dateError &&
       (rawDate.length === 8 || rawDate.length === 6) &&
-      validateDateOnBlur(dateSegmentsState) === null &&
-      validateDateOnBlur(rawDate) === null &&
+      validateDate(dateSegmentsState) === null &&
+      validateDate(rawDate) === null &&
       isDateCompleteAndValid(rawDate);
 
     const formattedDate = isDateValidForPreview
       ? formatEventDate(
           rawDate.length === 6
-            ? formatRawDateSegments(completeDateDigits(rawDate)).formatted
+            ? formatDateSegments(completeDateDigits(rawDate)).formatted
             : dateSegments.formatted
         )
       : '';
 
     const isTimeValid = !timeError && isTimeCompleteAndValid(rawTime);
-    const resolvedTime = isTimeValid ? resolveTimeWithPeriod(rawTime, timePeriod) : '';
+    const resolvedTime = isTimeValid ? resolveEventTime(rawTime, timePeriod) : '';
 
     if (formattedDate && resolvedTime) {
       return `${formattedDate} · ${resolvedTime}`;
@@ -386,7 +378,7 @@ export default function CreatePostScreen() {
     isCustomWhenValid &&
     (isCustomWhen || (isDateValid && isTimeValid && !whenError));
 
-  // Resolve Final "When" Text (only includes if valid date/time or freeform entered)
+  // Resolve Final "When" Text
   const computedWhen = useMemo(() => {
     if (isCustomWhen) return customWhenText.trim() || undefined;
     if (dateError) return undefined;
@@ -395,14 +387,14 @@ export default function CreatePostScreen() {
     const isFullDate = completed.length === 8;
     const isDateValidForWhen =
       isFullDate &&
-      validateDateOnBlur(dateSegmentsState) === null &&
-      validateDateOnBlur(completed) === null &&
+      validateDate(dateSegmentsState) === null &&
+      validateDate(completed) === null &&
       isDateCompleteAndValid(completed);
     const formattedDate = isDateValidForWhen
-      ? formatEventDate(formatRawDateSegments(completed).formatted)
+      ? formatEventDate(formatDateSegments(completed).formatted)
       : undefined;
     const isTimeValidForWhen = !timeError && isTimeCompleteAndValid(rawTime);
-    const resolvedTime = isTimeValidForWhen ? resolveTimeWithPeriod(rawTime, timePeriod) : undefined;
+    const resolvedTime = isTimeValidForWhen ? resolveEventTime(rawTime, timePeriod) : undefined;
 
     if (!formattedDate && !resolvedTime) return undefined;
 
@@ -430,7 +422,7 @@ export default function CreatePostScreen() {
     setRawDate(raw);
     const nextSegments = segments || parseDateSegments(raw);
     setDateSegmentsState(nextSegments);
-    const segs = formatRawDateSegments(raw);
+    const segs = formatDateSegments(raw);
     setSelectedDate(segs.formatted);
     const isCompleteCandidate =
       raw.length === 6 ||
@@ -439,7 +431,7 @@ export default function CreatePostScreen() {
         nextSegments.day.length === 2 &&
         (nextSegments.year.length === 2 || nextSegments.year.length === 4));
     if (isCompleteCandidate) {
-      const error = validateDateOnBlur(nextSegments) || validateDateOnBlur(raw);
+      const error = validateDate(nextSegments) || validateDate(raw);
       setDateError(error);
     } else {
       setDateError(null);
@@ -454,29 +446,26 @@ export default function CreatePostScreen() {
     const d = segs.day || '';
     const y = segs.year || '';
 
-    // If entire date is empty (no elements filled in): no error
     if (!m && !d && !y && !rawDate) {
       setDateError(null);
       return;
     }
 
-    // If only MMDD is filled in without a year, completeDateDigits auto-fills next occurrence year
     if (m.length === 2 && d.length === 2 && !y) {
       const mmdd = `${m}${d}`;
       const completedRaw = completeDateDigits(mmdd);
       if (completedRaw !== mmdd) {
         setRawDate(completedRaw);
         setDateSegmentsState(parseDateSegments(completedRaw));
-        const parsed = formatRawDateSegments(completedRaw);
+        const parsed = formatDateSegments(completedRaw);
         setSelectedDate(parsed.formatted);
-        const error = validateDateOnBlur(completedRaw);
+        const error = validateDate(completedRaw);
         setDateError(error);
         return;
       }
     }
 
-    // Validate on blur using segments
-    const error = validateDateOnBlur(segs);
+    const error = validateDate(segs);
     setDateError(error);
   };
 
@@ -489,7 +478,7 @@ export default function CreatePostScreen() {
   };
 
   const handleRawTimeChange = (raw: string) => {
-    const result = sanitizeTimeDigitsWithError(raw, rawTime);
+    const result = sanitizeTime(raw, rawTime);
     setRawTime(result.digits);
     if (result.error) {
       setTimeError(result.error);
@@ -520,7 +509,6 @@ export default function CreatePostScreen() {
     const clubName = activeClub.name;
     let finalImageUrl = imageUrl;
 
-    // If publisher tapped submit while still in interactive crop mode, auto-commit the crop
     if (isEditing && cropperRef.current) {
       try {
         const cropRes = await cropperRef.current.applyCrop();
@@ -535,11 +523,10 @@ export default function CreatePostScreen() {
       setIsEditing(false);
     }
 
-    // Ensure 2-digit years or partial dates are expanded before publishing
     const completedDate = completeDateDigits(rawDate);
     if (completedDate !== rawDate) {
       setRawDate(completedDate);
-      setSelectedDate(formatRawDateSegments(completedDate).formatted);
+      setSelectedDate(formatDateSegments(completedDate).formatted);
       if (dateInputRef.current) {
         const node = (dateInputRef.current as any)._node || (dateInputRef.current as any);
         if (node && 'value' in node) {
@@ -557,7 +544,6 @@ export default function CreatePostScreen() {
       where: computedWhere,
     });
 
-    // Reset Form - stays open by default, but fields blank
     setTitle('');
     setDescription('');
     setImageUrl(null);
@@ -574,7 +560,9 @@ export default function CreatePostScreen() {
     setDateError(null);
     setTimeError(null);
 
-    // Open confirmation pop-up
+    Keyboard.dismiss();
+    scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+
     setPublishedClubName(clubName);
     setShowSuccessModal(true);
   };
@@ -623,7 +611,6 @@ export default function CreatePostScreen() {
 
   return (
     <View style={styles.outerContainer}>
-      {/* Subtle dimming layer over the starfield on create post page for readability */}
       <View
         pointerEvents="none"
         style={[
@@ -649,92 +636,11 @@ export default function CreatePostScreen() {
             showsVerticalScrollIndicator={false}
           >
             {/* 1. CLUB AUTHOR SELECTOR */}
-            <View style={styles.section}>
-              <ThemedText type="caption" themeColor="textMuted" style={styles.sectionLabel}>
-                POSTING AS CLUB
-              </ThemedText>
-              <Pressable
-                onPress={() => {
-                  if (linkedClubs.length > 1) {
-                    setIsClubSelectorOpen((prev) => !prev);
-                  }
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={`Posting as ${activeClub.name}. Tap to switch club.`}
-                style={[
-                  styles.clubSelectorRow,
-                  {
-                    backgroundColor: theme.backgroundElement,
-                    borderColor: theme.border,
-                  },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.clubMonogram,
-                    { backgroundColor: activeClub.colors[0] },
-                  ]}
-                >
-                  <ThemedText style={styles.clubMonogramText}>
-                    {activeClub.mark}
-                  </ThemedText>
-                </View>
-                <View style={styles.clubSelectorInfo}>
-                  <ThemedText style={styles.clubSelectorName} numberOfLines={1}>
-                    {activeClub.name}
-                  </ThemedText>
-                  <ThemedText type="caption" themeColor="textMuted">
-                    {activeClub.category} · Verified Club Leader
-                  </ThemedText>
-                </View>
-                {linkedClubs.length > 1 ? (
-                  <Icon
-                    sf={isClubSelectorOpen ? 'chevron.up' : 'chevron.down'}
-                    md={isClubSelectorOpen ? 'expand_less' : 'expand_more'}
-                    size={18}
-                    color={theme.textMuted}
-                  />
-                ) : (
-                  <Badge label="ACTIVE" tone="success" />
-                )}
-              </Pressable>
-
-              {/* Multiple Clubs Dropdown */}
-              {isClubSelectorOpen && linkedClubs.length > 1 ? (
-                <View
-                  style={[
-                    styles.dropdownList,
-                    {
-                      backgroundColor: theme.backgroundElement,
-                      borderColor: theme.border,
-                    },
-                  ]}
-                >
-                  {linkedClubs.map((club) => (
-                    <Pressable
-                      key={club.id}
-                      onPress={() => {
-                        setActiveClub(club);
-                        setIsClubSelectorOpen(false);
-                      }}
-                      style={[
-                        styles.dropdownItem,
-                        club.id === activeClub.id && {
-                          backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                        },
-                      ]}
-                    >
-                      <ThemedText style={{ fontWeight: club.id === activeClub.id ? '700' : '500' }}>
-                        {club.name}
-                      </ThemedText>
-                      {club.id === activeClub.id && (
-                        <Icon sf="checkmark" md="check" size={16} color={Brand.gold} />
-                      )}
-                    </Pressable>
-                  ))}
-                </View>
-              ) : null}
-            </View>
+            <PostClubSelector
+              activeClub={activeClub}
+              linkedClubs={linkedClubs}
+              onSelectClub={setActiveClub}
+            />
 
             {/* 2. TITLE (REQUIRED, MAX 50 CHARS) */}
             <View
@@ -830,277 +736,69 @@ export default function CreatePostScreen() {
             </View>
 
             {/* 4. ATTACH IMAGE */}
-            <View style={styles.section}>
-              <FieldLabel
-                label="PHOTO / BANNER"
-                rightElement={
-                  imageUrl || rawImage ? (
-                    <Pressable
-                      onPress={handleRemovePhoto}
-                      hitSlop={8}
-                      accessibilityRole="button"
-                      accessibilityLabel="Remove banner photo"
-                    >
-                      <ThemedText type="caption" style={{ color: Brand.brightRed, fontWeight: '600' }}>
-                        Remove Photo
-                      </ThemedText>
-                    </Pressable>
-                  ) : null
-                }
-              />
-
-              {imageUrl || rawImage ? (
-                <View style={{ gap: Spacing.two }}>
-                  <View style={styles.forceCroppedContainer}>
-                    {isEditing && rawImage ? (
-                      <InlineImageCropper
-                        ref={cropperRef}
-                        imageUri={rawImage.uri}
-                        imageDimensions={{ width: rawImage.width, height: rawImage.height }}
-                        initialTransform={savedTransform}
-                        onInteractionChange={setIsCroppingInteracting}
-                      />
-                    ) : (
-                      <>
-                        <Image
-                          source={{ uri: imageUrl ?? rawImage?.uri }}
-                          contentFit="cover"
-                          style={styles.forceCroppedImage}
-                        />
-                        <View style={styles.cropBadge}>
-                          <ThemedText type="caption" style={styles.cropBadgeText}>
-                            16:9 CARD BANNER
-                          </ThemedText>
-                        </View>
-                      </>
-                    )}
-                  </View>
-
-                  {/* Photo Actions: Full-width Change Photo (Left) & Edit / Done (Right) */}
-                  <View style={styles.photoActionsRow}>
-                    <Pressable
-                      onPress={handlePickImage}
-                      accessibilityRole="button"
-                      accessibilityLabel="Change photo"
-                      style={[
-                        styles.photoActionButtonLarge,
-                        {
-                          borderColor: theme.border,
-                          backgroundColor: theme.backgroundElement,
-                        },
-                      ]}
-                    >
-                      <Icon sf="photo" md="image" size={18} color={theme.text} />
-                      <ThemedText style={[styles.photoActionTextLarge, { color: theme.text }]}>
-                        Change Photo
-                      </ThemedText>
-                    </Pressable>
-
-                    <Pressable
-                      onPress={isEditing ? handleSaveCrop : handleStartEdit}
-                      accessibilityRole="button"
-                      accessibilityLabel={isEditing ? 'Done cropping photo' : 'Edit photo crop'}
-                      disabled={isCropping}
-                      style={[
-                        styles.photoActionButtonLarge,
-                        isEditing
-                          ? {
-                              borderColor: Brand.gold,
-                              backgroundColor: Brand.gold,
-                            }
-                          : {
-                              borderColor: Brand.gold,
-                              backgroundColor: 'rgba(243, 195, 0, 0.12)',
-                            },
-                      ]}
-                    >
-                      {isCropping ? (
-                        <ActivityIndicator size="small" color="#000000" />
-                      ) : (
-                        <>
-                          <Icon
-                            sf={isEditing ? 'checkmark' : 'crop'}
-                            md={isEditing ? 'check' : 'crop'}
-                            size={18}
-                            color={isEditing ? '#000000' : Brand.gold}
-                          />
-                          <ThemedText
-                            style={[
-                              styles.photoActionTextLarge,
-                              {
-                                color: isEditing ? '#000000' : Brand.gold,
-                                fontWeight: '700',
-                              },
-                            ]}
-                          >
-                            {isEditing ? 'Done' : 'Edit'}
-                          </ThemedText>
-                        </>
-                      )}
-                    </Pressable>
-                  </View>
-                </View>
-              ) : (
-                <Pressable
-                  onPress={handlePickImage}
-                  accessibilityRole="button"
-                  accessibilityLabel="Upload custom banner photo"
-                  style={[
-                    styles.photoUploadBox,
-                    {
-                      borderColor: theme.border,
-                      backgroundColor: theme.backgroundElement,
-                    },
-                  ]}
-                >
-                  <View style={styles.uploadIconCircle}>
-                    <Icon sf="photo.badge.plus" md="add_photo_alternate" size={24} color={Brand.gold} />
-                  </View>
-                  <View style={{ alignItems: 'center', gap: 3 }}>
-                    <ThemedText style={{ fontSize: 14, fontWeight: '700', color: theme.text }}>
-                      Upload Banner Photo
-                    </ThemedText>
-                    <ThemedText type="caption" themeColor="textMuted">
-                      Select image from device · Drag & zoom to 16:9 crop
-                    </ThemedText>
-                  </View>
-                </Pressable>
-              )}
-            </View>
+            <PostBannerSection
+              imageUrl={imageUrl}
+              rawImage={rawImage}
+              isEditing={isEditing}
+              isCropping={isCropping}
+              savedTransform={savedTransform}
+              cropperRef={cropperRef}
+              onPickImage={handlePickImage}
+              onRemovePhoto={handleRemovePhoto}
+              onStartEdit={handleStartEdit}
+              onSaveCrop={handleSaveCrop}
+              onCroppingInteractionChange={setIsCroppingInteracting}
+            />
 
             {/* 5. DATE & TIME (ALWAYS VISIBLE INLINE, BLANK BY DEFAULT) */}
-            <View
-              style={styles.section}
+            <PostDateTimeSection
+              isCustomWhen={isCustomWhen}
+              onModeChange={(isCustom) => {
+                setIsCustomWhen(isCustom);
+                setDateError(null);
+                setTimeError(null);
+              }}
+              rawDate={rawDate}
+              onRawDateChange={handleRawDateChange}
+              onDateBlur={handleDateBlur}
+              onDateFocus={(e) => {
+                setIsDateFocused(true);
+                scrollToInput(dateSectionY.current);
+                handleSmoothInputFocus(e, { scrollViewRef, targetY: dateSectionY.current });
+              }}
+              dateError={dateError}
+              onOpenDatePicker={() => setShowDatePicker(true)}
+              timeInputRef={timeInputRef}
+              rawTime={rawTime}
+              onRawTimeChange={handleRawTimeChange}
+              timePeriod={timePeriod}
+              onTogglePeriod={handleTogglePeriod}
+              onTimeFocus={(e) => {
+                setIsTimeFocused(true);
+                scrollToInput(dateSectionY.current);
+                handleSmoothInputFocus(e, { scrollViewRef, targetY: dateSectionY.current });
+              }}
+              onTimeBlur={handleTimeBlur}
+              timeError={timeError}
+              eventPreview={eventPreview}
+              customWhenText={customWhenText}
+              onCustomWhenTextChange={setCustomWhenText}
+              isCustomWhenFocused={isCustomWhenFocused}
+              onCustomWhenFocus={(e) => {
+                setIsCustomWhenFocused(true);
+                scrollToInput(dateSectionY.current);
+                handleSmoothInputFocus(e, { scrollViewRef, targetY: dateSectionY.current });
+              }}
+              onCustomWhenBlur={() => {
+                setIsCustomWhenFocused(false);
+                setDateError(null);
+                setTimeError(null);
+              }}
+              whenError={whenError}
               onLayout={(e) => {
                 dateSectionY.current = e.nativeEvent.layout.y;
               }}
-            >
-              <FieldLabel
-                icon={<Icon sf="calendar" md="event" size={16} color={Brand.gold} />}
-                label="EVENT DATE & TIME"
-              />
-
-              <Card style={styles.eventSubCard}>
-                {/* Segmented Mode Selector: Standard Time vs Custom Text */}
-                <Segmented
-                  options={['Standard Time', 'Custom Text'] as const}
-                  value={isCustomWhen ? 'Custom Text' : 'Standard Time'}
-                  onChange={(mode) => {
-                    setIsCustomWhen(mode === 'Custom Text');
-                    setDateError(null);
-                    setTimeError(null);
-                  }}
-                />
-
-                {!isCustomWhen ? (
-                  <View style={{ gap: Spacing.two }}>
-                    <View style={styles.structuredWhenRow}>
-                      <View style={{ flex: 1.25, gap: 4 }}>
-                        <ThemedText type="caption" themeColor="textMuted">DATE</ThemedText>
-                        <View style={styles.dateInputWrapper}>
-                          <SegmentedDateInput
-                            value={rawDate}
-                            onChange={handleRawDateChange}
-                            onBlur={handleDateBlur}
-                            onFocus={(e) => {
-                              setIsDateFocused(true);
-                              scrollToInput(dateSectionY.current);
-                              handleSmoothInputFocus(e, { scrollViewRef, targetY: dateSectionY.current });
-                            }}
-                            hasError={Boolean(dateError)}
-                          />
-                          <AccessoryButton
-                            onPress={() => setShowDatePicker(true)}
-                            accessibilityLabel="Open calendar date picker"
-                            style={styles.calendarIconBtn}
-                          >
-                            <Icon sf="calendar" md="calendar_today" size={16} color={Brand.gold} />
-                          </AccessoryButton>
-                        </View>
-                      </View>
-
-                      <View style={{ flex: 0.85, gap: 4 }}>
-                        <ThemedText type="caption" themeColor="textMuted">TIME</ThemedText>
-                        <MaskedTimeInput
-                          ref={timeInputRef}
-                          value={rawTime}
-                          onChange={handleRawTimeChange}
-                          period={timePeriod}
-                          onTogglePeriod={handleTogglePeriod}
-                          onFocus={(e) => {
-                            setIsTimeFocused(true);
-                            scrollToInput(dateSectionY.current);
-                            handleSmoothInputFocus(e, { scrollViewRef, targetY: dateSectionY.current });
-                          }}
-                          onBlur={handleTimeBlur}
-                          hasError={Boolean(timeError)}
-                        />
-                      </View>
-                    </View>
-
-                    {/* Translated event date & time preview with margin left */}
-                    {eventPreview ? (
-                      <View style={styles.eventPreviewRow}>
-                        <Icon sf="sparkles" md="auto_awesome" size={12} color={Brand.gold} />
-                        <ThemedText style={styles.eventPreviewText}>
-                          {eventPreview}
-                        </ThemedText>
-                      </View>
-                    ) : null}
-                  </View>
-                ) : (
-                  <View style={{ gap: 4 }}>
-                    <FieldLabel
-                      label="CUSTOM EVENT TIME TEXT"
-                      currentLength={customWhenText.length}
-                      maxLength={MAX_CUSTOM_WHEN_LENGTH}
-                    />
-                    <TextInput
-                      value={customWhenText}
-                      onChangeText={setCustomWhenText}
-                      onFocus={(e) => {
-                        setIsCustomWhenFocused(true);
-                        scrollToInput(dateSectionY.current);
-                        handleSmoothInputFocus(e, { scrollViewRef, targetY: dateSectionY.current });
-                      }}
-                      onBlur={() => {
-                        setIsCustomWhenFocused(false);
-                        setDateError(null);
-                        setTimeError(null);
-                      }}
-                      cursorColor={Brand.gold}
-                      selectionColor={Brand.gold}
-                      placeholder="e.g. Starts this weekend"
-                      placeholderTextColor={theme.textMuted}
-                      maxLength={MAX_CUSTOM_WHEN_LENGTH}
-                      style={[
-                        styles.smallInput,
-                        {
-                          color: theme.text,
-                          backgroundColor: theme.backgroundElement,
-                          borderColor:
-                            customWhenText.length > MAX_CUSTOM_WHEN_LENGTH
-                              ? Brand.brightRed
-                              : isCustomWhenFocused
-                              ? Brand.gold
-                              : theme.border,
-                        },
-                      ]}
-                    />
-                  </View>
-                )}
-
-                {/* Real-time validation error message */}
-                {whenError ? (
-                  <View style={styles.whenErrorRow}>
-                    <Icon sf="exclamationmark.circle.fill" md="error" size={13} color={Brand.brightRed} />
-                    <ThemedText style={styles.whenErrorText}>
-                      {whenError}
-                    </ThemedText>
-                  </View>
-                ) : null}
-              </Card>
-            </View>
+            />
 
             {/* 6. LOCATION (ALWAYS VISIBLE INLINE, BLANK BY DEFAULT) */}
             <View
@@ -1115,7 +813,6 @@ export default function CreatePostScreen() {
                 currentLength={whereText.length}
                 maxLength={MAX_LOCATION_LENGTH}
               />
-
               <TextInput
                 value={whereText}
                 onChangeText={setWhereText}
@@ -1172,7 +869,11 @@ export default function CreatePostScreen() {
           onClose={() => setShowSuccessModal(false)}
           onViewFeed={() => {
             setShowSuccessModal(false);
-            router.push('/');
+            if (tabNav) {
+              tabNav.navigateToTab(0, '/');
+            } else {
+              router.navigate('/');
+            }
           }}
         />
       </Screen>
@@ -1190,65 +891,6 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: 6,
-  },
-  labelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-  },
-  charCounter: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  helperText: {
-    fontSize: 11,
-  },
-  clubSelectorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.two + 2,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    gap: Spacing.two + 2,
-  },
-  clubMonogram: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  clubMonogramText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  clubSelectorInfo: {
-    flex: 1,
-  },
-  clubSelectorName: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  dropdownList: {
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    marginTop: 4,
-    overflow: 'hidden',
-  },
-  dropdownItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.two + 4,
-    paddingVertical: Spacing.two + 2,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
   },
   titleInput: {
     borderWidth: 1,
@@ -1272,80 +914,6 @@ const styles = StyleSheet.create({
     outlineWidth: 0,
     outlineColor: 'transparent',
   },
-  forceCroppedContainer: {
-    width: '100%',
-    aspectRatio: 16 / 9,
-    borderRadius: Radius.lg,
-    overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: '#1C1D21',
-  },
-  forceCroppedImage: {
-    width: '100%',
-    height: '100%',
-  },
-  cropBadge: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: Radius.pill,
-  },
-  cropBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  photoUploadBox: {
-    paddingVertical: Spacing.four,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Radius.lg,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.one + 4,
-  },
-  uploadIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(243, 195, 0, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  photoActionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    width: '100%',
-  },
-  photoActionButtonLarge: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    minHeight: 48,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.three,
-  },
-  photoActionTextLarge: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  eventSubCard: {
-    padding: Spacing.two + 2,
-    gap: Spacing.two,
-  },
-  structuredWhenRow: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-  },
   smallInput: {
     height: 40,
     borderWidth: 1,
@@ -1355,30 +923,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     outlineWidth: 0,
     outlineColor: 'transparent',
-  },
-  eventPreviewRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginLeft: 6,
-    marginTop: 4,
-  },
-  eventPreviewText: {
-    color: Brand.gold,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  whenErrorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginLeft: 6,
-    marginTop: 4,
-  },
-  whenErrorText: {
-    color: Brand.brightRed,
-    fontSize: 12,
-    fontWeight: '600',
   },
   publishBtn: {
     marginTop: Spacing.two,
@@ -1419,65 +963,4 @@ const styles = StyleSheet.create({
     flex: 1,
     position: 'relative',
   },
-  dateInputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  calendarIconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 });
-
-function PostSuccessModal({
-  visible,
-  clubName,
-  onClose,
-  onViewFeed,
-}: {
-  visible: boolean;
-  clubName: string;
-  onClose: () => void;
-  onViewFeed: () => void;
-}) {
-  return (
-    <SuccessModal
-      visible={visible}
-      title="Post Published!"
-      message={
-        <ThemedText
-          type="default"
-          themeColor="textMuted"
-          style={{ textAlign: 'center', fontSize: 15, lineHeight: 22, maxWidth: 300 }}
-        >
-          Your post for{' '}
-          <ThemedText
-            type="default"
-            style={{ fontWeight: '700', color: Brand.renewGreen }}
-          >
-            {clubName}
-          </ThemedText>{' '}
-          is now live on the Knightly campus feed.
-        </ThemedText>
-      }
-      primaryButton={{
-        label: 'View in Feed',
-        variant: 'primary',
-        sf: 'sparkles',
-        md: 'auto_awesome',
-        onPress: onViewFeed,
-      }}
-      secondaryButton={{
-        label: 'Got it',
-        variant: 'secondary',
-        onPress: onClose,
-      }}
-      onClose={onClose}
-    />
-  );
-}

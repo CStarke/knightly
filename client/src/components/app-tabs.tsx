@@ -52,21 +52,18 @@ import { getClubById } from '@/data/clubs';
 import { useClubLeadership } from '@/context/club-leadership-context';
 import { useTheme } from '@/hooks/use-theme';
 
-/**
- * Tab metadata defining icons, route URLs, and accessibility labels.
- * Why both SF Symbols (iOS) and Material Symbols (Android/Web)?
- * Knightly adheres strictly to platform HIG: native iOS users expect Apple SF Symbols,
- * while Android and web users expect Material Design iconography. Dual-keying
- * ensures visual authenticity on every platform without compromise.
- */
-type TabMeta = {
-  name: string;
-  href: '/' | '/dining' | '/post' | '/safety' | '/directory';
-  label: string;
-  sf: SfSymbolName;
-  sfActive?: SfSymbolName;
-  md: MaterialSymbolName;
-  mdActive?: MaterialSymbolName;
+import {
+  TabNavigationContext,
+  useTabNavigation,
+  type TabNavigationContextValue,
+  type TabMeta,
+} from '@/context/tab-navigation-context';
+
+export {
+  TabNavigationContext,
+  useTabNavigation,
+  type TabNavigationContextValue,
+  type TabMeta,
 };
 
 /**
@@ -166,18 +163,7 @@ const dismissKeyboard = () => {
  * Shields the active tab selection and screen interactivity against spurious unrouted
  * resume intent drops to '/' triggered by Android native activities (e.g. ImagePicker).
  */
-export type TabNavigationContextValue = {
-  activeTabIndex: number;
-  setActiveTabIndex: (index: number) => void;
-  navigateToTab: (targetIndex: number, targetHref?: string) => void;
-  tabs: TabMeta[];
-};
 
-export const TabNavigationContext = createContext<TabNavigationContextValue | null>(null);
-
-export function useTabNavigation() {
-  return useContext(TabNavigationContext);
-}
 
 export default function AppTabs() {
   const bottomBarTranslateY = useSharedValue(0);
@@ -186,15 +172,26 @@ export default function AppTabs() {
   const pathname = usePathname();
   const initialIndex = tabs.findIndex((tab) => tab.href === pathname);
   const [activeTabIndex, setActiveTabIndex] = useState(() => (initialIndex >= 0 ? initialIndex : 0));
+  const activeTabIndexRef = useRef(activeTabIndex);
+  activeTabIndexRef.current = activeTabIndex;
   const pagerNavigateRef = useRef<((index: number, href?: string) => void) | null>(null);
 
-  // Synchronize activeTabIndex with current route pathname & dynamic tab layout
+  // Reconcile Expo Router route pathname whenever it diverges from master activeTabIndex
   useEffect(() => {
-    const idx = tabs.findIndex((tab) => tab.href === pathname);
-    if (idx >= 0) {
-      setActiveTabIndex(idx);
+    // If activeTabIndex is out of bounds (e.g. leadership revoked and tabs shortened), clamp it
+    if (activeTabIndex >= tabs.length) {
+      setActiveTabIndex(Math.max(0, tabs.length - 1));
+      return;
     }
-  }, [pathname, tabs]);
+
+    const currentTab = tabs[activeTabIndex];
+    const isTabRoute = tabs.some((t) => t.href === pathname) || pathname === '/' || pathname === '';
+    if (isTabRoute && currentTab && pathname !== currentTab.href) {
+      try {
+        router.replace(currentTab.href as any);
+      } catch {}
+    }
+  }, [pathname, activeTabIndex, tabs]);
 
   const navigateToTab = useCallback(
     (targetIndex: number, targetHref?: string) => {
@@ -221,7 +218,7 @@ export default function AppTabs() {
 
   return (
     <TabNavigationContext.Provider value={tabNavValue}>
-      <Tabs>
+      <Tabs options={{ backBehavior: 'none' }}>
         <SwipeableTabPager
           bottomBarTranslateY={bottomBarTranslateY}
           tabs={tabs}
@@ -234,7 +231,7 @@ export default function AppTabs() {
           <BottomBar translateY={bottomBarTranslateY}>
             {tabs.map((meta, index) => (
               <TabTrigger key={meta.name} name={meta.name} href={meta.href} asChild>
-                <TabButton meta={meta} index={index} />
+                <TabButton meta={meta} index={index} activeTabIndex={activeTabIndex} />
               </TabTrigger>
             ))}
           </BottomBar>
@@ -267,11 +264,10 @@ function SwipeableTabPager({
   const { width } = useWindowDimensions();
 
   const tabIndex = tabs.findIndex((tab) => tab.href === pathname);
-  // Only update active tab index when pathname matches an actual tab.
-  const [activeIndex, setActiveIndex] = useState(() => (tabIndex >= 0 ? tabIndex : 0));
-  const [headerIndex, setHeaderIndex] = useState(() => (tabIndex >= 0 ? tabIndex : 0));
+  const activeTabIndexRef = useRef(activeTabIndex);
+  activeTabIndexRef.current = activeTabIndex;
 
-  const translateX = useSharedValue(-activeIndex * width);
+  const translateX = useSharedValue(-activeTabIndex * width);
   const scrollY = useSharedValue(0);
   const startX = useSharedValue(0);
   const isGestureActive = useSharedValue(false);
@@ -342,8 +338,6 @@ function SwipeableTabPager({
       lastGestureTarget.value = targetIndex;
       translateX.value = withTiming(targetX, { duration: DURATION, easing: CURVE });
 
-      setActiveIndex(targetIndex);
-      setHeaderIndex(targetIndex);
       setActiveTabIndex(targetIndex);
 
       const href = targetHref || target.href;
@@ -381,60 +375,66 @@ function SwipeableTabPager({
     };
   }, [navigateToTab, pagerNavigateRef]);
 
-  const prevTabIndex = useRef(tabIndex);
+  // Unified single source of truth: Drive horizontal camera and subpage lifecycle strictly from activeTabIndex
+  const prevActiveIndex = useRef(activeTabIndex);
   useEffect(() => {
-    if (tabIndex >= 0) {
-      const isRouteTabChange = prevTabIndex.current !== tabIndex;
-      prevTabIndex.current = tabIndex;
+    const isIndexChange = prevActiveIndex.current !== activeTabIndex;
+    prevActiveIndex.current = activeTabIndex;
 
-      if (lastGestureTarget.value === tabIndex) {
-        lastGestureTarget.value = null;
-        return;
-      }
+    if (lastGestureTarget.value === activeTabIndex) {
       lastGestureTarget.value = null;
+      return;
+    }
+    lastGestureTarget.value = null;
 
-      setActiveIndex(tabIndex);
-      setHeaderIndex(tabIndex);
-      setActiveTabIndex(tabIndex);
-
-      // When navigated to any tab other than Dining, Activity must be completely closed
-      if (tabIndex !== 1 && isActivityOpenShared.value) {
-        isActivityOpenShared.value = false;
-        setIsActivityOpen(false);
-        setShowActivity(false);
-        bottomBarTranslateY.value = 0;
+    // When navigated to any tab other than Dining, Activity must be completely closed
+    if (activeTabIndex !== 1 && isActivityOpenShared.value) {
+      isActivityOpenShared.value = false;
+      setIsActivityOpen(false);
+      setShowActivity(false);
+      bottomBarTranslateY.value = 0;
+    }
+    // When navigated to any tab other than Knightly, Clubs sub-pages & setup must be completely closed
+    if (activeTabIndex !== 0 && (clubsLevelShared.value > 0 || claimSetupState.isOpen)) {
+      if (claimSetupState.isOpen) {
+        cancelClaimSetup();
       }
-      // When navigated to any tab other than Knightly, Clubs sub-pages & setup must be completely closed
-      if (tabIndex !== 0 && (clubsLevelShared.value > 0 || claimSetupState.isOpen)) {
-        if (claimSetupState.isOpen) {
-          cancelClaimSetup();
-        }
-        clubsLevelShared.value = 0;
-        setClubsLevel(0);
-        setShowClubsDirectory(false);
-        setShowClubDetail(false);
-        setActiveClubId(null);
-        bottomBarTranslateY.value = 0;
-      }
+      clubsLevelShared.value = 0;
+      setClubsLevel(0);
+      setShowClubsDirectory(false);
+      setShowClubDetail(false);
+      setActiveClubId(null);
+      bottomBarTranslateY.value = 0;
+    }
 
-      // Subpage-aware camera positioning:
-      // Only animate translateX to -tabIndex * width if an actual tab route change occurred
-      // OR if no inline subpages (Campus Clubs, Complete Profile, Activity) are currently active.
-      const isSubpageOpen =
-        (tabIndex === 0 && (clubsLevelShared.value > 0 || claimSetupState.isOpen)) ||
-        (tabIndex === 1 && isActivityOpenShared.value);
+    // Subpage-aware camera positioning:
+    // Only animate translateX to -activeTabIndex * width if an actual tab change occurred
+    // OR if no inline subpages (Campus Clubs, Complete Profile, Activity) are currently active.
+    const isSubpageOpen =
+      (activeTabIndex === 0 && (clubsLevelShared.value > 0 || claimSetupState.isOpen)) ||
+      (activeTabIndex === 1 && isActivityOpenShared.value);
 
-      if (!isSubpageOpen || isRouteTabChange) {
-        const targetX = -tabIndex * width;
-        if (Math.abs(translateX.value - targetX) >= 1) {
-          cancelAnimation(translateX);
-          isGestureActive.value = false;
-          translateX.value = withTiming(targetX, { duration: DURATION, easing: CURVE });
-        }
+    if (!isSubpageOpen || isIndexChange) {
+      const targetX = -activeTabIndex * width;
+      if (Math.abs(translateX.value - targetX) >= 1) {
+        cancelAnimation(translateX);
+        isGestureActive.value = false;
+        translateX.value = withTiming(targetX, { duration: DURATION, easing: CURVE });
       }
     }
+
+    // Keep React Navigation internal state in sync with master activeTabIndex
+    const currentTab = tabs[activeTabIndex];
+    if (currentTab) {
+      try {
+        navigation?.dispatch({
+          type: 'JUMP_TO',
+          payload: { name: getRouteName(currentTab.href) },
+        });
+      } catch {}
+    }
   }, [
-    tabIndex,
+    activeTabIndex,
     width,
     translateX,
     isGestureActive,
@@ -444,12 +444,13 @@ function SwipeableTabPager({
     cancelClaimSetup,
     bottomBarTranslateY,
     lastGestureTarget,
-    setActiveTabIndex,
+    tabs,
+    navigation,
   ]);
 
   const blankAfterSlot = getBlankAfterSlot({
     pathname,
-    activeIndex,
+    activeIndex: activeTabIndex,
     isClaimSetupOpen: claimSetupState.isOpen,
     showClubSetup,
     clubsLevel,
@@ -479,28 +480,70 @@ function SwipeableTabPager({
     [isInnerScrollActive, setInnerScrollActive]
   );
 
-  // Keep translateX in sync on screen rotation or resize
+  // Keep translateX in sync on screen rotation, resize, or insets recalculation
   const prevWidth = useRef(width);
   useEffect(() => {
     if (prevWidth.current !== width) {
       prevWidth.current = width;
-      if (pathname === '/') {
-        if (claimSetupState.isOpen) {
+      const targetIndex = activeTabIndexRef.current;
+      if (targetIndex === 0) {
+        if (claimSetupState.isOpen || clubsLevelShared.value === 1) {
           translateX.value = -1 * width;
         } else if (clubsLevelShared.value === 2) {
           translateX.value = -2 * width;
-        } else if (clubsLevelShared.value === 1) {
-          translateX.value = -1 * width;
         } else {
           translateX.value = 0;
         }
-      } else if (pathname === '/dining') {
+      } else if (targetIndex === 1) {
         translateX.value = isActivityOpenShared.value ? -2 * width : -1 * width;
       } else {
-        translateX.value = -activeIndex * width;
+        translateX.value = -targetIndex * width;
       }
     }
-  }, [width, activeIndex, pathname, translateX, isActivityOpenShared, clubsLevelShared]);
+  }, [width, translateX, isActivityOpenShared, clubsLevelShared, claimSetupState.isOpen]);
+
+  // RESUME RECOVERY: When returning from native Android activities (e.g. photo picker or permissions),
+  // immediately re-anchor the camera to activeTabIndexRef.current,
+  // and force route reconciliation if pathname diverged.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        const targetIndex = activeTabIndexRef.current;
+        const currentTab = tabs[targetIndex];
+        const isSubpageOpen =
+          (targetIndex === 0 && (clubsLevelShared.value > 0 || claimSetupState.isOpen)) ||
+          (targetIndex === 1 && isActivityOpenShared.value);
+
+        if (!isSubpageOpen) {
+          const targetX = -targetIndex * width;
+          cancelAnimation(translateX);
+          isGestureActive.value = false;
+          translateX.value = targetX;
+        }
+
+        if (currentTab && pathname !== currentTab.href) {
+          try {
+            navigation?.dispatch({
+              type: 'JUMP_TO',
+              payload: { name: getRouteName(currentTab.href) },
+            });
+          } catch {}
+          router.replace(currentTab.href as any);
+        }
+      }
+    });
+    return () => sub.remove();
+  }, [
+    width,
+    translateX,
+    isGestureActive,
+    clubsLevelShared,
+    claimSetupState.isOpen,
+    isActivityOpenShared,
+    tabs,
+    pathname,
+    navigation,
+  ]);
 
   // Open Activity with a smooth horizontal slide identical to switching tabs from Dining to Safety
   const openActivity = useCallback(() => {
@@ -989,7 +1032,7 @@ function SwipeableTabPager({
 
   const activeClub = activeClubId ? getClubById(activeClubId) : undefined;
 
-  const currentTab = tabs[headerIndex] ?? tabs[0];
+  const currentTab = tabs[activeTabIndex] ?? tabs[0];
   const headerInfo = getTabHeader(currentTab.name);
 
   const headerProps = useMemo(() => {
@@ -1119,38 +1162,38 @@ function SwipeableTabPager({
                     // DYNAMIC SLOT SWAPPING:
                     // Slot 1 is hijacked for CompleteClubProfileView or ClubsDirectoryView when activated from Home.
                     const isShowingClubSetup =
-                      i === 1 && (claimSetupState.isOpen || showClubSetup) && pathname === '/' && activeIndex === 0;
+                      i === 1 && (claimSetupState.isOpen || showClubSetup) && activeTabIndex === 0;
 
                     const isShowingClubs =
-                      i === 1 && showClubsDirectory && !claimSetupState.isOpen && !showClubSetup && pathname === '/' && activeIndex === 0;
+                      i === 1 && showClubsDirectory && !claimSetupState.isOpen && !showClubSetup && activeTabIndex === 0;
 
                     // Slot 2 is hijacked for ClubDetailView (from Clubs) or DiningActivityView (from Dining).
                     const isShowingClubDetail =
-                      i === 2 && showClubDetail && pathname === '/' && activeIndex === 0 && !!activeClubId;
+                      i === 2 && showClubDetail && activeTabIndex === 0 && !!activeClubId;
 
                     const isShowingActivity =
-                      i === 2 && showActivity && pathname === '/dining' && activeIndex !== 2;
+                      i === 2 && showActivity && activeTabIndex === 1;
 
                     // ACCESSIBILITY & FOCUS DETERMINATION:
                     // Only the visually active page should receive screen reader focus and allow tab-stops.
                     let isCurrentPage = false;
-                    if (pathname === '/' && activeIndex === 0) {
+                    if (activeTabIndex === 0) {
                       if (claimSetupState.isOpen || showClubSetup) isCurrentPage = i === 1;
                       else if (clubsLevel === 2) isCurrentPage = i === 2;
                       else if (clubsLevel === 1) isCurrentPage = i === 1;
                       else isCurrentPage = i === 0;
-                    } else if (pathname === '/dining') {
+                    } else if (activeTabIndex === 1) {
                       if (isActivityOpen) isCurrentPage = i === 2;
                       else isCurrentPage = i === 1;
                     } else {
-                      isCurrentPage = activeIndex === i;
+                      isCurrentPage = activeTabIndex === i;
                     }
 
                     return (
                       <View
                         key={tab.name}
                         style={[styles.page, { width }]}
-                        pointerEvents={isCurrentPage || activeIndex === i || activeTabIndex === i ? 'auto' : 'none'}
+                        pointerEvents={isCurrentPage || activeTabIndex === i ? 'auto' : 'none'}
                         aria-hidden={!isCurrentPage}
                         accessibilityElementsHidden={!isCurrentPage}
                         importantForAccessibility={isCurrentPage ? 'auto' : 'no-hide-descendants'}>
@@ -1244,24 +1287,41 @@ function BottomBar({
 function TabButton({
   meta,
   index,
+  activeTabIndex,
   isFocused: _isFocused,
   ...props
-}: TabTriggerSlotProps & { meta: TabMeta; index: number }) {
+}: TabTriggerSlotProps & { meta: TabMeta; index: number; activeTabIndex: number }) {
   const theme = useTheme();
-  const pathname = usePathname();
   const tabNav = useTabNavigation();
-  const effectivelyFocused = tabNav
-    ? tabNav.activeTabIndex === index
-    : meta.href === pathname;
+  const effectivelyFocused = activeTabIndex === index;
   const progress = useSharedValue(effectivelyFocused ? 1 : 0);
 
+  const effectivelyFocusedRef = useRef(effectivelyFocused);
+  effectivelyFocusedRef.current = effectivelyFocused;
+
   useEffect(() => {
-    progress.value = withSpring(effectivelyFocused ? 1 : 0, {
-      damping: 14,
-      stiffness: 170,
-      mass: 0.6,
-    });
+    if (AppState.currentState === 'active') {
+      progress.value = withSpring(effectivelyFocused ? 1 : 0, {
+        damping: 14,
+        stiffness: 170,
+        mass: 0.6,
+      });
+    } else {
+      cancelAnimation(progress);
+      progress.value = effectivelyFocused ? 1 : 0;
+    }
   }, [effectivelyFocused, progress]);
+
+  // Cleanly snap progress to current focus on foreground resume (recovering any frozen background springs)
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        cancelAnimation(progress);
+        progress.value = effectivelyFocusedRef.current ? 1 : 0;
+      }
+    });
+    return () => sub.remove();
+  }, [progress]);
 
   const iconContainerAnimatedStyle = useAnimatedStyle(() => {
     const p = progress.value;
@@ -1295,6 +1355,7 @@ function TabButton({
   });
 
   const handlePress = (e: GestureResponderEvent) => {
+    e.preventDefault?.();
     tabNav?.navigateToTab(index, meta.href);
     props.onPress?.(e);
   };

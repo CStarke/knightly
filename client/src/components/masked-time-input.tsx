@@ -12,7 +12,7 @@ import { BlinkingCursor } from '@/components/ui/blinking-cursor';
 import { Brand, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import {
-  formatRawTimeSegments,
+  formatTimeSegments,
   getMaxTimeRawDigitLength,
 } from '@/utils/date-format';
 import { handleNumericKeyPress } from '@/utils/numeric-input';
@@ -81,7 +81,7 @@ export const MaskedTimeInput = forwardRef<MaskedTimeInputRef, MaskedTimeInputPro
       textInput: inputRef.current,
     }));
 
-    const timeSegments = useMemo(() => formatRawTimeSegments(value), [value]);
+    const timeSegments = useMemo(() => formatTimeSegments(value), [value]);
     const maxDigits = useMemo(() => getMaxTimeRawDigitLength(value), [value]);
 
     const handleFocus = (e: any) => {

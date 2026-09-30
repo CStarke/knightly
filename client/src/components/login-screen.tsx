@@ -25,6 +25,7 @@ import { ThemedText } from '@/components/themed-text';
 import { getAppHeaderHeight } from '@/components/ui/app-header';
 import { Icon } from '@/components/ui/icon';
 import { Brand, Fonts, MaxContentWidth, Radius, Spacing, WebHeaderInset } from '@/constants/theme';
+import { APP_VERSION } from '@/constants/version';
 import { useAuth } from '@/context/auth-context';
 import { student } from '@/data/student';
 import {
@@ -713,6 +714,20 @@ export function LoginScreen() {
                   Calvin University · Grand Rapids, Michigan
                 </ThemedText>
               </Animated.View>
+
+              {/* Version watermark pinned to bottom right corner */}
+              <Animated.View
+                style={[
+                  styles.versionContainer,
+                  {
+                    bottom: Math.max(insets.bottom + Spacing.two, Spacing.four),
+                    right: Math.max(insets.right + Spacing.three, Spacing.four),
+                  },
+                  formFadeAnimatedStyle,
+                ]}
+                pointerEvents="none">
+                <ThemedText style={styles.versionText}>{APP_VERSION}</ThemedText>
+              </Animated.View>
             </ScrollView>
           </View>
         </TouchableWithoutFeedback>
@@ -979,5 +994,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(255, 255, 255, 0.45)',
     letterSpacing: 0.3,
+  },
+  versionContainer: {
+    position: 'absolute',
+    zIndex: 10,
+  },
+  versionText: {
+    fontFamily: Fonts.mono,
+    fontSize: 10,
+    color: 'rgba(255, 255, 255, 0.4)',
+    letterSpacing: 0.5,
   },
 });

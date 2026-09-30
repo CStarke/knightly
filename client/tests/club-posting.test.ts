@@ -18,22 +18,20 @@ import {
 } from '@/context/club-leadership-context';
 import {
   formatEventDate,
-  formatRawDateSegments,
+  formatDateSegments,
   formatRawCodeSegments,
-  formatRawTimeSegments,
+  formatTimeSegments,
   getMaxDaysForMonth,
-  sanitizeDateDigits,
-  sanitizeTimeDigits,
-  sanitizeTimeDigitsWithError,
-  formatTimeDigits,
+  sanitizeDate,
+  sanitizeTime,
   getMaxTimeInputLength,
   getMaxTimeRawDigitLength,
-  resolveTimeWithPeriod,
+  resolveEventTime,
   getNextOccurrenceYear,
   completeTimeDigits,
   completeDateDigits,
   expandTwoDigitYear,
-  validateDateOnBlur,
+  validateDate,
   isDateCompleteAndValid,
   isTimeCompleteAndValid,
   parseDateSegments,
@@ -296,36 +294,36 @@ describe('Club Leadership & Post Creation Domain', () => {
   describe('Masked Input Formatting & Separator Specifications', () => {
     it('formats raw date digits with slashes appearing strictly as soon as character after them is typed', () => {
       // 0 to 2 digits: Month only, no slash
-      const seg1 = formatRawDateSegments('0');
+      const seg1 = formatDateSegments('0');
       assert.strictEqual(seg1.showSlash1, false);
       assert.strictEqual(seg1.showSlash2, false);
       assert.strictEqual(seg1.formatted, '0');
 
-      const seg2 = formatRawDateSegments('09');
+      const seg2 = formatDateSegments('09');
       assert.strictEqual(seg2.showSlash1, false);
       assert.strictEqual(seg2.showSlash2, false);
       assert.strictEqual(seg2.formatted, '09');
 
       // 3rd digit typed (first day digit) -> First slash appears!
-      const seg3 = formatRawDateSegments('091');
+      const seg3 = formatDateSegments('091');
       assert.strictEqual(seg3.showSlash1, true);
       assert.strictEqual(seg3.showSlash2, false);
       assert.strictEqual(seg3.formatted, '09/1');
 
       // 4th digit typed -> First slash remains, no second slash yet
-      const seg4 = formatRawDateSegments('0918');
+      const seg4 = formatDateSegments('0918');
       assert.strictEqual(seg4.showSlash1, true);
       assert.strictEqual(seg4.showSlash2, false);
       assert.strictEqual(seg4.formatted, '09/18');
 
       // 5th digit typed (first year digit) -> Second slash appears!
-      const seg5 = formatRawDateSegments('09182');
+      const seg5 = formatDateSegments('09182');
       assert.strictEqual(seg5.showSlash1, true);
       assert.strictEqual(seg5.showSlash2, true);
       assert.strictEqual(seg5.formatted, '09/18/2');
 
       // Full 8 digits (MMDDYYYY)
-      const seg8 = formatRawDateSegments('09182026');
+      const seg8 = formatDateSegments('09182026');
       assert.strictEqual(seg8.showSlash1, true);
       assert.strictEqual(seg8.showSlash2, true);
       assert.strictEqual(seg8.formatted, '09/18/2026');
@@ -371,97 +369,97 @@ describe('Club Leadership & Post Creation Domain', () => {
     });
 
     it('formats numeric time input and resolves AM/PM period toggle accurately', () => {
-      assert.strictEqual(formatTimeDigits('7'), '7');
-      assert.strictEqual(formatTimeDigits('730'), '7:30');
-      assert.strictEqual(formatTimeDigits('1230'), '12:30');
-      assert.strictEqual(formatTimeDigits('7:00'), '7:00');
-      assert.strictEqual(formatTimeDigits('abc730def'), '7:30');
+      assert.strictEqual(formatTimeSegments('7').formatted, '7');
+      assert.strictEqual(formatTimeSegments('730').formatted, '7:30');
+      assert.strictEqual(formatTimeSegments('1230').formatted, '12:30');
+      assert.strictEqual(formatTimeSegments('7:00').formatted, '7:00');
+      assert.strictEqual(formatTimeSegments('abc730def').formatted, '7:30');
 
       // Progressive time input with instant colon on 3rd digit:
       // 1 -> "1", 10 -> "10", 100 -> "1:00", 1000 -> "10:00"
-      assert.strictEqual(formatTimeDigits('1'), '1');
-      assert.strictEqual(formatTimeDigits('10'), '10');
-      assert.strictEqual(formatTimeDigits('100'), '1:00');
-      assert.strictEqual(formatTimeDigits('1000'), '10:00');
-      assert.strictEqual(formatTimeDigits('1:000'), '10:00'); // typing 4th digit onto 1:00 shifts colon
-      assert.strictEqual(formatTimeDigits('10:0'), '1:00');  // backspace from 10:00
-      assert.strictEqual(formatTimeDigits('1:0'), '10');    // backspace from 1:00
-      assert.strictEqual(formatTimeDigits('1130'), '11:30');
-      assert.strictEqual(formatTimeDigits('1200'), '12:00');
-      assert.strictEqual(formatTimeDigits('130'), '1:30');
+      assert.strictEqual(formatTimeSegments('1').formatted, '1');
+      assert.strictEqual(formatTimeSegments('10').formatted, '10');
+      assert.strictEqual(formatTimeSegments('100').formatted, '1:00');
+      assert.strictEqual(formatTimeSegments('1000').formatted, '10:00');
+      assert.strictEqual(formatTimeSegments('1:000').formatted, '10:00'); // typing 4th digit onto 1:00 shifts colon
+      assert.strictEqual(formatTimeSegments('10:0').formatted, '1:00');  // backspace from 10:00
+      assert.strictEqual(formatTimeSegments('1:0').formatted, '10');    // backspace from 1:00
+      assert.strictEqual(formatTimeSegments('1130').formatted, '11:30');
+      assert.strictEqual(formatTimeSegments('1200').formatted, '12:00');
+      assert.strictEqual(formatTimeSegments('130').formatted, '1:30');
 
       // Strict 12-hour clock validation rules:
       // Rule 1: If first digit > 1, max digits is strictly 3
-      assert.strictEqual(sanitizeTimeDigits('7300'), '730');
-      assert.strictEqual(formatTimeDigits('7300'), '7:30');
-      assert.strictEqual(sanitizeTimeDigits('2590'), '259');
-      assert.strictEqual(formatTimeDigits('2590'), '2:59');
+      assert.strictEqual(sanitizeTime('7300').digits, '730');
+      assert.strictEqual(formatTimeSegments('7300').formatted, '7:30');
+      assert.strictEqual(sanitizeTime('2590').digits, '259');
+      assert.strictEqual(formatTimeSegments('2590').formatted, '2:59');
 
       // Rule 2: If first digit > 1, second digit cannot exceed 5 (tens of minutes <= 5)
-      assert.strictEqual(sanitizeTimeDigits('76'), '7'); // 6 rejected
-      assert.strictEqual(sanitizeTimeDigits('79'), '7'); // 9 rejected
-      assert.strictEqual(sanitizeTimeDigits('75'), '75'); // 5 accepted
+      assert.strictEqual(sanitizeTime('76').digits, '7'); // 6 rejected
+      assert.strictEqual(sanitizeTime('79').digits, '7'); // 9 rejected
+      assert.strictEqual(sanitizeTime('75').digits, '75'); // 5 accepted
 
       // Rule 3: If first digit is 1, second digit cannot exceed 5
-      assert.strictEqual(sanitizeTimeDigits('16'), '1'); // 6 rejected
-      assert.strictEqual(sanitizeTimeDigits('19'), '1'); // 9 rejected
+      assert.strictEqual(sanitizeTime('16').digits, '1'); // 6 rejected
+      assert.strictEqual(sanitizeTime('19').digits, '1'); // 9 rejected
 
       // Rule 4: If first digit is 1 and second digit is > 2 (3..5), hour is 1, max 3 digits
-      assert.strictEqual(sanitizeTimeDigits('1300'), '130');
-      assert.strictEqual(formatTimeDigits('1300'), '1:30');
-      assert.strictEqual(sanitizeTimeDigits('1450'), '145');
-      assert.strictEqual(formatTimeDigits('1450'), '1:45');
+      assert.strictEqual(sanitizeTime('1300').digits, '130');
+      assert.strictEqual(formatTimeSegments('1300').formatted, '1:30');
+      assert.strictEqual(sanitizeTime('1450').digits, '145');
+      assert.strictEqual(formatTimeSegments('1450').formatted, '1:45');
 
       // Rule 5: If 3rd digit is > 5 in hours 10..12, 4th digit is rejected (treated as 3-digit hour 1 time)
-      assert.strictEqual(sanitizeTimeDigits('1085'), '108');
-      assert.strictEqual(formatTimeDigits('1085'), '1:08');
+      assert.strictEqual(sanitizeTime('1085').digits, '108');
+      assert.strictEqual(formatTimeSegments('1085').formatted, '1:08');
 
       // Resolve with PM
-      assert.strictEqual(resolveTimeWithPeriod('7', 'PM'), '7:00 PM');
-      assert.strictEqual(resolveTimeWithPeriod('7:00', 'PM'), '7:00 PM');
-      assert.strictEqual(resolveTimeWithPeriod('730', 'PM'), '7:30 PM');
-      assert.strictEqual(resolveTimeWithPeriod('12:30', 'PM'), '12:30 PM');
-      assert.strictEqual(resolveTimeWithPeriod('10', 'PM'), '10:00 PM');
-      assert.strictEqual(resolveTimeWithPeriod('100', 'PM'), '1:00 PM');
-      assert.strictEqual(resolveTimeWithPeriod('1:00', 'PM'), '1:00 PM');
-      assert.strictEqual(resolveTimeWithPeriod('1000', 'PM'), '10:00 PM');
-      assert.strictEqual(resolveTimeWithPeriod('10:00', 'PM'), '10:00 PM');
-      assert.strictEqual(resolveTimeWithPeriod('1', 'PM'), '1:00 PM');
-      assert.strictEqual(resolveTimeWithPeriod('130', 'PM'), '1:30 PM');
+      assert.strictEqual(resolveEventTime('7', 'PM'), '7:00 PM');
+      assert.strictEqual(resolveEventTime('7:00', 'PM'), '7:00 PM');
+      assert.strictEqual(resolveEventTime('730', 'PM'), '7:30 PM');
+      assert.strictEqual(resolveEventTime('12:30', 'PM'), '12:30 PM');
+      assert.strictEqual(resolveEventTime('10', 'PM'), '10:00 PM');
+      assert.strictEqual(resolveEventTime('100', 'PM'), '1:00 PM');
+      assert.strictEqual(resolveEventTime('1:00', 'PM'), '1:00 PM');
+      assert.strictEqual(resolveEventTime('1000', 'PM'), '10:00 PM');
+      assert.strictEqual(resolveEventTime('10:00', 'PM'), '10:00 PM');
+      assert.strictEqual(resolveEventTime('1', 'PM'), '1:00 PM');
+      assert.strictEqual(resolveEventTime('130', 'PM'), '1:30 PM');
 
       // 2-digit progressive input translation:
       // When first digit >= 2, d1 is hour and d2 is tens of minutes (e.g. 25 -> 2:50 PM, not 25:00 PM)
-      assert.strictEqual(resolveTimeWithPeriod('25', 'PM'), '2:50 PM');
-      assert.strictEqual(resolveTimeWithPeriod('73', 'PM'), '7:30 PM');
-      assert.strictEqual(resolveTimeWithPeriod('30', 'PM'), '3:00 PM');
-      assert.strictEqual(resolveTimeWithPeriod('45', 'PM'), '4:50 PM');
-      assert.strictEqual(resolveTimeWithPeriod('81', 'PM'), '8:10 PM');
-      assert.strictEqual(resolveTimeWithPeriod('95', 'PM'), '9:50 PM');
+      assert.strictEqual(resolveEventTime('25', 'PM'), '2:50 PM');
+      assert.strictEqual(resolveEventTime('73', 'PM'), '7:30 PM');
+      assert.strictEqual(resolveEventTime('30', 'PM'), '3:00 PM');
+      assert.strictEqual(resolveEventTime('45', 'PM'), '4:50 PM');
+      assert.strictEqual(resolveEventTime('81', 'PM'), '8:10 PM');
+      assert.strictEqual(resolveEventTime('95', 'PM'), '9:50 PM');
 
       // When first digit is 1:
       // Hours 10, 11, 12 remain 10:00, 11:00, 12:00
-      assert.strictEqual(resolveTimeWithPeriod('10', 'PM'), '10:00 PM');
-      assert.strictEqual(resolveTimeWithPeriod('11', 'PM'), '11:00 PM');
-      assert.strictEqual(resolveTimeWithPeriod('12', 'PM'), '12:00 PM');
+      assert.strictEqual(resolveEventTime('10', 'PM'), '10:00 PM');
+      assert.strictEqual(resolveEventTime('11', 'PM'), '11:00 PM');
+      assert.strictEqual(resolveEventTime('12', 'PM'), '12:00 PM');
       // 13..15 -> hour is 1, d2 is tens of minutes (1:30 PM, 1:40 PM, 1:50 PM)
-      assert.strictEqual(resolveTimeWithPeriod('13', 'PM'), '1:30 PM');
-      assert.strictEqual(resolveTimeWithPeriod('14', 'PM'), '1:40 PM');
-      assert.strictEqual(resolveTimeWithPeriod('15', 'PM'), '1:50 PM');
+      assert.strictEqual(resolveEventTime('13', 'PM'), '1:30 PM');
+      assert.strictEqual(resolveEventTime('14', 'PM'), '1:40 PM');
+      assert.strictEqual(resolveEventTime('15', 'PM'), '1:50 PM');
 
       // Resolve with AM
-      assert.strictEqual(resolveTimeWithPeriod('9', 'AM'), '9:00 AM');
-      assert.strictEqual(resolveTimeWithPeriod('10:15', 'AM'), '10:15 AM');
-      assert.strictEqual(resolveTimeWithPeriod('100', 'AM'), '1:00 AM');
-      assert.strictEqual(resolveTimeWithPeriod('1000', 'AM'), '10:00 AM');
+      assert.strictEqual(resolveEventTime('9', 'AM'), '9:00 AM');
+      assert.strictEqual(resolveEventTime('10:15', 'AM'), '10:15 AM');
+      assert.strictEqual(resolveEventTime('100', 'AM'), '1:00 AM');
+      assert.strictEqual(resolveEventTime('1000', 'AM'), '10:00 AM');
 
       // Combined date and time preview formatting
       const dateStr = formatEventDate('09/18/2026');
-      const timeStr = resolveTimeWithPeriod('1000', 'PM');
+      const timeStr = resolveEventTime('1000', 'PM');
       const combinedPreview = `${dateStr} · ${timeStr}`;
       assert.strictEqual(combinedPreview, 'Fri, Sep 18 · 10:00 PM');
 
       // Empty returns empty
-      assert.strictEqual(resolveTimeWithPeriod('', 'PM'), '');
+      assert.strictEqual(resolveEventTime('', 'PM'), '');
     });
 
     it('locks out 4th digit for single-digit hours using dynamic maxLength via getMaxTimeInputLength', () => {
@@ -499,7 +497,7 @@ describe('Club Leadership & Post Creation Domain', () => {
 
     it('formats raw time digits into fake colon segments matching date slash behavior', () => {
       // 0 digits: empty
-      const empty = formatRawTimeSegments('');
+      const empty = formatTimeSegments('');
       assert.strictEqual(empty.rawDigits, '');
       assert.strictEqual(empty.part1, '');
       assert.strictEqual(empty.showColon, false);
@@ -507,7 +505,7 @@ describe('Club Leadership & Post Creation Domain', () => {
       assert.strictEqual(empty.formatted, '');
 
       // 1 digit: no colon
-      const one = formatRawTimeSegments('1');
+      const one = formatTimeSegments('1');
       assert.strictEqual(one.rawDigits, '1');
       assert.strictEqual(one.part1, '1');
       assert.strictEqual(one.showColon, false);
@@ -515,47 +513,47 @@ describe('Club Leadership & Post Creation Domain', () => {
       assert.strictEqual(one.formatted, '1');
 
       // 2 digits: no colon (e.g. "10", "73", "25")
-      const ten = formatRawTimeSegments('10');
+      const ten = formatTimeSegments('10');
       assert.strictEqual(ten.rawDigits, '10');
       assert.strictEqual(ten.part1, '10');
       assert.strictEqual(ten.showColon, false);
       assert.strictEqual(ten.part2, '');
       assert.strictEqual(ten.formatted, '10');
 
-      const seventyThree = formatRawTimeSegments('73');
+      const seventyThree = formatTimeSegments('73');
       assert.strictEqual(seventyThree.part1, '73');
       assert.strictEqual(seventyThree.showColon, false);
 
       // 3 digits: fake colon appears immediately after 1st digit (e.g. "100" -> "1:00", "730" -> "7:30")
-      const oneHundred = formatRawTimeSegments('100');
+      const oneHundred = formatTimeSegments('100');
       assert.strictEqual(oneHundred.rawDigits, '100');
       assert.strictEqual(oneHundred.part1, '1');
       assert.strictEqual(oneHundred.showColon, true);
       assert.strictEqual(oneHundred.part2, '00');
       assert.strictEqual(oneHundred.formatted, '1:00');
 
-      const sevenThirty = formatRawTimeSegments('730');
+      const sevenThirty = formatTimeSegments('730');
       assert.strictEqual(sevenThirty.rawDigits, '730');
       assert.strictEqual(sevenThirty.part1, '7');
       assert.strictEqual(sevenThirty.showColon, true);
       assert.strictEqual(sevenThirty.part2, '30');
       assert.strictEqual(sevenThirty.formatted, '7:30');
 
-      const twoFifty = formatRawTimeSegments('250');
+      const twoFifty = formatTimeSegments('250');
       assert.strictEqual(twoFifty.part1, '2');
       assert.strictEqual(twoFifty.showColon, true);
       assert.strictEqual(twoFifty.part2, '50');
       assert.strictEqual(twoFifty.formatted, '2:50');
 
       // 4 digits: fake colon appears after 2nd digit (e.g. "1000" -> "10:00", "1230" -> "12:30")
-      const tenOClock = formatRawTimeSegments('1000');
+      const tenOClock = formatTimeSegments('1000');
       assert.strictEqual(tenOClock.rawDigits, '1000');
       assert.strictEqual(tenOClock.part1, '10');
       assert.strictEqual(tenOClock.showColon, true);
       assert.strictEqual(tenOClock.part2, '00');
       assert.strictEqual(tenOClock.formatted, '10:00');
 
-      const twelveThirty = formatRawTimeSegments('1230');
+      const twelveThirty = formatTimeSegments('1230');
       assert.strictEqual(twelveThirty.rawDigits, '1230');
       assert.strictEqual(twelveThirty.part1, '12');
       assert.strictEqual(twelveThirty.showColon, true);
@@ -899,25 +897,25 @@ describe('Club Leadership & Post Creation Domain', () => {
   });
 
   describe('Strict Real-Time Date & Time Input Validation and Error Messaging', () => {
-    describe('Date Digit Validation (sanitizeDateDigits)', () => {
+    describe('Date Digit Validation (sanitizeDate)', () => {
       it('validates month tens digit: allows only 0 and 1', () => {
-        assert.deepStrictEqual(sanitizeDateDigits('0'), { digits: '0', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('1'), { digits: '1', error: null });
+        assert.deepStrictEqual(sanitizeDate('0'), { digits: '0', error: null });
+        assert.deepStrictEqual(sanitizeDate('1'), { digits: '1', error: null });
 
         for (let d = 2; d <= 9; d++) {
-          const res = sanitizeDateDigits(String(d));
+          const res = sanitizeDate(String(d));
           assert.strictEqual(res.digits, '');
           assert.strictEqual(res.error, 'Month must be between 01-12');
         }
       });
 
       it('validates month units digit: when tens is 1, allows only 0, 1, 2 (months 10, 11, 12)', () => {
-        assert.deepStrictEqual(sanitizeDateDigits('10'), { digits: '10', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('11'), { digits: '11', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('12'), { digits: '12', error: null });
+        assert.deepStrictEqual(sanitizeDate('10'), { digits: '10', error: null });
+        assert.deepStrictEqual(sanitizeDate('11'), { digits: '11', error: null });
+        assert.deepStrictEqual(sanitizeDate('12'), { digits: '12', error: null });
 
         for (let d = 3; d <= 9; d++) {
-          const res = sanitizeDateDigits(`1${d}`);
+          const res = sanitizeDate(`1${d}`);
           assert.strictEqual(res.digits, '1');
           assert.strictEqual(res.error, 'Month must be between 01-12');
         }
@@ -925,40 +923,40 @@ describe('Club Leadership & Post Creation Domain', () => {
 
       it('validates month units digit: when tens is 0, allows 1..9 and rejects 00', () => {
         for (let d = 1; d <= 9; d++) {
-          assert.deepStrictEqual(sanitizeDateDigits(`0${d}`), { digits: `0${d}`, error: null });
+          assert.deepStrictEqual(sanitizeDate(`0${d}`), { digits: `0${d}`, error: null });
         }
-        const res = sanitizeDateDigits('00');
+        const res = sanitizeDate('00');
         assert.strictEqual(res.digits, '0');
         assert.strictEqual(res.error, 'Month must be between 01-12');
       });
 
       it('validates day tens digit: for February (02), allows 0..2 and rejects 3..9', () => {
-        assert.deepStrictEqual(sanitizeDateDigits('020'), { digits: '020', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('021'), { digits: '021', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('022'), { digits: '022', error: null });
+        assert.deepStrictEqual(sanitizeDate('020'), { digits: '020', error: null });
+        assert.deepStrictEqual(sanitizeDate('021'), { digits: '021', error: null });
+        assert.deepStrictEqual(sanitizeDate('022'), { digits: '022', error: null });
 
         for (let d = 3; d <= 9; d++) {
-          const res = sanitizeDateDigits(`02${d}`);
+          const res = sanitizeDate(`02${d}`);
           assert.strictEqual(res.digits, '02');
           assert.strictEqual(res.error, 'Day must be between 01-29');
         }
       });
 
       it('validates day tens digit: for other months, allows 0..3 and rejects 4..9', () => {
-        assert.deepStrictEqual(sanitizeDateDigits('010'), { digits: '010', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('011'), { digits: '011', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('012'), { digits: '012', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('013'), { digits: '013', error: null });
+        assert.deepStrictEqual(sanitizeDate('010'), { digits: '010', error: null });
+        assert.deepStrictEqual(sanitizeDate('011'), { digits: '011', error: null });
+        assert.deepStrictEqual(sanitizeDate('012'), { digits: '012', error: null });
+        assert.deepStrictEqual(sanitizeDate('013'), { digits: '013', error: null });
 
         for (let d = 4; d <= 9; d++) {
-          const res = sanitizeDateDigits(`01${d}`);
+          const res = sanitizeDate(`01${d}`);
           assert.strictEqual(res.digits, '01');
           assert.strictEqual(res.error, 'Day must be between 01-31');
         }
       });
 
       it('validates day units digit: rejects 00 as a day', () => {
-        const res = sanitizeDateDigits('0100');
+        const res = sanitizeDate('0100');
         assert.strictEqual(res.digits, '010');
         assert.strictEqual(res.error, 'Day must be between 01-31');
       });
@@ -966,19 +964,19 @@ describe('Club Leadership & Post Creation Domain', () => {
       it('validates day units digit: for 30-day months (04, 06, 09, 11), day cannot exceed 30', () => {
         const months30 = ['04', '06', '09', '11'];
         for (const m of months30) {
-          assert.deepStrictEqual(sanitizeDateDigits(`${m}30`), { digits: `${m}30`, error: null });
-          const res = sanitizeDateDigits(`${m}31`);
+          assert.deepStrictEqual(sanitizeDate(`${m}30`), { digits: `${m}30`, error: null });
+          const res = sanitizeDate(`${m}31`);
           assert.strictEqual(res.digits, `${m}3`);
           assert.strictEqual(res.error, 'Day must be between 01-30');
         }
       });
 
       it('validates day units digit: for 31-day months, allows 30 and 31, rejects 32..39', () => {
-        assert.deepStrictEqual(sanitizeDateDigits('0130'), { digits: '0130', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('0131'), { digits: '0131', error: null });
+        assert.deepStrictEqual(sanitizeDate('0130'), { digits: '0130', error: null });
+        assert.deepStrictEqual(sanitizeDate('0131'), { digits: '0131', error: null });
 
         for (let d = 2; d <= 9; d++) {
-          const res = sanitizeDateDigits(`013${d}`);
+          const res = sanitizeDate(`013${d}`);
           assert.strictEqual(res.digits, '013');
           assert.strictEqual(res.error, 'Day must be between 01-31');
         }
@@ -986,75 +984,75 @@ describe('Club Leadership & Post Creation Domain', () => {
 
       it('accepts year beginning with !2 and limits user to 2 digits for !2 years', () => {
         // Year starting with 2 allows 2-digit or 4-digit input
-        assert.deepStrictEqual(sanitizeDateDigits('09182'), { digits: '09182', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('09182026'), { digits: '09182026', error: null });
+        assert.deepStrictEqual(sanitizeDate('09182'), { digits: '09182', error: null });
+        assert.deepStrictEqual(sanitizeDate('09182026'), { digits: '09182026', error: null });
 
         // Year starting with !2 (0, 1, 3, 4, 5, 6, 7, 8, 9) is now accepted
         const nonTwoStarts = [0, 1, 3, 4, 5, 6, 7, 8, 9];
         for (const y of nonTwoStarts) {
-          const res = sanitizeDateDigits(`0918${y}`);
+          const res = sanitizeDate(`0918${y}`);
           assert.strictEqual(res.digits, `0918${y}`);
           assert.strictEqual(res.error, null);
         }
 
         // Year starting with !2 limits user to 2 digits for the year (e.g. 42 is accepted, 425 is limited to 42)
-        assert.deepStrictEqual(sanitizeDateDigits('091842'), { digits: '091842', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('0918425'), { digits: '091842', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('09181399'), { digits: '091813', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('09189912'), { digits: '091899', error: null });
+        assert.deepStrictEqual(sanitizeDate('091842'), { digits: '091842', error: null });
+        assert.deepStrictEqual(sanitizeDate('0918425'), { digits: '091842', error: null });
+        assert.deepStrictEqual(sanitizeDate('09181399'), { digits: '091813', error: null });
+        assert.deepStrictEqual(sanitizeDate('09189912'), { digits: '091899', error: null });
       });
 
       it('validates leap years for February 29: allows leap years (2024, 2028, 2000) and rejects non-leap years (2025, 2023, 2100)', () => {
-        assert.deepStrictEqual(sanitizeDateDigits('02292024'), { digits: '02292024', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('02292028'), { digits: '02292028', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('02292000'), { digits: '02292000', error: null });
+        assert.deepStrictEqual(sanitizeDate('02292024'), { digits: '02292024', error: null });
+        assert.deepStrictEqual(sanitizeDate('02292028'), { digits: '02292028', error: null });
+        assert.deepStrictEqual(sanitizeDate('02292000'), { digits: '02292000', error: null });
 
-        const res2025 = sanitizeDateDigits('02292025');
+        const res2025 = sanitizeDate('02292025');
         assert.strictEqual(res2025.digits, '0229202');
         assert.strictEqual(res2025.error, '2025 is not a leap year');
 
-        const res2023 = sanitizeDateDigits('02292023');
+        const res2023 = sanitizeDate('02292023');
         assert.strictEqual(res2023.digits, '0229202');
         assert.strictEqual(res2023.error, '2023 is not a leap year');
 
-        const res2100 = sanitizeDateDigits('02292100');
+        const res2100 = sanitizeDate('02292100');
         assert.strictEqual(res2100.digits, '0229210');
         assert.strictEqual(res2100.error, '2100 is not a leap year');
       });
 
       it('handles backspacing and deletions gracefully without emitting errors', () => {
-        assert.deepStrictEqual(sanitizeDateDigits('091', '0918'), { digits: '091', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('', '0918'), { digits: '', error: null });
+        assert.deepStrictEqual(sanitizeDate('091', '0918'), { digits: '091', error: null });
+        assert.deepStrictEqual(sanitizeDate('', '0918'), { digits: '', error: null });
       });
     });
 
-    describe('Time Digit Validation with Error Feedback (sanitizeTimeDigitsWithError)', () => {
+    describe('Time Digit Validation with Error Feedback (sanitizeTime)', () => {
       it('rejects hour 00 with clear error message', () => {
-        const res = sanitizeTimeDigitsWithError('00');
+        const res = sanitizeTime('00');
         assert.strictEqual(res.digits, '0');
         assert.strictEqual(res.error, 'Hour cannot be 00.');
       });
 
       it('rejects minutes tens > 5 on 2-digit input', () => {
-        const res = sanitizeTimeDigitsWithError('26');
+        const res = sanitizeTime('26');
         assert.strictEqual(res.digits, '2');
         assert.strictEqual(res.error, 'Minutes cannot exceed 59.');
       });
 
       it('rejects 4th digit for single-digit hours (e.g. 730 -> 7300)', () => {
-        const res = sanitizeTimeDigitsWithError('7300');
+        const res = sanitizeTime('7300');
         assert.strictEqual(res.digits, '730');
         assert.strictEqual(res.error, 'Single-digit hours cannot exceed 3 digits.');
       });
 
       it('allows 4th digit for 2-digit hours (10:00, 11:30, 12:45)', () => {
-        assert.deepStrictEqual(sanitizeTimeDigitsWithError('1000'), { digits: '1000', error: null });
-        assert.deepStrictEqual(sanitizeTimeDigitsWithError('1130'), { digits: '1130', error: null });
-        assert.deepStrictEqual(sanitizeTimeDigitsWithError('1245'), { digits: '1245', error: null });
+        assert.deepStrictEqual(sanitizeTime('1000'), { digits: '1000', error: null });
+        assert.deepStrictEqual(sanitizeTime('1130'), { digits: '1130', error: null });
+        assert.deepStrictEqual(sanitizeTime('1245'), { digits: '1245', error: null });
       });
 
       it('rejects 4th digit when hour is 1 and minutes tens is 3..5 (e.g. 1:30 cannot be 1300)', () => {
-        const res = sanitizeTimeDigitsWithError('1300');
+        const res = sanitizeTime('1300');
         assert.strictEqual(res.digits, '130');
         assert.strictEqual(res.error, 'Single-digit hours cannot exceed 3 digits.');
       });
@@ -1504,35 +1502,35 @@ describe('Club Leadership & Post Creation Domain', () => {
       it('validates date on lost focus and enforces posting invariants for complete/incomplete date and time', () => {
         // 1. Incomplete year (5 digits or 7 digits) on lost focus must produce error
         assert.strictEqual(
-          validateDateOnBlur('02183'),
+          validateDate('02183'),
           'Please enter a year between 2000 and 2999'
         );
         assert.strictEqual(
-          validateDateOnBlur('0218202'),
+          validateDate('0218202'),
           'Please enter a year between 2000 and 2999'
         );
 
         // 2-digit years (6 digits) automatically expand and produce no error
-        assert.strictEqual(validateDateOnBlur('021820'), null);
-        assert.strictEqual(validateDateOnBlur('091826'), null);
-        assert.strictEqual(validateDateOnBlur('091842'), null);
-        assert.strictEqual(validateDateOnBlur('091813'), null);
-        assert.strictEqual(validateDateOnBlur('091899'), null);
+        assert.strictEqual(validateDate('021820'), null);
+        assert.strictEqual(validateDate('091826'), null);
+        assert.strictEqual(validateDate('091842'), null);
+        assert.strictEqual(validateDate('091813'), null);
+        assert.strictEqual(validateDate('091899'), null);
 
         // 2. Incomplete month/day on blur
-        assert.strictEqual(validateDateOnBlur('02'), 'Please enter a day');
-        assert.strictEqual(validateDateOnBlur('13'), 'Month must be between 01-12');
-        assert.strictEqual(validateDateOnBlur('0235'), 'Day must be between 01-29');
+        assert.strictEqual(validateDate('02'), 'Please enter a day');
+        assert.strictEqual(validateDate('13'), 'Month must be between 01-12');
+        assert.strictEqual(validateDate('0235'), 'Day must be between 01-29');
 
         // 3. Leap year validation
-        assert.strictEqual(validateDateOnBlur('02292025'), '2025 is not a leap year');
-        assert.strictEqual(validateDateOnBlur('02292028'), null); // 2028 is leap
-        assert.strictEqual(validateDateOnBlur('022925'), '2025 is not a leap year'); // 2-digit non-leap
-        assert.strictEqual(validateDateOnBlur('022928'), null); // 2-digit leap
+        assert.strictEqual(validateDate('02292025'), '2025 is not a leap year');
+        assert.strictEqual(validateDate('02292028'), null); // 2028 is leap
+        assert.strictEqual(validateDate('022925'), '2025 is not a leap year'); // 2-digit non-leap
+        assert.strictEqual(validateDate('022928'), null); // 2-digit leap
 
         // 4. Valid complete date and empty date produce no error
-        assert.strictEqual(validateDateOnBlur('09182026'), null);
-        assert.strictEqual(validateDateOnBlur(''), null);
+        assert.strictEqual(validateDate('09182026'), null);
+        assert.strictEqual(validateDate(''), null);
 
         // 5. Posting invariants:
         // - Incomplete date (02/18/3, 02/18/202) is NOT allowed and must prevent posting
@@ -2339,18 +2337,18 @@ describe('Club Leadership & Post Creation Domain', () => {
 
       it('verifies that non-technical entry never produces premature validation errors', () => {
         // Typing single digit '9' for month:
-        // SegmentedDateInput handles month '09' internally so validateDateOnBlur is never
+        // SegmentedDateInput handles month '09' internally so validateDate is never
         // invoked on incomplete single-digit state with an error.
-        assert.strictEqual(validateDateOnBlur(''), null);
+        assert.strictEqual(validateDate(''), null);
 
         // When all 3 segments are filled with auto-padding (e.g. user typed 9, then 5, then 26):
         // Raw date becomes '09052026' or '090526'
         const rawDateWith4DigitYear = '09052026';
-        assert.strictEqual(validateDateOnBlur(rawDateWith4DigitYear), null);
+        assert.strictEqual(validateDate(rawDateWith4DigitYear), null);
         assert.strictEqual(isDateCompleteAndValid(rawDateWith4DigitYear), true);
 
         const rawDateWith2DigitYear = '090526';
-        assert.strictEqual(validateDateOnBlur(rawDateWith2DigitYear), null);
+        assert.strictEqual(validateDate(rawDateWith2DigitYear), null);
         assert.strictEqual(isDateCompleteAndValid(rawDateWith2DigitYear), true);
       });
 
@@ -2549,66 +2547,66 @@ describe('Club Leadership & Post Creation Domain', () => {
         // BUT only if another element of the date has been filled in.
 
         // Case A: All elements empty -> No error
-        assert.strictEqual(validateDateOnBlur(''), null);
-        assert.strictEqual(validateDateOnBlur({ month: '', day: '', year: '' }), null);
-        assert.strictEqual(validateDateOnBlur('//'), null);
+        assert.strictEqual(validateDate(''), null);
+        assert.strictEqual(validateDate({ month: '', day: '', year: '' }), null);
+        assert.strictEqual(validateDate('//'), null);
 
         // Case B: Month is empty, but Day is filled in -> "Please enter a month"
         assert.strictEqual(
-          validateDateOnBlur({ month: '', day: '15', year: '' }),
+          validateDate({ month: '', day: '15', year: '' }),
           'Please enter a month',
           'Must show Please enter a month when Day is filled but Month is empty'
         );
         assert.strictEqual(
-          validateDateOnBlur('/15/'),
+          validateDate('/15/'),
           'Please enter a month',
           'Delimited string must show Please enter a month when Day is filled'
         );
 
         // Case C: Month is empty, but Year is filled in -> "Please enter a month"
         assert.strictEqual(
-          validateDateOnBlur({ month: '', day: '', year: '2026' }),
+          validateDate({ month: '', day: '', year: '2026' }),
           'Please enter a month',
           'Must show Please enter a month when Year is filled but Month is empty'
         );
         assert.strictEqual(
-          validateDateOnBlur('//2026'),
+          validateDate('//2026'),
           'Please enter a month',
           'Delimited string must show Please enter a month when Year is filled'
         );
 
         // Case D: Month is empty, and BOTH Day and Year are filled in -> "Please enter a month"
         assert.strictEqual(
-          validateDateOnBlur({ month: '', day: '15', year: '2026' }),
+          validateDate({ month: '', day: '15', year: '2026' }),
           'Please enter a month',
           'Must show Please enter a month when Day and Year are filled but Month is empty'
         );
         assert.strictEqual(
-          validateDateOnBlur('/15/2026'),
+          validateDate('/15/2026'),
           'Please enter a month',
           'Delimited string must show Please enter a month when Day and Year are filled'
         );
 
         // Case E: Month is filled in, but Day is empty -> "Please enter a day"
         assert.strictEqual(
-          validateDateOnBlur({ month: '09', day: '', year: '' }),
+          validateDate({ month: '09', day: '', year: '' }),
           'Please enter a day',
           'Must show Please enter a day when Month is filled but Day is empty'
         );
         assert.strictEqual(
-          validateDateOnBlur({ month: '09', day: '', year: '2026' }),
+          validateDate({ month: '09', day: '', year: '2026' }),
           'Please enter a day',
           'Must show Please enter a day when Month and Year are filled but Day is empty'
         );
         assert.strictEqual(
-          validateDateOnBlur('09'),
+          validateDate('09'),
           'Please enter a day',
           'Raw digits 09 must show Please enter a day'
         );
 
         // Case F: Valid complete date -> No error
-        assert.strictEqual(validateDateOnBlur({ month: '09', day: '15', year: '2026' }), null);
-        assert.strictEqual(validateDateOnBlur('09152026'), null);
+        assert.strictEqual(validateDate({ month: '09', day: '15', year: '2026' }), null);
+        assert.strictEqual(validateDate('09152026'), null);
       });
 
       it('strictly suppresses date from translation preview and computedWhen when date is invalid (e.g. 02292005)', () => {
@@ -2634,22 +2632,22 @@ describe('Club Leadership & Post Creation Domain', () => {
           const isDateValidForPreview =
             !dateError &&
             (rawDate.length === 8 || rawDate.length === 6) &&
-            validateDateOnBlur(dateSegmentsState) === null &&
-            validateDateOnBlur(rawDate) === null &&
+            validateDate(dateSegmentsState) === null &&
+            validateDate(rawDate) === null &&
             isDateCompleteAndValid(rawDate, referenceDate);
 
-          const dateSegments = formatRawDateSegments(rawDate);
+          const dateSegments = formatDateSegments(rawDate);
           const formattedDate = isDateValidForPreview
             ? formatEventDate(
                 rawDate.length === 6
-                  ? formatRawDateSegments(completeDateDigits(rawDate, referenceDate)).formatted
+                  ? formatDateSegments(completeDateDigits(rawDate, referenceDate)).formatted
                   : dateSegments.formatted,
                 referenceDate
               )
             : '';
 
           const isTimeValid = !timeError && isTimeCompleteAndValid(rawTime);
-          const resolvedTime = isTimeValid ? resolveTimeWithPeriod(rawTime, timePeriod) : '';
+          const resolvedTime = isTimeValid ? resolveEventTime(rawTime, timePeriod) : '';
 
           if (formattedDate && resolvedTime) {
             return `${formattedDate} · ${resolvedTime}`;
