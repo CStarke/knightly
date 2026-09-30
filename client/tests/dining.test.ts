@@ -24,8 +24,6 @@ import {
   swipesRemaining,
   swipesUsedLastWeek,
   transactions,
-  type DiningHall,
-  type MealPlan,
   type Transaction,
 } from '@/data/dining';
 import { student } from '@/data/student';

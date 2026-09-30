@@ -22,26 +22,25 @@
  */
 
 import { router } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
+  AppState,
+  Dimensions,
   Image as RNImage,
   Keyboard,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
-  StyleProp,
   StyleSheet,
   TextInput,
   View,
-  ViewStyle,
 } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { Image } from 'expo-image';
@@ -49,80 +48,45 @@ import { manipulateAsync } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DatePickerModal, parseDateOrDefault } from '@/components/date-picker-modal';
+import { InlineImageCropper, type InlineImageCropperRef, type CropTransformState } from '@/components/inline-image-cropper';
+import { MaskedTimeInput, type MaskedTimeInputRef } from '@/components/masked-time-input';
 import { ThemedText } from '@/components/themed-text';
 import { AccessoryButton } from '@/components/ui/accessory-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { FieldLabel } from '@/components/ui/field-label';
 import { Icon } from '@/components/ui/icon';
 import { Screen } from '@/components/ui/screen';
 import { Segmented } from '@/components/ui/segmented';
-import { BottomTabContentInset, Brand, Fonts, Radius, Spacing } from '@/constants/theme';
+import { SuccessModal } from '@/components/ui/success-modal';
+import { SegmentedDateInput } from '@/components/segmented-date-input';
+import { BottomTabContentInset, Brand, Radius, Spacing } from '@/constants/theme';
 import { useClubLeadership } from '@/context/club-leadership-context';
 import { useFeed } from '@/context/feed-context';
-import { useImageCropper } from '@/context/image-cropper-context';
-import { useTabPagerPriority } from '@/context/tab-pager-priority-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 import {
+  completeDateDigits,
   completeTimeDigits,
   formatEventDate,
   formatRawDateSegments,
-  formatRawTimeSegments,
-  getMaxDaysForMonth,
-  getMaxTimeRawDigitLength,
-  getNextOccurrenceYear,
   isDateCompleteAndValid,
   isTimeCompleteAndValid,
+  parseDateSegments,
   resolveTimeWithPeriod,
-  sanitizeDateDigits,
-  sanitizeTimeDigits,
   sanitizeTimeDigitsWithError,
   validateDateOnBlur,
 } from '@/utils/date-format';
-import {
-  attachNumericDomFilters,
-  handleNumericKeyPress,
-} from '@/utils/numeric-input';
+import { attachNumericDomFilters } from '@/utils/numeric-input';
+import { handleSmoothInputFocus } from '@/utils/smooth-input-focus';
 
 export const MAX_TITLE_LENGTH = 50;
 export const MAX_DESCRIPTION_LENGTH = 280;
 export const MAX_LOCATION_LENGTH = 25;
 export const MAX_CUSTOM_WHEN_LENGTH = 25;
-export { formatEventDate };
-
-/** Smooth blinking gold cursor for masked date/time fields */
-function BlinkingCursor({
-  color = Brand.gold,
-  style,
-}: {
-  color?: string;
-  style?: StyleProp<ViewStyle>;
-}) {
-  const [visible, setVisible] = useState(true);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setVisible((prev) => !prev);
-    }, 530);
-    return () => clearInterval(id);
-  }, []);
-
-  return (
-    <View
-      style={[
-        {
-          width: 1.5,
-          height: 16,
-          backgroundColor: color,
-          borderRadius: 0,
-          opacity: visible ? 1 : 0,
-        },
-        style,
-      ]}
-    />
-  );
-}
+export { formatEventDate, DatePickerModal, parseDateOrDefault };
 
 export default function CreatePostScreen() {
   const theme = useTheme();
@@ -176,24 +140,17 @@ export default function CreatePostScreen() {
     paddingBottom: keyboardHeight.value,
   }));
 
-  const scrollToInput = (sectionY: number, isNearBottom = false) => {
+  const scrollToInput = (sectionY: number) => {
+    const windowHeight = Dimensions.get('window').height;
+    const targetY = Math.max(0, sectionY - Math.min(100, windowHeight * 0.15));
     setTimeout(() => {
-      if (isNearBottom) {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      } else {
-        scrollViewRef.current?.scrollTo({
-          y: Math.max(0, sectionY - 16),
-          animated: true,
-        });
-      }
+      scrollViewRef.current?.scrollTo({
+        y: targetY,
+        animated: true,
+      });
     }, Platform.OS === 'android' ? 100 : 50);
   };
 
-  const handleWebScrollIntoView = (e: any) => {
-    if (Platform.OS === 'web' && e?.target?.scrollIntoView) {
-      e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  };
 
   // Form State
   const [title, setTitle] = useState('');
@@ -203,10 +160,15 @@ export default function CreatePostScreen() {
   const [isDescFocused, setIsDescFocused] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [rawImage, setRawImage] = useState<{ uri: string; width: number; height: number } | null>(null);
-  const { openCropper } = useImageCropper();
+  const [isEditing, setIsEditing] = useState(false);
+  const [isCropping, setIsCropping] = useState(false);
+  const [isCroppingInteracting, setIsCroppingInteracting] = useState(false);
+  const [savedTransform, setSavedTransform] = useState<CropTransformState | null>(null);
+  const cropperRef = useRef<InlineImageCropperRef>(null);
 
   // Pick an image from the user's device photo library
   const handlePickImage = async () => {
+    setIsCroppingInteracting(false);
     try {
       if (Platform.OS !== 'web') {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -265,33 +227,66 @@ export default function CreatePostScreen() {
       }
 
       setRawImage({ uri: finalUri, width, height });
-      openCropper({
-        imageUri: finalUri,
-        imageDimensions: { width, height },
-        onCropComplete: (croppedUri) => {
-          setImageUrl(croppedUri);
-        },
-      });
+      setImageUrl(finalUri);
+      setSavedTransform(null); // Fresh photo starts at centered zoom = 1.0x
+      setIsEditing(true); // Open cropper immediately so user can adjust
     } catch (err) {
       console.error('[CreatePostScreen] Error launching image picker:', err);
+    } finally {
+      setIsCroppingInteracting(false);
     }
+  };
+
+  // Commit crop when tapping Done
+  const handleSaveCrop = async () => {
+    if (isCropping) return;
+    setIsCropping(true);
+    try {
+      const cropRes = await cropperRef.current?.applyCrop();
+      if (cropRes) {
+        setImageUrl(cropRes.uri);
+        setSavedTransform(cropRes.transform);
+      }
+      setIsEditing(false);
+    } catch (err) {
+      console.error('[CreatePostScreen] Error saving crop:', err);
+      setIsEditing(false);
+    } finally {
+      setIsCropping(false);
+    }
+  };
+
+  // Resume editing photo at exact previous position
+  const handleStartEdit = () => {
+    setIsEditing(true);
+  };
+
+  // Remove photo and reset cropper state
+  const handleRemovePhoto = () => {
+    setImageUrl(null);
+    setRawImage(null);
+    setSavedTransform(null);
+    setIsEditing(false);
   };
 
   // Date State (Numeric masked input: MMDDYYYY, slashes appear dynamically on char 3 and char 5)
   const dateInputRef = useRef<TextInput>(null);
   const [rawDate, setRawDate] = useState('');
+  const [dateSegmentsState, setDateSegmentsState] = useState({ month: '', day: '', year: '' });
   const [isDateFocused, setIsDateFocused] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Time State (Numeric masked input: e.g. 700 -> 7:00, fake colon appears dynamically)
-  const timeInputRef = useRef<TextInput>(null);
+  const timeInputRef = useRef<MaskedTimeInputRef>(null);
   const [rawTime, setRawTime] = useState('');
   const [isTimeFocused, setIsTimeFocused] = useState(false);
   const [timePeriod, setTimePeriod] = useState<'AM' | 'PM'>('PM');
 
-  // Event Date & Time validation error state (shown in red at bottom of card)
-  const [whenError, setWhenError] = useState<string | null>(null);
+  // Event Date & Time validation error states (shown in red on respective input borders & card footer)
+  const [dateError, setDateError] = useState<string | null>(null);
+  const [timeError, setTimeError] = useState<string | null>(null);
+  const whenError = dateError || timeError;
 
   // Freeform mode toggle (Standard Time vs Custom Text)
   const [isCustomWhen, setIsCustomWhen] = useState(false);
@@ -306,7 +301,7 @@ export default function CreatePostScreen() {
   useEffect(() => {
     if (Platform.OS !== 'web') return;
     const cleanupDate = attachNumericDomFilters(dateInputRef.current);
-    const cleanupTime = attachNumericDomFilters(timeInputRef.current);
+    const cleanupTime = attachNumericDomFilters(timeInputRef.current?.textInput ?? null);
     return () => {
       cleanupDate();
       cleanupTime();
@@ -327,20 +322,40 @@ export default function CreatePostScreen() {
   // Derived Date Segments for non-selectable visual masking
   const dateSegments = useMemo(() => formatRawDateSegments(rawDate), [rawDate]);
 
-  // Derived Time Segments for non-selectable visual masking
-  const timeSegments = useMemo(() => formatRawTimeSegments(rawTime), [rawTime]);
-  const maxTimeRawDigits = useMemo(() => getMaxTimeRawDigitLength(rawTime), [rawTime]);
-
   // Translated human-friendly date and time preview shown below inputs
   const eventPreview = useMemo(() => {
-    const isFullDate = rawDate.length === 8;
-    const formattedDate = isFullDate ? formatEventDate(dateSegments.formatted) : '';
-    const resolvedTime = resolveTimeWithPeriod(rawTime, timePeriod);
+    // If the date has an error or is incomplete/invalid, do not include date in preview
+    const isDateValidForPreview =
+      !dateError &&
+      (rawDate.length === 8 || rawDate.length === 6) &&
+      validateDateOnBlur(dateSegmentsState) === null &&
+      validateDateOnBlur(rawDate) === null &&
+      isDateCompleteAndValid(rawDate);
+
+    const formattedDate = isDateValidForPreview
+      ? formatEventDate(
+          rawDate.length === 6
+            ? formatRawDateSegments(completeDateDigits(rawDate)).formatted
+            : dateSegments.formatted
+        )
+      : '';
+
+    const isTimeValid = !timeError && isTimeCompleteAndValid(rawTime);
+    const resolvedTime = isTimeValid ? resolveTimeWithPeriod(rawTime, timePeriod) : '';
+
     if (formattedDate && resolvedTime) {
       return `${formattedDate} · ${resolvedTime}`;
     }
     return formattedDate || resolvedTime || '';
-  }, [rawDate.length, dateSegments.formatted, rawTime, timePeriod]);
+  }, [
+    dateError,
+    timeError,
+    rawDate,
+    dateSegmentsState,
+    dateSegments.formatted,
+    rawTime,
+    timePeriod,
+  ]);
 
   // Validation
   const trimmedTitle = title.trim();
@@ -350,7 +365,15 @@ export default function CreatePostScreen() {
   const isDescValid =
     trimmedDescription.length > 0 &&
     trimmedDescription.length <= MAX_DESCRIPTION_LENGTH;
-  const isDateValid = isDateCompleteAndValid(rawDate);
+  const isAnyDateElementFilled = Boolean(
+    dateSegmentsState.month || dateSegmentsState.day || dateSegmentsState.year || rawDate
+  );
+  const isDateValid = isAnyDateElementFilled
+    ? isDateCompleteAndValid(rawDate) &&
+      dateSegmentsState.month.length === 2 &&
+      dateSegmentsState.day.length === 2 &&
+      (dateSegmentsState.year.length === 4 || dateSegmentsState.year.length === 2)
+    : true;
   const isTimeValid = isTimeCompleteAndValid(rawTime);
   const isWhereValid = whereText.length <= MAX_LOCATION_LENGTH;
   const isCustomWhenValid = !isCustomWhen || customWhenText.length <= MAX_CUSTOM_WHEN_LENGTH;
@@ -366,12 +389,20 @@ export default function CreatePostScreen() {
   // Resolve Final "When" Text (only includes if valid date/time or freeform entered)
   const computedWhen = useMemo(() => {
     if (isCustomWhen) return customWhenText.trim() || undefined;
+    if (dateError) return undefined;
 
-    const isFullDate = rawDate.length === 8;
-    const formattedDate = isFullDate
-      ? formatEventDate(dateSegments.formatted)
-      : dateSegments.formatted.trim() || undefined;
-    const resolvedTime = resolveTimeWithPeriod(rawTime, timePeriod);
+    const completed = completeDateDigits(rawDate);
+    const isFullDate = completed.length === 8;
+    const isDateValidForWhen =
+      isFullDate &&
+      validateDateOnBlur(dateSegmentsState) === null &&
+      validateDateOnBlur(completed) === null &&
+      isDateCompleteAndValid(completed);
+    const formattedDate = isDateValidForWhen
+      ? formatEventDate(formatRawDateSegments(completed).formatted)
+      : undefined;
+    const isTimeValidForWhen = !timeError && isTimeCompleteAndValid(rawTime);
+    const resolvedTime = isTimeValidForWhen ? resolveTimeWithPeriod(rawTime, timePeriod) : undefined;
 
     if (!formattedDate && !resolvedTime) return undefined;
 
@@ -379,126 +410,149 @@ export default function CreatePostScreen() {
       return `${formattedDate} · ${resolvedTime}`;
     }
     return formattedDate || resolvedTime || undefined;
-  }, [isCustomWhen, customWhenText, rawDate.length, dateSegments.formatted, rawTime, timePeriod]);
+  }, [
+    isCustomWhen,
+    customWhenText,
+    dateError,
+    timeError,
+    rawDate,
+    dateSegmentsState,
+    rawTime,
+    timePeriod,
+  ]);
 
-  // Resolve Final "Where" Text
-  const computedWhere = useMemo(() => {
-    return whereText.trim() || undefined;
-  }, [whereText]);
+  const computedWhere = whereText.trim() || undefined;
 
-  const handleRawDateChange = (raw: string) => {
-    const result = sanitizeDateDigits(raw, rawDate);
-    setRawDate(result.digits);
-    const segs = formatRawDateSegments(result.digits);
+  const handleRawDateChange = (
+    raw: string,
+    segments?: { month: string; day: string; year: string }
+  ) => {
+    setRawDate(raw);
+    const nextSegments = segments || parseDateSegments(raw);
+    setDateSegmentsState(nextSegments);
+    const segs = formatRawDateSegments(raw);
     setSelectedDate(segs.formatted);
-    if (result.error) {
-      setWhenError(result.error);
+    const isCompleteCandidate =
+      raw.length === 6 ||
+      raw.length === 8 ||
+      (nextSegments.month.length === 2 &&
+        nextSegments.day.length === 2 &&
+        (nextSegments.year.length === 2 || nextSegments.year.length === 4));
+    if (isCompleteCandidate) {
+      const error = validateDateOnBlur(nextSegments) || validateDateOnBlur(raw);
+      setDateError(error);
     } else {
-      setWhenError(null);
-    }
-    if (dateInputRef.current) {
-      const node = (dateInputRef.current as any)._node || (dateInputRef.current as any);
-      if (node && 'value' in node && node.value !== result.digits) {
-        node.value = result.digits;
-      }
+      setDateError(null);
     }
   };
 
-  const handleDateBlur = () => {
+  const handleDateBlur = (segments?: { month: string; day: string; year: string }) => {
     setIsDateFocused(false);
 
-    if (!rawDate) {
-      setWhenError(null);
+    const segs = segments || dateSegmentsState || parseDateSegments(rawDate);
+    const m = segs.month || '';
+    const d = segs.day || '';
+    const y = segs.year || '';
+
+    // If entire date is empty (no elements filled in): no error
+    if (!m && !d && !y && !rawDate) {
+      setDateError(null);
       return;
     }
 
-    // If a valid month and day are present on lost focus, but no year (4 digits MMDD),
-    // automatically fill the year with the next year when the specified date will take place
-    if (rawDate.length === 4) {
-      const m = parseInt(rawDate.slice(0, 2), 10);
-      const d = parseInt(rawDate.slice(2, 4), 10);
-      if (m < 1 || m > 12) {
-        setWhenError('Month must be between 01-12');
+    // If only MMDD is filled in without a year, completeDateDigits auto-fills next occurrence year
+    if (m.length === 2 && d.length === 2 && !y) {
+      const mmdd = `${m}${d}`;
+      const completedRaw = completeDateDigits(mmdd);
+      if (completedRaw !== mmdd) {
+        setRawDate(completedRaw);
+        setDateSegmentsState(parseDateSegments(completedRaw));
+        const parsed = formatRawDateSegments(completedRaw);
+        setSelectedDate(parsed.formatted);
+        const error = validateDateOnBlur(completedRaw);
+        setDateError(error);
         return;
       }
-      const maxPossibleDays = m === 2 ? 29 : getMaxDaysForMonth(m, 2024);
-      if (d < 1 || d > maxPossibleDays) {
-        setWhenError(`Day must be between 01-${maxPossibleDays}`);
-        return;
-      }
-      const nextYear = getNextOccurrenceYear(m, d, new Date());
-      const completedRaw = `${rawDate}${nextYear}`;
-      setRawDate(completedRaw);
-      const segs = formatRawDateSegments(completedRaw);
-      setSelectedDate(segs.formatted);
-      setWhenError(null);
-      if (dateInputRef.current) {
-        const node = (dateInputRef.current as any)._node || (dateInputRef.current as any);
-        if (node && 'value' in node) {
-          node.value = completedRaw;
-        }
-      }
-      return;
     }
 
-    // Validate on blur and set error if invalid/incomplete
-    const error = validateDateOnBlur(rawDate);
-    setWhenError(error);
+    // Validate on blur using segments
+    const error = validateDateOnBlur(segs);
+    setDateError(error);
   };
 
   const handleSelectCalendarDate = (formattedDate: string) => {
     setSelectedDate(formattedDate);
     const cleaned = formattedDate.replace(/[^0-9]/g, '').slice(0, 8);
     setRawDate(cleaned);
-    setWhenError(null);
+    setDateSegmentsState(parseDateSegments(cleaned));
+    setDateError(null);
   };
 
   const handleRawTimeChange = (raw: string) => {
     const result = sanitizeTimeDigitsWithError(raw, rawTime);
     setRawTime(result.digits);
     if (result.error) {
-      setWhenError(result.error);
+      setTimeError(result.error);
     } else {
-      setWhenError(null);
+      setTimeError(null);
     }
-    if (timeInputRef.current) {
-      const node = (timeInputRef.current as any)._node || (timeInputRef.current as any);
-      if (node && 'value' in node && node.value !== result.digits) {
-        node.value = result.digits;
-      }
-    }
+    timeInputRef.current?.setNativeValue(result.digits);
   };
 
   const handleTimeBlur = () => {
     setIsTimeFocused(false);
     if (!rawTime) {
-      setWhenError(null);
+      setTimeError(null);
       return;
     }
 
     const completed = completeTimeDigits(rawTime);
     if (completed && completed !== rawTime) {
       setRawTime(completed);
-      if (timeInputRef.current) {
-        const node = (timeInputRef.current as any)._node || (timeInputRef.current as any);
-        if (node && 'value' in node) {
-          node.value = completed;
-        }
-      }
+      timeInputRef.current?.setNativeValue(completed);
     }
   };
 
   // Handle Publish
-  const handlePublish = () => {
+  const handlePublish = async () => {
     if (!canPublish || !activeClub) return;
 
     const clubName = activeClub.name;
+    let finalImageUrl = imageUrl;
+
+    // If publisher tapped submit while still in interactive crop mode, auto-commit the crop
+    if (isEditing && cropperRef.current) {
+      try {
+        const cropRes = await cropperRef.current.applyCrop();
+        if (cropRes) {
+          finalImageUrl = cropRes.uri;
+          setImageUrl(cropRes.uri);
+          setSavedTransform(cropRes.transform);
+        }
+      } catch (cropErr) {
+        console.warn('[CreatePostScreen] Auto-applying crop before publish failed:', cropErr);
+      }
+      setIsEditing(false);
+    }
+
+    // Ensure 2-digit years or partial dates are expanded before publishing
+    const completedDate = completeDateDigits(rawDate);
+    if (completedDate !== rawDate) {
+      setRawDate(completedDate);
+      setSelectedDate(formatRawDateSegments(completedDate).formatted);
+      if (dateInputRef.current) {
+        const node = (dateInputRef.current as any)._node || (dateInputRef.current as any);
+        if (node && 'value' in node) {
+          node.value = completedDate;
+        }
+      }
+    }
 
     createPost({
       club: activeClub,
       title: trimmedTitle,
       description: trimmedDescription,
-      image: imageUrl ?? undefined,
+      image: finalImageUrl ?? undefined,
       when: computedWhen,
       where: computedWhere,
     });
@@ -508,6 +562,8 @@ export default function CreatePostScreen() {
     setDescription('');
     setImageUrl(null);
     setRawImage(null);
+    setSavedTransform(null);
+    setIsEditing(false);
     setIsCustomWhen(false);
     setRawDate('');
     setSelectedDate('');
@@ -515,6 +571,8 @@ export default function CreatePostScreen() {
     setTimePeriod('PM');
     setCustomWhenText('');
     setWhereText('');
+    setDateError(null);
+    setTimeError(null);
 
     // Open confirmation pop-up
     setPublishedClubName(clubName);
@@ -580,6 +638,7 @@ export default function CreatePostScreen() {
         <Animated.View style={animatedPageStyle}>
           <ScrollView
             ref={scrollViewRef}
+            scrollEnabled={!isCroppingInteracting}
             contentContainerStyle={[
               styles.scrollContent,
               {
@@ -684,32 +743,19 @@ export default function CreatePostScreen() {
                 titleSectionY.current = e.nativeEvent.layout.y;
               }}
             >
-              <View style={styles.labelRow}>
-                <ThemedText type="caption" themeColor="textMuted" style={styles.sectionLabel}>
-                  POST TITLE <ThemedText style={{ color: Brand.brightRed }}>*</ThemedText>
-                </ThemedText>
-                <ThemedText
-                  type="caption"
-                  style={[
-                    styles.charCounter,
-                    {
-                      color:
-                        title.length > MAX_TITLE_LENGTH
-                          ? Brand.brightRed
-                          : theme.textMuted,
-                    },
-                  ]}
-                >
-                  {title.length}/{MAX_TITLE_LENGTH}
-                </ThemedText>
-              </View>
+              <FieldLabel
+                label="POST TITLE"
+                required
+                currentLength={title.length}
+                maxLength={MAX_TITLE_LENGTH}
+              />
               <TextInput
                 value={title}
                 onChangeText={setTitle}
                 onFocus={(e) => {
                   setIsTitleFocused(true);
                   scrollToInput(titleSectionY.current);
-                  handleWebScrollIntoView(e);
+                  handleSmoothInputFocus(e);
                 }}
                 onBlur={() => setIsTitleFocused(false)}
                 cursorColor={Brand.gold}
@@ -740,25 +786,12 @@ export default function CreatePostScreen() {
                 descSectionY.current = e.nativeEvent.layout.y;
               }}
             >
-              <View style={styles.labelRow}>
-                <ThemedText type="caption" themeColor="textMuted" style={styles.sectionLabel}>
-                  DESCRIPTION <ThemedText style={{ color: Brand.brightRed }}>*</ThemedText>
-                </ThemedText>
-                <ThemedText
-                  type="caption"
-                  style={[
-                    styles.charCounter,
-                    {
-                      color:
-                        description.length > MAX_DESCRIPTION_LENGTH
-                          ? Brand.brightRed
-                          : theme.textMuted,
-                    },
-                  ]}
-                >
-                  {description.length}/{MAX_DESCRIPTION_LENGTH}
-                </ThemedText>
-              </View>
+              <FieldLabel
+                label="DESCRIPTION"
+                required
+                currentLength={description.length}
+                maxLength={MAX_DESCRIPTION_LENGTH}
+              />
               <TextInput
                 value={description}
                 onChangeText={setDescription}
@@ -768,7 +801,7 @@ export default function CreatePostScreen() {
                 onFocus={(e) => {
                   setIsDescFocused(true);
                   scrollToInput(descSectionY.current);
-                  handleWebScrollIntoView(e);
+                  handleSmoothInputFocus(e);
                 }}
                 onBlur={() => setIsDescFocused(false)}
                 cursorColor={Brand.gold}
@@ -798,90 +831,112 @@ export default function CreatePostScreen() {
 
             {/* 4. ATTACH IMAGE */}
             <View style={styles.section}>
-              <View style={styles.labelRow}>
-                <ThemedText type="caption" themeColor="textMuted" style={styles.sectionLabel}>
-                  PHOTO / BANNER
-                </ThemedText>
-                {imageUrl ? (
-                  <Pressable
-                    onPress={() => {
-                      setImageUrl(null);
-                      setRawImage(null);
-                    }}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel="Remove banner photo"
-                  >
-                    <ThemedText type="caption" style={{ color: Brand.brightRed, fontWeight: '600' }}>
-                      Remove Photo
-                    </ThemedText>
-                  </Pressable>
-                ) : null}
-              </View>
+              <FieldLabel
+                label="PHOTO / BANNER"
+                rightElement={
+                  imageUrl || rawImage ? (
+                    <Pressable
+                      onPress={handleRemovePhoto}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Remove banner photo"
+                    >
+                      <ThemedText type="caption" style={{ color: Brand.brightRed, fontWeight: '600' }}>
+                        Remove Photo
+                      </ThemedText>
+                    </Pressable>
+                  ) : null
+                }
+              />
 
-              {imageUrl ? (
+              {imageUrl || rawImage ? (
                 <View style={{ gap: Spacing.two }}>
                   <View style={styles.forceCroppedContainer}>
-                    <Image
-                      source={{ uri: imageUrl }}
-                      contentFit="cover"
-                      style={styles.forceCroppedImage}
-                    />
-                    <View style={styles.cropBadge}>
-                      <ThemedText type="caption" style={styles.cropBadgeText}>
-                        16:9 CARD BANNER
-                      </ThemedText>
-                    </View>
+                    {isEditing && rawImage ? (
+                      <InlineImageCropper
+                        ref={cropperRef}
+                        imageUri={rawImage.uri}
+                        imageDimensions={{ width: rawImage.width, height: rawImage.height }}
+                        initialTransform={savedTransform}
+                        onInteractionChange={setIsCroppingInteracting}
+                      />
+                    ) : (
+                      <>
+                        <Image
+                          source={{ uri: imageUrl ?? rawImage?.uri }}
+                          contentFit="cover"
+                          style={styles.forceCroppedImage}
+                        />
+                        <View style={styles.cropBadge}>
+                          <ThemedText type="caption" style={styles.cropBadgeText}>
+                            16:9 CARD BANNER
+                          </ThemedText>
+                        </View>
+                      </>
+                    )}
                   </View>
 
-                  {/* Photo Actions: Adjust Crop, Change Photo, Remove */}
+                  {/* Photo Actions: Full-width Change Photo (Left) & Edit / Done (Right) */}
                   <View style={styles.photoActionsRow}>
-                    {rawImage ? (
-                      <Pressable
-                        onPress={() => {
-                          if (rawImage) {
-                            openCropper({
-                              imageUri: rawImage.uri,
-                              imageDimensions: { width: rawImage.width, height: rawImage.height },
-                              onCropComplete: (croppedUri) => {
-                                setImageUrl(croppedUri);
-                              },
-                            });
-                          }
-                        }}
-                        accessibilityRole="button"
-                        accessibilityLabel="Adjust 16:9 photo crop"
-                        style={[
-                          styles.photoActionButton,
-                          {
-                            borderColor: Brand.gold,
-                            backgroundColor: 'rgba(243, 195, 0, 0.12)',
-                          },
-                        ]}
-                      >
-                        <Icon sf="crop" md="crop" size={14} color={Brand.gold} />
-                        <ThemedText style={[styles.photoActionText, { color: Brand.gold }]}>
-                          Adjust Crop
-                        </ThemedText>
-                      </Pressable>
-                    ) : null}
-
                     <Pressable
                       onPress={handlePickImage}
                       accessibilityRole="button"
                       accessibilityLabel="Change photo"
                       style={[
-                        styles.photoActionButton,
+                        styles.photoActionButtonLarge,
                         {
                           borderColor: theme.border,
                           backgroundColor: theme.backgroundElement,
                         },
                       ]}
                     >
-                      <Icon sf="photo" md="image" size={14} color={theme.text} />
-                      <ThemedText style={[styles.photoActionText, { color: theme.text }]}>
+                      <Icon sf="photo" md="image" size={18} color={theme.text} />
+                      <ThemedText style={[styles.photoActionTextLarge, { color: theme.text }]}>
                         Change Photo
                       </ThemedText>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={isEditing ? handleSaveCrop : handleStartEdit}
+                      accessibilityRole="button"
+                      accessibilityLabel={isEditing ? 'Done cropping photo' : 'Edit photo crop'}
+                      disabled={isCropping}
+                      style={[
+                        styles.photoActionButtonLarge,
+                        isEditing
+                          ? {
+                              borderColor: Brand.gold,
+                              backgroundColor: Brand.gold,
+                            }
+                          : {
+                              borderColor: Brand.gold,
+                              backgroundColor: 'rgba(243, 195, 0, 0.12)',
+                            },
+                      ]}
+                    >
+                      {isCropping ? (
+                        <ActivityIndicator size="small" color="#000000" />
+                      ) : (
+                        <>
+                          <Icon
+                            sf={isEditing ? 'checkmark' : 'crop'}
+                            md={isEditing ? 'check' : 'crop'}
+                            size={18}
+                            color={isEditing ? '#000000' : Brand.gold}
+                          />
+                          <ThemedText
+                            style={[
+                              styles.photoActionTextLarge,
+                              {
+                                color: isEditing ? '#000000' : Brand.gold,
+                                fontWeight: '700',
+                              },
+                            ]}
+                          >
+                            {isEditing ? 'Done' : 'Edit'}
+                          </ThemedText>
+                        </>
+                      )}
                     </Pressable>
                   </View>
                 </View>
@@ -920,12 +975,10 @@ export default function CreatePostScreen() {
                 dateSectionY.current = e.nativeEvent.layout.y;
               }}
             >
-              <View style={styles.sectionHeaderRow}>
-                <Icon sf="calendar" md="event" size={16} color={Brand.gold} />
-                <ThemedText type="caption" themeColor="textMuted" style={styles.sectionLabel}>
-                  EVENT DATE & TIME
-                </ThemedText>
-              </View>
+              <FieldLabel
+                icon={<Icon sf="calendar" md="event" size={16} color={Brand.gold} />}
+                label="EVENT DATE & TIME"
+              />
 
               <Card style={styles.eventSubCard}>
                 {/* Segmented Mode Selector: Standard Time vs Custom Text */}
@@ -934,83 +987,28 @@ export default function CreatePostScreen() {
                   value={isCustomWhen ? 'Custom Text' : 'Standard Time'}
                   onChange={(mode) => {
                     setIsCustomWhen(mode === 'Custom Text');
-                    setWhenError(null);
+                    setDateError(null);
+                    setTimeError(null);
                   }}
                 />
 
                 {!isCustomWhen ? (
                   <View style={{ gap: Spacing.two }}>
                     <View style={styles.structuredWhenRow}>
-                      <View style={{ flex: 1, gap: 4 }}>
+                      <View style={{ flex: 1.25, gap: 4 }}>
                         <ThemedText type="caption" themeColor="textMuted">DATE</ThemedText>
                         <View style={styles.dateInputWrapper}>
-                          <View
-                            style={[
-                              styles.maskedInputBox,
-                              {
-                                backgroundColor: theme.backgroundElement,
-                                borderColor: isDateFocused ? Brand.gold : theme.border,
-                              },
-                            ]}
-                          >
-                            <TextInput
-                              ref={dateInputRef}
-                              value={rawDate}
-                              onChangeText={handleRawDateChange}
-                              onKeyPress={handleNumericKeyPress}
-                              onFocus={(e) => {
-                                setIsDateFocused(true);
-                                scrollToInput(dateSectionY.current);
-                                handleWebScrollIntoView(e);
-                              }}
-                              onBlur={handleDateBlur}
-                              keyboardType="number-pad"
-                              inputMode="numeric"
-                              maxLength={8}
-                              caretHidden={true}
-                              selectionColor="transparent"
-                              autoCorrect={false}
-                              accessibilityLabel="Event date in MM/DD/YYYY format"
-                              style={styles.invisibleInput}
-                            />
-                            <View pointerEvents="none" style={styles.maskedDisplayRow}>
-                              {rawDate.length === 0 ? (
-                                <View style={styles.maskedPlaceholderRow}>
-                                  {isDateFocused && (
-                                    <BlinkingCursor color={Brand.gold} style={styles.emptyCursorAbsolute} />
-                                  )}
-                                  <ThemedText style={[styles.maskedPlaceholderText, { color: theme.textMuted }]}>
-                                    MM/DD/YYYY
-                                  </ThemedText>
-                                </View>
-                              ) : (
-                                <View style={styles.maskedDigitsRow}>
-                                  <ThemedText style={[styles.maskedDigitText, { color: theme.text }]}>
-                                    {dateSegments.part1}
-                                  </ThemedText>
-                                  {dateSegments.showSlash1 && (
-                                    <ThemedText style={[styles.maskedSeparatorText, { color: theme.text }]}>
-                                      /
-                                    </ThemedText>
-                                  )}
-                                  <ThemedText style={[styles.maskedDigitText, { color: theme.text }]}>
-                                    {dateSegments.part2}
-                                  </ThemedText>
-                                  {dateSegments.showSlash2 && (
-                                    <ThemedText style={[styles.maskedSeparatorText, { color: theme.text }]}>
-                                      /
-                                    </ThemedText>
-                                  )}
-                                  <ThemedText style={[styles.maskedDigitText, { color: theme.text }]}>
-                                    {dateSegments.part3}
-                                  </ThemedText>
-                                  {isDateFocused && (
-                                    <BlinkingCursor color={Brand.gold} style={styles.trailingCursor} />
-                                  )}
-                                </View>
-                              )}
-                            </View>
-                          </View>
+                          <SegmentedDateInput
+                            value={rawDate}
+                            onChange={handleRawDateChange}
+                            onBlur={handleDateBlur}
+                            onFocus={(e) => {
+                              setIsDateFocused(true);
+                              scrollToInput(dateSectionY.current);
+                              handleSmoothInputFocus(e, { scrollViewRef, targetY: dateSectionY.current });
+                            }}
+                            hasError={Boolean(dateError)}
+                          />
                           <AccessoryButton
                             onPress={() => setShowDatePicker(true)}
                             accessibilityLabel="Open calendar date picker"
@@ -1021,76 +1019,22 @@ export default function CreatePostScreen() {
                         </View>
                       </View>
 
-                      <View style={{ flex: 1, gap: 4 }}>
+                      <View style={{ flex: 0.85, gap: 4 }}>
                         <ThemedText type="caption" themeColor="textMuted">TIME</ThemedText>
-                        <View style={styles.timeInputWrapper}>
-                          <View
-                            style={[
-                              styles.maskedInputBox,
-                              {
-                                backgroundColor: theme.backgroundElement,
-                                borderColor: isTimeFocused ? Brand.gold : theme.border,
-                              },
-                            ]}
-                          >
-                            <TextInput
-                              ref={timeInputRef}
-                              value={rawTime}
-                              onChangeText={handleRawTimeChange}
-                              onKeyPress={handleNumericKeyPress}
-                              onFocus={(e) => {
-                                setIsTimeFocused(true);
-                                scrollToInput(dateSectionY.current);
-                                handleWebScrollIntoView(e);
-                              }}
-                              onBlur={handleTimeBlur}
-                              keyboardType="number-pad"
-                              inputMode="numeric"
-                              maxLength={maxTimeRawDigits}
-                              caretHidden={true}
-                              selectionColor="transparent"
-                              autoCorrect={false}
-                              accessibilityLabel="Event time"
-                              style={styles.invisibleInput}
-                            />
-                            <View pointerEvents="none" style={styles.maskedDisplayRow}>
-                              {rawTime.length === 0 ? (
-                                <View style={styles.maskedPlaceholderRow}>
-                                  {isTimeFocused && (
-                                    <BlinkingCursor color={Brand.gold} style={styles.emptyCursorAbsolute} />
-                                  )}
-                                  <ThemedText style={[styles.maskedPlaceholderText, { color: theme.textMuted }]}>
-                                    e.g. 7:00
-                                  </ThemedText>
-                                </View>
-                              ) : (
-                                <View style={styles.maskedDigitsRow}>
-                                  <ThemedText style={[styles.maskedDigitText, { color: theme.text }]}>
-                                    {timeSegments.part1}
-                                  </ThemedText>
-                                  {timeSegments.showColon && (
-                                    <ThemedText style={[styles.maskedSeparatorText, { color: theme.text }]}>
-                                      :
-                                    </ThemedText>
-                                  )}
-                                  <ThemedText style={[styles.maskedDigitText, { color: theme.text }]}>
-                                    {timeSegments.part2}
-                                  </ThemedText>
-                                  {isTimeFocused && (
-                                    <BlinkingCursor color={Brand.gold} style={styles.trailingCursor} />
-                                  )}
-                                </View>
-                              )}
-                            </View>
-                          </View>
-                          <AccessoryButton
-                            onPress={handleTogglePeriod}
-                            accessibilityLabel={`Current time period is ${timePeriod}. Tap to toggle.`}
-                            style={styles.periodToggleBtn}
-                          >
-                            <ThemedText style={styles.periodToggleText}>{timePeriod}</ThemedText>
-                          </AccessoryButton>
-                        </View>
+                        <MaskedTimeInput
+                          ref={timeInputRef}
+                          value={rawTime}
+                          onChange={handleRawTimeChange}
+                          period={timePeriod}
+                          onTogglePeriod={handleTogglePeriod}
+                          onFocus={(e) => {
+                            setIsTimeFocused(true);
+                            scrollToInput(dateSectionY.current);
+                            handleSmoothInputFocus(e, { scrollViewRef, targetY: dateSectionY.current });
+                          }}
+                          onBlur={handleTimeBlur}
+                          hasError={Boolean(timeError)}
+                        />
                       </View>
                     </View>
 
@@ -1106,36 +1050,23 @@ export default function CreatePostScreen() {
                   </View>
                 ) : (
                   <View style={{ gap: 4 }}>
-                    <View style={styles.labelRow}>
-                      <ThemedText type="caption" themeColor="textMuted">
-                        CUSTOM EVENT TIME TEXT
-                      </ThemedText>
-                      <ThemedText
-                        type="caption"
-                        style={[
-                          styles.charCounter,
-                          {
-                            color:
-                              customWhenText.length > MAX_CUSTOM_WHEN_LENGTH
-                                ? Brand.brightRed
-                                : theme.textMuted,
-                          },
-                        ]}
-                      >
-                        {customWhenText.length}/{MAX_CUSTOM_WHEN_LENGTH}
-                      </ThemedText>
-                    </View>
+                    <FieldLabel
+                      label="CUSTOM EVENT TIME TEXT"
+                      currentLength={customWhenText.length}
+                      maxLength={MAX_CUSTOM_WHEN_LENGTH}
+                    />
                     <TextInput
                       value={customWhenText}
                       onChangeText={setCustomWhenText}
                       onFocus={(e) => {
                         setIsCustomWhenFocused(true);
                         scrollToInput(dateSectionY.current);
-                        handleWebScrollIntoView(e);
+                        handleSmoothInputFocus(e, { scrollViewRef, targetY: dateSectionY.current });
                       }}
                       onBlur={() => {
                         setIsCustomWhenFocused(false);
-                        setWhenError(null);
+                        setDateError(null);
+                        setTimeError(null);
                       }}
                       cursorColor={Brand.gold}
                       selectionColor={Brand.gold}
@@ -1178,36 +1109,20 @@ export default function CreatePostScreen() {
                 locationSectionY.current = e.nativeEvent.layout.y;
               }}
             >
-              <View style={styles.labelRow}>
-                <View style={styles.sectionHeaderRow}>
-                  <Icon sf="mappin.and.ellipse" md="place" size={16} color={Brand.gold} />
-                  <ThemedText type="caption" themeColor="textMuted" style={styles.sectionLabel}>
-                    LOCATION
-                  </ThemedText>
-                </View>
-                <ThemedText
-                  type="caption"
-                  style={[
-                    styles.charCounter,
-                    {
-                      color:
-                        whereText.length > MAX_LOCATION_LENGTH
-                          ? Brand.brightRed
-                          : theme.textMuted,
-                    },
-                  ]}
-                >
-                  {whereText.length}/{MAX_LOCATION_LENGTH}
-                </ThemedText>
-              </View>
+              <FieldLabel
+                icon={<Icon sf="mappin.and.ellipse" md="place" size={16} color={Brand.gold} />}
+                label="LOCATION"
+                currentLength={whereText.length}
+                maxLength={MAX_LOCATION_LENGTH}
+              />
 
               <TextInput
                 value={whereText}
                 onChangeText={setWhereText}
                 onFocus={(e) => {
                   setIsWhereFocused(true);
-                  scrollToInput(locationSectionY.current, true);
-                  handleWebScrollIntoView(e);
+                  scrollToInput(locationSectionY.current);
+                  handleSmoothInputFocus(e, { scrollViewRef, targetY: locationSectionY.current });
                 }}
                 onBlur={() => setIsWhereFocused(false)}
                 cursorColor={Brand.gold}
@@ -1272,7 +1187,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: Spacing.three,
     gap: Spacing.three,
-    paddingBottom: Spacing.four * 2,
   },
   section: {
     gap: 6,
@@ -1407,42 +1321,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
+    width: '100%',
   },
-  photoActionButton: {
+  photoActionButtonLarge: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    justifyContent: 'center',
+    gap: 8,
+    minHeight: 48,
     borderRadius: Radius.pill,
     borderWidth: 1,
+    paddingHorizontal: Spacing.three,
   },
-  photoActionText: {
-    fontSize: 12,
+  photoActionTextLarge: {
+    fontSize: 14,
     fontWeight: '600',
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 2,
   },
   eventSubCard: {
     padding: Spacing.two + 2,
     gap: Spacing.two,
-  },
-  modeTabs: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  modeTab: {
-    flex: 1,
-    paddingVertical: 6,
-    alignItems: 'center',
-    borderRadius: Radius.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   structuredWhenRow: {
     flexDirection: 'row',
@@ -1457,87 +1355,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     outlineWidth: 0,
     outlineColor: 'transparent',
-  },
-  maskedInputBox: {
-    flex: 1,
-    height: 40,
-    borderWidth: 1,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.two + 4,
-    justifyContent: 'center',
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  invisibleInput: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    opacity: 0,
-    zIndex: 2,
-    outlineWidth: 0,
-    outlineColor: 'transparent',
-  },
-  maskedDisplayRow: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: Spacing.two + 4,
-    right: Spacing.two + 4,
-    justifyContent: 'center',
-    zIndex: 1,
-  },
-  maskedPlaceholderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  emptyCursorAbsolute: {
-    position: 'absolute',
-    left: 0,
-  },
-  maskedPlaceholderText: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginLeft: 4,
-  },
-  maskedDigitsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  maskedDigitText: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '500',
-  },
-  maskedSeparatorText: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '500',
-    marginHorizontal: 0.5,
-  },
-  trailingCursor: {
-    marginLeft: 2,
-  },
-  timeInputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  periodToggleBtn: {
-    height: 40,
-    minWidth: 44,
-    paddingHorizontal: 10,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  periodToggleText: {
-    color: Brand.gold,
-    fontSize: 12,
-    fontWeight: '700',
   },
   eventPreviewRow: {
     flexDirection: 'row',
@@ -1608,442 +1425,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   calendarIconBtn: {
-    width: 44,
+    width: 40,
     height: 40,
     borderRadius: Radius.md,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-});
-
-function parseDateOrDefault(dateStr: string) {
-  const today = new Date();
-  const tM = today.getMonth();
-  const tY = today.getFullYear();
-  const tD = today.getDate();
-  const todayFormatted = `${String(tM + 1).padStart(2, '0')}/${String(tD).padStart(2, '0')}/${tY}`;
-
-  const trimmed = (dateStr || '').trim();
-  if (trimmed) {
-    const parts = trimmed.split(/[/.-]/);
-    if (parts.length === 3) {
-      let m = parseInt(parts[0], 10) - 1;
-      let d = parseInt(parts[1], 10);
-      let y = parseInt(parts[2], 10);
-      if (parts[0].length === 4) {
-        y = parseInt(parts[0], 10);
-        m = parseInt(parts[1], 10) - 1;
-        d = parseInt(parts[2], 10);
-      }
-      if (!isNaN(m) && !isNaN(d) && !isNaN(y) && m >= 0 && m < 12 && d >= 1 && d <= 31) {
-        const mStr = String(m + 1).padStart(2, '0');
-        const dStr = String(d).padStart(2, '0');
-        return {
-          year: y,
-          month: m,
-          formatted: `${mStr}/${dStr}/${y}`,
-        };
-      }
-    }
-  }
-
-  return {
-    year: tY,
-    month: tM,
-    formatted: todayFormatted,
-  };
-}
-
-function DatePickerModal({
-  visible,
-  selectedDate,
-  onClose,
-  onSelectDate,
-}: {
-  visible: boolean;
-  selectedDate: string;
-  onClose: () => void;
-  onSelectDate: (formattedDate: string) => void;
-}) {
-  const theme = useTheme();
-  const today = new Date();
-  const initialParsed = useMemo(() => parseDateOrDefault(selectedDate), [selectedDate]);
-  const [currentYear, setCurrentYear] = useState(initialParsed.year);
-  const [currentMonth, setCurrentMonth] = useState(initialParsed.month);
-  const [activeDateStr, setActiveDateStr] = useState(initialParsed.formatted);
-
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
-  ];
-
-  // Sync state when modal opens or selectedDate changes
-  useEffect(() => {
-    if (!visible) return;
-    const parsed = parseDateOrDefault(selectedDate);
-    setCurrentYear(parsed.year);
-    setCurrentMonth(parsed.month);
-    setActiveDateStr(parsed.formatted);
-    if (!selectedDate.trim()) {
-      onSelectDate(parsed.formatted);
-    }
-  }, [visible, selectedDate, onSelectDate]);
-
-  const isPrevYearDisabled = currentYear <= 2000;
-  const isPrevMonthDisabled = currentYear < 2000 || (currentYear === 2000 && currentMonth <= 0);
-  const isNextMonthDisabled = currentYear > 2999 || (currentYear === 2999 && currentMonth >= 11);
-  const isNextYearDisabled = currentYear >= 2999;
-
-  const handlePrevYear = () => {
-    if (isPrevYearDisabled) return;
-    setCurrentYear((y) => Math.max(2000, y - 1));
-  };
-
-  const handleNextYear = () => {
-    if (isNextYearDisabled) return;
-    setCurrentYear((y) => Math.min(2999, y + 1));
-  };
-
-  const handlePrevMonth = () => {
-    if (isPrevMonthDisabled) return;
-    if (currentMonth === 0) {
-      if (currentYear > 2000) {
-        setCurrentMonth(11);
-        setCurrentYear((y) => y - 1);
-      }
-    } else {
-      setCurrentMonth((m) => m - 1);
-    }
-  };
-
-  const handleNextMonth = () => {
-    if (isNextMonthDisabled) return;
-    if (currentMonth === 11) {
-      if (currentYear < 2999) {
-        setCurrentMonth(0);
-        setCurrentYear((y) => y + 1);
-      }
-    } else {
-      setCurrentMonth((m) => m + 1);
-    }
-  };
-
-  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-  const firstDayWeekday = new Date(currentYear, currentMonth, 1).getDay();
-  const totalCells = firstDayWeekday + daysInMonth;
-  const numWeeks = Math.ceil(totalCells / 7);
-  // Centered at 5 weeks. 6-week months extend bottom by 40px while keeping top/buttons fixed (translateY: +20).
-  // 4-week months (Feb) contract bottom by 40px while keeping top/buttons fixed (translateY: -20).
-  const verticalShift = (numWeeks - 5) * 20;
-
-  const handleDayPress = (day: number) => {
-    const mStr = String(currentMonth + 1).padStart(2, '0');
-    const dStr = String(day).padStart(2, '0');
-    const formatted = `${mStr}/${dStr}/${currentYear}`;
-    setActiveDateStr(formatted);
-    onSelectDate(formatted);
-    onClose();
-  };
-
-  if (!visible) return null;
-
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={datePickerStyles.backdrop} onPress={onClose}>
-        <Pressable
-          style={[
-            datePickerStyles.card,
-            {
-              backgroundColor: theme.backgroundElement,
-              borderColor: theme.border,
-              transform: [{ translateY: verticalShift }],
-            },
-          ]}
-          onPress={(e) => e.stopPropagation()}
-        >
-          {/* Modal Header */}
-          <View style={datePickerStyles.modalHeader}>
-            <View style={datePickerStyles.headerTitleRow}>
-              <Icon sf="calendar" md="event" size={20} color={Brand.gold} />
-              <ThemedText type="headline" style={datePickerStyles.headerTitle}>
-                Select Event Date
-              </ThemedText>
-            </View>
-            <Pressable
-              onPress={onClose}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-              style={datePickerStyles.closeButton}
-            >
-              <Icon sf="xmark" md="close" size={18} color={theme.textMuted} />
-            </Pressable>
-          </View>
-
-          {/* Calendar Body */}
-          <View style={datePickerStyles.body}>
-            {/* Month & Year Navigation */}
-            <View style={datePickerStyles.header}>
-              <View style={datePickerStyles.navGroup}>
-                <Pressable
-                  onPress={isPrevYearDisabled ? undefined : handlePrevYear}
-                  disabled={isPrevYearDisabled}
-                  style={[datePickerStyles.navBtn, isPrevYearDisabled && datePickerStyles.navBtnDisabled]}
-                  accessibilityLabel="Previous year"
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: isPrevYearDisabled }}
-                  hitSlop={4}
-                >
-                  <Icon
-                    sf="chevron.left.2"
-                    md="keyboard_double_arrow_left"
-                    size={18}
-                    color={isPrevYearDisabled ? theme.textMuted : theme.text}
-                  />
-                </Pressable>
-                <Pressable
-                  onPress={isPrevMonthDisabled ? undefined : handlePrevMonth}
-                  disabled={isPrevMonthDisabled}
-                  style={[datePickerStyles.navBtn, isPrevMonthDisabled && datePickerStyles.navBtnDisabled]}
-                  accessibilityLabel="Previous month"
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: isPrevMonthDisabled }}
-                  hitSlop={4}
-                >
-                  <Icon
-                    sf="chevron.left"
-                    md="chevron_left"
-                    size={18}
-                    color={isPrevMonthDisabled ? theme.textMuted : theme.text}
-                  />
-                </Pressable>
-              </View>
-
-              <ThemedText style={datePickerStyles.monthTitle}>
-                {monthNames[currentMonth]} {currentYear}
-              </ThemedText>
-
-              <View style={datePickerStyles.navGroup}>
-                <Pressable
-                  onPress={isNextMonthDisabled ? undefined : handleNextMonth}
-                  disabled={isNextMonthDisabled}
-                  style={[datePickerStyles.navBtn, isNextMonthDisabled && datePickerStyles.navBtnDisabled]}
-                  accessibilityLabel="Next month"
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: isNextMonthDisabled }}
-                  hitSlop={4}
-                >
-                  <Icon
-                    sf="chevron.right"
-                    md="chevron_right"
-                    size={18}
-                    color={isNextMonthDisabled ? theme.textMuted : theme.text}
-                  />
-                </Pressable>
-                <Pressable
-                  onPress={isNextYearDisabled ? undefined : handleNextYear}
-                  disabled={isNextYearDisabled}
-                  style={[datePickerStyles.navBtn, isNextYearDisabled && datePickerStyles.navBtnDisabled]}
-                  accessibilityLabel="Next year"
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: isNextYearDisabled }}
-                  hitSlop={4}
-                >
-                  <Icon
-                    sf="chevron.right.2"
-                    md="keyboard_double_arrow_right"
-                    size={18}
-                    color={isNextYearDisabled ? theme.textMuted : theme.text}
-                  />
-                </Pressable>
-              </View>
-            </View>
-
-            {/* Weekday column headers */}
-            <View style={datePickerStyles.weekdayRow}>
-              {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((w) => (
-                <ThemedText key={w} type="caption" themeColor="textMuted" style={datePickerStyles.weekdayText}>
-                  {w}
-                </ThemedText>
-              ))}
-            </View>
-
-            {/* Days Grid */}
-            <View key={`grid-${currentYear}-${currentMonth}`} style={datePickerStyles.grid}>
-              {Array.from({ length: firstDayWeekday }).map((_, idx) => (
-                <View key={`empty-${currentYear}-${currentMonth}-${idx}`} style={datePickerStyles.dayCellEmpty} />
-              ))}
-              {Array.from({ length: daysInMonth }).map((_, idx) => {
-                const day = idx + 1;
-                const cellDateStr = `${String(currentMonth + 1).padStart(2, '0')}/${String(day).padStart(2, '0')}/${currentYear}`;
-                const isSelected = activeDateStr === cellDateStr;
-                const isToday =
-                  day === today.getDate() &&
-                  currentMonth === today.getMonth() &&
-                  currentYear === today.getFullYear();
-
-                return (
-                  <Pressable
-                    key={`day-${currentYear}-${currentMonth}-${day}`}
-                    onPress={() => handleDayPress(day)}
-                    style={datePickerStyles.dayCell}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${monthNames[currentMonth]} ${day}, ${currentYear}${isSelected ? ', selected' : ''}${isToday ? ', today' : ''}`}
-                  >
-                    <View
-                      style={[
-                        datePickerStyles.dayIndicator,
-                        isSelected && datePickerStyles.dayIndicatorSelected,
-                        !isSelected && isToday && datePickerStyles.dayIndicatorToday,
-                      ]}
-                    >
-                      <ThemedText
-                        style={[
-                          datePickerStyles.dayCellText,
-                          {
-                            color: isSelected ? '#000000' : isToday ? Brand.gold : theme.text,
-                            fontWeight: isSelected || isToday ? '700' : '500',
-                          },
-                        ]}
-                      >
-                        {day}
-                      </ThemedText>
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-}
-
-const datePickerStyles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.four,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 360,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.three + 4,
-    paddingVertical: Spacing.two + 4,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  headerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  body: {
-    padding: Spacing.three + 4,
-    gap: Spacing.three,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  navGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  monthTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    textAlign: 'center',
-    flex: 1,
-  },
-  navBtn: {
-    padding: 6,
-    borderRadius: Radius.sm,
-  },
-  navBtnDisabled: {
-    opacity: 0.35,
-  },
-  weekdayRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 2,
-  },
-  weekdayText: {
-    width: '14.28%',
-    textAlign: 'center',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  dayCellEmpty: {
-    width: '14.28%',
-    height: 40,
-  },
-  dayCell: {
-    width: '14.28%',
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayIndicator: {
-    width: 38,
-    height: 32,
-    borderRadius: Radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  dayIndicatorSelected: {
-    backgroundColor: Brand.gold,
-    borderRadius: Radius.pill,
-    overflow: 'hidden',
-  },
-  dayIndicatorToday: {
-    borderRadius: Radius.pill,
-    borderWidth: 1.5,
-    borderColor: 'rgba(243, 195, 0, 0.45)',
-    backgroundColor: 'transparent',
-    overflow: 'hidden',
-  },
-  dayCellText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  dayCellTextSelected: {
-    color: '#000000',
-    fontWeight: '700',
-  },
-  dayCellTextToday: {
-    color: Brand.gold,
-    fontWeight: '700',
   },
 });
 
@@ -2058,161 +1445,39 @@ function PostSuccessModal({
   onClose: () => void;
   onViewFeed: () => void;
 }) {
-  const theme = useTheme();
-  const scale = useSharedValue(0.3);
-  const opacity = useSharedValue(0);
-
-  useEffect(() => {
-    if (visible) {
-      scale.value = 0.3;
-      opacity.value = 0;
-      scale.value = withSpring(1, { damping: 11, stiffness: 160, mass: 0.8 });
-      opacity.value = withTiming(1, { duration: 240, easing: Easing.out(Easing.cubic) });
-    }
-  }, [visible, scale, opacity]);
-
-  const animatedCheckStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ scale: scale.value }],
-  }));
-
-  if (!visible) return null;
-
   return (
-    <Modal
-      transparent
+    <SuccessModal
       visible={visible}
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <View style={modalStyles.backdrop}>
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={onClose}
-          accessibilityRole="button"
-          accessibilityLabel="Dismiss dialog"
-        />
-        <View
-          style={[
-            modalStyles.card,
-            {
-              backgroundColor: theme.backgroundElement,
-              borderColor: Brand.renewGreen,
-            },
-          ]}
+      title="Post Published!"
+      message={
+        <ThemedText
+          type="default"
+          themeColor="textMuted"
+          style={{ textAlign: 'center', fontSize: 15, lineHeight: 22, maxWidth: 300 }}
         >
-          {/* Big animated green checkmark symbol in Renew Green */}
-          <Animated.View style={[modalStyles.checkContainer, animatedCheckStyle]}>
-            <View style={modalStyles.checkRing}>
-              <Icon
-                sf="checkmark"
-                md="check"
-                size={52}
-                color={Brand.renewGreen}
-                weight="bold"
-              />
-            </View>
-          </Animated.View>
-
-          <ThemedText type="headline" style={modalStyles.title}>
-            Post Published!
-          </ThemedText>
-
+          Your post for{' '}
           <ThemedText
             type="default"
-            themeColor="textMuted"
-            style={modalStyles.subtitle}
+            style={{ fontWeight: '700', color: Brand.renewGreen }}
           >
-            Your post for{' '}
-            <ThemedText
-              type="default"
-              style={{ fontWeight: '700', color: Brand.renewGreen }}
-            >
-              {clubName}
-            </ThemedText>{' '}
-            is now live on the Knightly campus feed.
-          </ThemedText>
-
-          {/* View Feed Button */}
-          <Button
-            label="View in Feed"
-            variant="primary"
-            sf="sparkles"
-            md="auto_awesome"
-            onPress={onViewFeed}
-            style={modalStyles.feedButton}
-          />
-
-          {/* Got it Button */}
-          <Button
-            label="Got it"
-            variant="secondary"
-            onPress={onClose}
-            style={modalStyles.gotItButton}
-          />
-        </View>
-      </View>
-    </Modal>
+            {clubName}
+          </ThemedText>{' '}
+          is now live on the Knightly campus feed.
+        </ThemedText>
+      }
+      primaryButton={{
+        label: 'View in Feed',
+        variant: 'primary',
+        sf: 'sparkles',
+        md: 'auto_awesome',
+        onPress: onViewFeed,
+      }}
+      secondaryButton={{
+        label: 'Got it',
+        variant: 'secondary',
+        onPress: onClose,
+      }}
+      onClose={onClose}
+    />
   );
 }
-
-const modalStyles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.four,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 380,
-    borderRadius: Radius.xl,
-    borderWidth: 2,
-    paddingHorizontal: Spacing.three + 4,
-    paddingTop: Spacing.four,
-    paddingBottom: Spacing.three + 4,
-    alignItems: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.35,
-    shadowRadius: 24,
-    elevation: 8,
-  },
-  checkContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.two,
-  },
-  checkRing: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: 'rgba(162, 214, 131, 0.14)',
-    borderWidth: 3,
-    borderColor: Brand.renewGreen,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    marginTop: Spacing.two,
-    textAlign: 'center',
-    fontSize: 24,
-    lineHeight: 30,
-  },
-  subtitle: {
-    marginTop: Spacing.two,
-    textAlign: 'center',
-    fontSize: 15,
-    lineHeight: 22,
-    maxWidth: 300,
-  },
-  feedButton: {
-    width: '100%',
-    marginTop: Spacing.four,
-  },
-  gotItButton: {
-    width: '100%',
-    marginTop: Spacing.two,
-  },
-});

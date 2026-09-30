@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -11,7 +12,7 @@ type ListRowProps = {
   sf: SfSymbolName;
   md: MaterialSymbolName;
   tone?: 'default' | 'danger';
-  trailing?: React.ReactNode;
+  trailing?: ReactNode;
   onPress?: () => void;
   last?: boolean;
 };

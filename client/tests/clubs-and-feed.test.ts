@@ -12,7 +12,6 @@ import {
   forYouPosts,
   getPostsByClubId,
   posts,
-  searchPosts,
 } from '@/data/feed';
 import { DEFAULT_FOLLOWED_CLUB_IDS } from '@/context/club-follow-context';
 

@@ -59,9 +59,14 @@ export function formatEventDate(
       yearPart = parts[0];
     }
 
+    if (yearPart.length === 2) {
+      y = expandTwoDigitYear(yearPart, referenceDate);
+      yearPart = String(y);
+    }
+
     // Require complete 4-digit year for formatting
     if (yearPart.length !== 4) {
-      return trimmed;
+      return '';
     }
 
     if (
@@ -102,7 +107,7 @@ export function formatEventDate(
       }
     }
   }
-  return trimmed;
+  return '';
 }
 
 export const QUICK_TIMES = ['11:00 AM', '12:00 PM', '4:00 PM', '6:00 PM', '7:00 PM', '8:00 PM'];
@@ -133,9 +138,10 @@ export interface SanitizeResult {
  *         - for 30-day months (04, 06, 09, 11), must be 0 only.
  *         - for 31-day months, must be 0..1.
  *     - if day tens is 1 or 2, 0..9 allowed.
- * - Digit 5 (pos 4): year 1st digit: must be 2 (constraining years to 2000-2999).
- * - Digits 6-7 (pos 5-6): year 2nd and 3rd digits: 0..9.
- * - Digit 8 (pos 7): year 4th digit:
+ * - Digit 5 (pos 4): year 1st digit: accepts any digit (both 2 and !2).
+ * - Digit 6 (pos 5): year 2nd digit: accepts any digit 0..9.
+ * - Digit 7 (pos 6): year 3rd digit: if year started with !2, limits user to 2 digits; if started with 2, allows 0..9.
+ * - Digit 8 (pos 7): year 4th digit (when year starts with 2):
  *     - if month is '02' and day is '29', verifies leap year.
  */
 /**
@@ -253,15 +259,20 @@ export function sanitizeDateDigits(
         valid += char;
       }
     } else if (pos === 4) {
-      if (digit === 2) {
-        valid += char;
-      } else {
-        error = 'Please enter a year between 2000 and 2999';
+      // 1st year digit: accept any digit (both 2 and !2)
+      valid += char;
+    } else if (pos === 5) {
+      // 2nd year digit: accept any digit (0..9)
+      valid += char;
+    } else if (pos === 6) {
+      // 3rd year digit:
+      // "limit the user to 2 digits when they puts anything besides a 2"
+      if (valid[4] !== '2') {
         break;
       }
-    } else if (pos === 5 || pos === 6) {
       valid += char;
     } else if (pos === 7) {
+      // 4th year digit (only reached when valid[4] === '2')
       const month = valid.slice(0, 2);
       const day = valid.slice(2, 4);
       if (month === '02' && day === '29') {
@@ -724,6 +735,103 @@ export function getNextOccurrenceYear(
 }
 
 /**
+ * Expands a 2-digit year (e.g. 25, 26, 42, 13, 99, 02) into a 4-digit year.
+ *
+ * SPECIFICATION & INVARIANTS:
+ * - Uses the current century by default (e.g. In 2026: 27 -> 2027, 13 -> 2013, 99 -> 2099, 42 -> 2042).
+ * - UNLESS the year will occur in the next 10 years (in which case it completes to the next century).
+ *   Example: In year 2095, entering 02 completes to 2102 (not 2002), because 2102 is within the next 10 years (2095-2105).
+ * - Months are not taken into account for these year calculations.
+ */
+export function expandTwoDigitYear(
+  twoDigitYear: number | string,
+  referenceDate: Date = new Date()
+): number {
+  const yy = typeof twoDigitYear === 'string' ? parseInt(twoDigitYear, 10) : twoDigitYear;
+  if (isNaN(yy) || yy < 0 || yy > 99) return NaN;
+
+  const currentYear = referenceDate.getFullYear();
+  const centuryBase = Math.floor(currentYear / 100) * 100;
+  const candidateYear = centuryBase + yy;
+  const nextCenturyYear = centuryBase + 100 + yy;
+
+  if (nextCenturyYear > currentYear && nextCenturyYear <= currentYear + 10) {
+    return nextCenturyYear;
+  }
+  return candidateYear;
+}
+
+/**
+ * Automatically completes partial or 2-digit dates:
+ * - 4 digits (MMDD): automatically fills the year with the next occurrence year
+ * - 6 digits (MMDDYY): automatically switches 2-digit years (e.g. 25, 26, 42) into 4-digit years (e.g. 2025, 2026, 2042)
+ * - 8 digits (MMDDYYYY): already complete
+ */
+export function completeDateDigits(
+  raw: string,
+  referenceDate: Date = new Date()
+): string {
+  if (!raw) return '';
+  const digits = raw.replace(/[^0-9]/g, '');
+
+  // 4 digits (MMDD): auto-fills next occurrence year
+  if (digits.length === 4) {
+    const m = parseInt(digits.slice(0, 2), 10);
+    const d = parseInt(digits.slice(2, 4), 10);
+    if (m >= 1 && m <= 12) {
+      const maxPossibleDays = m === 2 ? 29 : getMaxDaysForMonth(m, 2024);
+      if (d >= 1 && d <= maxPossibleDays) {
+        const nextYear = getNextOccurrenceYear(m, d, referenceDate);
+        return `${digits}${nextYear}`;
+      }
+    }
+    return digits;
+  }
+
+  // 6 digits (MMDDYY): auto-expands 2-digit year to 4-digit year
+  if (digits.length === 6) {
+    const m = parseInt(digits.slice(0, 2), 10);
+    const yy = digits.slice(4, 6);
+    if (m >= 1 && m <= 12) {
+      const expandedYear = expandTwoDigitYear(yy, referenceDate);
+      if (!isNaN(expandedYear)) {
+        return `${digits.slice(0, 4)}${expandedYear}`;
+      }
+    }
+    return digits;
+  }
+
+  return digits;
+}
+
+/**
+ * Splits a raw date string (e.g. "09182026", "091826", "0918") or delimited
+ * date string ("09/18/2026") into constituent month, day, and year parts.
+ */
+export function parseDateSegments(rawDate: string): {
+  month: string;
+  day: string;
+  year: string;
+} {
+  if (!rawDate) return { month: '', day: '', year: '' };
+  const trimmed = rawDate.trim();
+  if (trimmed.includes('/') || trimmed.includes('-') || trimmed.includes('.')) {
+    const parts = trimmed.split(/[/.-]/);
+    return {
+      month: parts[0] || '',
+      day: parts[1] || '',
+      year: parts[2] || '',
+    };
+  }
+  const digits = trimmed.replace(/[^0-9]/g, '');
+  return {
+    month: digits.slice(0, 2),
+    day: digits.slice(2, 4),
+    year: digits.slice(4, 8),
+  };
+}
+
+/**
  * On lost focus, fills in remaining digits for incomplete times according to
  * the translation model expectations:
  * - "7" -> "700" (which formats to "7:00")
@@ -781,62 +889,142 @@ export function completeTimeDigits(raw: string): string {
 }
 
 /**
- * Validates a raw date string on lost focus.
+ * Validates a raw date string or segment object on lost focus.
  * Returns an error message if invalid, or null if valid.
+ *
+ * SPECIFICATION & INVARIANTS:
+ * - Empty string or all-empty segments returns null (posting without date is permitted).
+ * - If Month is empty but another element (Day or Year) is filled in: returns "Please enter a month".
+ * - If Month is filled in but Day is empty: returns "Please enter a day".
+ * - If Month is invalid (< 1 or > 12): returns "Month must be between 01-12".
+ * - If Day exceeds max days for that month/year: returns "Day must be between 01-{maxDays}".
+ * - If Year is invalid: returns "Please enter a year between 2000 and 2999".
  */
-export function validateDateOnBlur(rawDate: string): string | null {
-  if (!rawDate || rawDate.length === 0) return null;
+export function validateDateOnBlur(
+  target: string | { month?: string; day?: string; year?: string },
+  referenceDate: Date = new Date()
+): string | null {
+  let m = '';
+  let d = '';
+  let y = '';
 
-  if (rawDate.length < 4) {
-    if (rawDate.length <= 2) {
-      const m = parseInt(rawDate, 10);
-      if (isNaN(m) || m < 1 || m > 12) {
-        return 'Month must be between 01-12';
+  if (typeof target === 'object' && target !== null) {
+    m = (target.month || '').trim();
+    d = (target.day || '').trim();
+    y = (target.year || '').trim();
+  } else if (typeof target === 'string') {
+    const trimmed = target.trim();
+    if (!trimmed) return null;
+
+    if (trimmed.includes('/') || trimmed.includes('-') || trimmed.includes('.')) {
+      const parts = trimmed.split(/[/.-]/);
+      m = parts[0] || '';
+      d = parts[1] || '';
+      y = parts[2] || '';
+    } else {
+      const digits = trimmed.replace(/[^0-9]/g, '');
+      if (digits.length === 0) return null;
+      if (digits.length <= 2) {
+        m = digits;
+      } else if (digits.length === 3) {
+        m = digits.slice(0, 2);
+        d = digits.slice(2);
+      } else if (digits.length === 4) {
+        m = digits.slice(0, 2);
+        d = digits.slice(2, 4);
+      } else if (digits.length === 5) {
+        m = digits.slice(0, 2);
+        d = digits.slice(2, 4);
+        y = digits.slice(4);
+      } else if (digits.length === 6) {
+        m = digits.slice(0, 2);
+        d = digits.slice(2, 4);
+        y = digits.slice(4, 6);
+      } else {
+        m = digits.slice(0, 2);
+        d = digits.slice(2, 4);
+        y = digits.slice(4, 8);
       }
-      return 'Please enter a day';
     }
-    return 'Please enter a 2-digit day';
   }
 
-  // 4 digits (MMDD): valid month & day check
-  if (rawDate.length === 4) {
-    const m = parseInt(rawDate.slice(0, 2), 10);
-    const d = parseInt(rawDate.slice(2, 4), 10);
-    if (m < 1 || m > 12) {
-      return 'Month must be between 01-12';
-    }
-    const maxPossibleDays = m === 2 ? 29 : getMaxDaysForMonth(m, 2024);
-    if (d < 1 || d > maxPossibleDays) {
-      return `Day must be between 01-${maxPossibleDays}`;
+  // If entire date is empty (no elements filled in): no error
+  if (!m && !d && !y) {
+    return null;
+  }
+
+  const isAnotherElementFilled = Boolean(d || y);
+
+  // If Month is completely empty, but another element (Day or Year) has been filled in:
+  if (!m) {
+    if (isAnotherElementFilled) {
+      return 'Please enter a month';
     }
     return null;
   }
 
-  // Partial year (5..7 digits, e.g. 02/18/3)
-  if (rawDate.length > 4 && rawDate.length < 8) {
+  // Month is partially filled (e.g. 1 digit)
+  if (m.length === 1) {
+    const monthNum = parseInt(m, 10);
+    if (isNaN(monthNum) || monthNum < 1 || monthNum > 9) {
+      return 'Month must be between 01-12';
+    }
+    m = `0${m}`;
+  }
+
+  const monthNum = parseInt(m, 10);
+  if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+    return 'Month must be between 01-12';
+  }
+
+  // Check Day:
+  if (!d) {
+    return 'Please enter a day';
+  }
+
+  if (d.length === 1) {
+    const dayNum = parseInt(d, 10);
+    if (isNaN(dayNum) || dayNum < 1) {
+      return 'Please enter a day';
+    }
+    d = `0${d}`;
+  }
+
+  const dayNum = parseInt(d, 10);
+  const maxPossibleDays = monthNum === 2 ? 29 : getMaxDaysForMonth(monthNum);
+  if (isNaN(dayNum) || dayNum < 1 || dayNum > maxPossibleDays) {
+    return `Day must be between 01-${maxPossibleDays}`;
+  }
+
+  // Check Year:
+  if (!y) {
+    // Both Month and Day are present, but Year is empty.
+    // 4 digits (MMDD) is allowed so completeDateDigits can auto-fill next occurrence year.
+    return null;
+  }
+
+  let finalYear = y;
+  if (y.length === 2) {
+    finalYear = String(expandTwoDigitYear(y, referenceDate));
+  } else if (y.length !== 4) {
     return 'Please enter a year between 2000 and 2999';
   }
 
-  // Complete 8 digits (MMDDYYYY)
-  if (rawDate.length === 8) {
-    const m = parseInt(rawDate.slice(0, 2), 10);
-    const d = parseInt(rawDate.slice(2, 4), 10);
-    const y = parseInt(rawDate.slice(4, 8), 10);
-    if (m < 1 || m > 12) {
-      return 'Month must be between 01-12';
+  const yearNum = parseInt(finalYear, 10);
+  if (isNaN(yearNum) || yearNum < 2000 || yearNum > 2999) {
+    return 'Please enter a year between 2000 and 2999';
+  }
+
+  if (monthNum === 2 && dayNum === 29) {
+    const isLeap = (yearNum % 4 === 0 && yearNum % 100 !== 0) || (yearNum % 400 === 0);
+    if (!isLeap) {
+      return `${yearNum} is not a leap year`;
     }
-    if (y < 2000 || y > 2999) {
-      return 'Please enter a year between 2000 and 2999';
-    }
-    const isLeap = (y % 4 === 0 && y % 100 !== 0) || (y % 400 === 0);
-    if (m === 2 && d === 29 && !isLeap) {
-      return `${y} is not a leap year`;
-    }
-    const maxDays = getMaxDaysForMonth(m, y);
-    if (d < 1 || d > maxDays) {
-      return `Day must be between 01-${maxDays}`;
-    }
-    return null;
+  }
+
+  const maxDays = getMaxDaysForMonth(monthNum, yearNum);
+  if (dayNum > maxDays) {
+    return `Day must be between 01-${maxDays}`;
   }
 
   return null;
@@ -846,12 +1034,20 @@ export function validateDateOnBlur(rawDate: string): string | null {
  * Checks whether a raw date is complete and valid for publishing.
  * - Empty string is allowed (posting without a date is permitted).
  * - Partial dates (e.g. 02/18/3) are strictly disallowed.
- * - Complete 8-digit dates must pass full month, day, leap year, and year range validation.
+ * - 6-digit dates (MMDDYY) and 8-digit dates (MMDDYYYY) must pass full month, day, leap year, and year validation.
  */
-export function isDateCompleteAndValid(rawDate: string): boolean {
+export function isDateCompleteAndValid(
+  rawDate: string,
+  referenceDate: Date = new Date()
+): boolean {
   if (!rawDate || rawDate.length === 0) return true;
+  if (rawDate.length === 6) {
+    const completed = completeDateDigits(rawDate, referenceDate);
+    if (completed.length !== 8) return false;
+    return isDateCompleteAndValid(completed, referenceDate);
+  }
   if (rawDate.length !== 8) return false;
-  return validateDateOnBlur(rawDate) === null;
+  return validateDateOnBlur(rawDate, referenceDate) === null;
 }
 
 /**
@@ -864,5 +1060,107 @@ export function isTimeCompleteAndValid(rawTime: string): boolean {
   const resolved = resolveTimeWithPeriod(rawTime, 'PM');
   return Boolean(resolved);
 }
+
+/**
+ * Options for formatPostRelativeTime to allow deterministic unit testing.
+ */
+export type FormatPostTimeOptions = {
+  now?: number; // Wall-clock timestamp (epoch ms)
+  monotonicNow?: number; // Monotonic timestamp (e.g. performance.now())
+};
+
+/**
+ * Formats a post's timestamp or relative time string for the campus feed card footer.
+ *
+ * ARCHITECTURAL CONTEXT & USER INVARIANTS:
+ * 1. "Just now ago" must NEVER be an option under any circumstances.
+ *    - If a post was created moments ago, it renders strictly as "Just now" (without "ago").
+ *    - Strings that already contain "Just now" or end in "ago" are never double-suffixed.
+ * 2. Device Clock & Timezone Invariance:
+ *    - Uses UTC epoch timestamps (`Date.now()`) so user timezone differences (EDT, PDT, UTC, JST)
+ *      have zero effect on elapsed calculation.
+ *    - Clock Rolled Back (Past): If the user manually sets their phone clock into the past
+ *      or server/client clock skew occurs (`now < createdAt`), the negative delta is clamped
+ *      and renders as "Just now" rather than negative numbers or future times.
+ *    - Clock Advanced (Future): If the user advances their phone clock during the active session,
+ *      `monotonicCreatedAt` via `performance.now()` measures the true elapsed execution time,
+ *      preventing newly authored posts from abruptly jumping to "5d ago".
+ *    - Pre-seeded strings like "2h", "1d" format smoothly as "2h ago", "1d ago".
+ */
+export function formatPostRelativeTime(
+  postedAt?: string,
+  createdAt?: number,
+  monotonicCreatedAt?: number,
+  options?: FormatPostTimeOptions
+): string {
+  // 1. If we have a monotonic session timestamp and monotonic clock, use it to guard
+  // against manual system clock changes while the app is active
+  if (monotonicCreatedAt !== undefined && monotonicCreatedAt !== null) {
+    const currentMonotonic =
+      options?.monotonicNow ?? (typeof performance !== 'undefined' ? performance.now() : undefined);
+    if (currentMonotonic !== undefined) {
+      const elapsedMs = currentMonotonic - monotonicCreatedAt;
+      if (elapsedMs < 60_000) {
+        return 'Just now';
+      }
+      if (elapsedMs < 3_600_000) {
+        return `${Math.floor(elapsedMs / 60_000)}m ago`;
+      }
+      if (elapsedMs < 86_400_000) {
+        return `${Math.floor(elapsedMs / 3_600_000)}h ago`;
+      }
+      return `${Math.floor(elapsedMs / 86_400_000)}d ago`;
+    }
+  }
+
+  // 2. If a numeric UTC epoch timestamp is available:
+  if (typeof createdAt === 'number' && !isNaN(createdAt)) {
+    const now = options?.now ?? Date.now();
+    const diffMs = now - createdAt;
+
+    // Clock skew / clock rolled back into past: clamp to 'Just now'
+    if (diffMs < 60_000) {
+      return 'Just now';
+    }
+    if (diffMs < 3_600_000) {
+      return `${Math.floor(diffMs / 60_000)}m ago`;
+    }
+    if (diffMs < 86_400_000) {
+      return `${Math.floor(diffMs / 3_600_000)}h ago`;
+    }
+    if (diffMs < 604_800_000) {
+      return `${Math.floor(diffMs / 86_400_000)}d ago`;
+    }
+    if (diffMs < 2_592_000_000) {
+      return `${Math.floor(diffMs / 604_800_000)}w ago`;
+    }
+    return `${Math.floor(diffMs / 2_592_000_000)}mo ago`;
+  }
+
+  // 3. String-based fallback (for pre-seeded mock posts or legacy records):
+  if (!postedAt || typeof postedAt !== 'string') {
+    return 'Just now';
+  }
+
+  const trimmed = postedAt.trim();
+  const lower = trimmed.toLowerCase();
+
+  // Guard against any permutation of "just now", "just now ago", or "now"
+  if (lower === 'just now' || lower === 'just now ago' || lower === 'now') {
+    return 'Just now';
+  }
+
+  // If already ends in "ago"
+  if (lower.endsWith('ago')) {
+    if (lower.includes('just now')) {
+      return 'Just now';
+    }
+    return trimmed;
+  }
+
+  // Relative duration token (e.g. "2h", "5m", "1d", "3w") -> append " ago"
+  return `${trimmed} ago`;
+}
+
 
 

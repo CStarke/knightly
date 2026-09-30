@@ -61,6 +61,8 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         mark: club.mark,
         category: club.category as FeedCategory,
         postedAt: 'Just now',
+        createdAt: Date.now(),
+        monotonicCreatedAt: typeof performance !== 'undefined' ? performance.now() : undefined,
         headline: title.trim(),
         body: description.trim(),
         when: when?.trim() ? when.trim() : undefined,

@@ -7,8 +7,17 @@ import {
   type TabListProps,
   type TabTriggerSlotProps,
 } from 'expo-router/ui';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, BackHandler, Keyboard, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  AppState,
+  BackHandler,
+  GestureResponderEvent,
+  Keyboard,
+  Pressable,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   cancelAnimation,
@@ -34,11 +43,10 @@ import { Icon, type MaterialSymbolName, type SfSymbolName } from '@/components/u
 import { ParallaxStarfield } from '@/components/ui/starfield';
 import { getTabHeader } from '@/constants/tab-headers';
 import { getBlankAfterSlot } from '@/constants/phantom-tabs';
-import { Brand, Radius, Spacing } from '@/constants/theme';
+import { Brand, Spacing } from '@/constants/theme';
 import { DiningActivityProvider } from '@/context/dining-activity-context';
 import { ClubsNavigationProvider } from '@/context/clubs-navigation-context';
 import { TabPagerPriorityProvider } from '@/context/tab-pager-priority-context';
-import { ImageCropperView, useImageCropper } from '@/context/image-cropper-context';
 import { StarfieldContext } from '@/context/starfield-context';
 import { getClubById } from '@/data/clubs';
 import { useClubLeadership } from '@/context/club-leadership-context';
@@ -67,7 +75,7 @@ type TabMeta = {
  */
 const BASE_TABS: TabMeta[] = [
   {
-    name: 'knightly',
+    name: 'index',
     href: '/',
     label: 'Knightly',
     sf: 'sparkles',
@@ -97,63 +105,42 @@ const BASE_TABS: TabMeta[] = [
     md: 'group',
   },
 ];
+
+const POST_TAB: TabMeta = {
+  name: 'post',
+  href: '/post',
+  label: 'Post',
+  sf: 'plus.circle.fill',
+  md: 'add_circle',
+};
 
 /**
  * Extended 5-tab layout unlocked for verified Club Leaders:
  * Appends the dedicated "Post" tab (`/post`) as Slot 4.
- * Why dynamic tab lists?
- * Student organizations at Calvin need privileged publishing tools to post bulletins
- * and event notices, while standard students only consume information. Surfacing the
- * Post tab conditionally prevents clutter for regular students while giving leaders
- * instant, single-tap access to publishing workflows.
  */
-const LEADER_TABS: TabMeta[] = [
-  {
-    name: 'knightly',
-    href: '/',
-    label: 'Knightly',
-    sf: 'sparkles',
-    md: 'auto_awesome',
-  },
-  {
-    name: 'dining',
-    href: '/dining',
-    label: 'Dining',
-    sf: 'fork.knife',
-    md: 'restaurant',
-  },
-  {
-    name: 'safety',
-    href: '/safety',
-    label: 'Safety',
-    sf: 'shield',
-    sfActive: 'shield.fill',
-    md: 'shield',
-  },
-  {
-    name: 'directory',
-    href: '/directory',
-    label: 'Directory',
-    sf: 'person.2',
-    sfActive: 'person.2.fill',
-    md: 'group',
-  },
-  {
-    name: 'post',
-    href: '/post',
-    label: 'Post',
-    sf: 'plus.circle.fill',
-    md: 'add_circle',
-  },
-];
+const LEADER_TABS: TabMeta[] = [...BASE_TABS, POST_TAB];
 
 /**
- * Programmatic animation easing curve (iOS-style quintic ease-out cubic-bezier).
- * Used when a user taps a bottom bar button or hardware back button rather than swiping.
- * Duration is 320ms to allow eye tracking of the lateral camera pan without feeling sluggish.
+ * Programmatic animation easing curve (bidirectional ease-in-out cubic-bezier).
+ *
+ * ARCHITECTURAL CONTEXT & RATIONALE:
+ * Previously, an ease-out-only curve `Easing.bezier(0.22, 1, 0.36, 1)` was used.
+ * Ease-out curves have an initial derivative of ~4.54 at t=0, meaning they launch into motion
+ * at peak velocity with zero acceleration ramp-up. Compounding this, when a Phantom Tab is opened
+ * (Campus Clubs, Club Setup, Dining Activity, Photo Cropper), React and the native UI thread must
+ * synchronously mount that slot's view hierarchy (cards, forms, search fields) on that exact
+ * initial frame. That initial frame dropped under load, causing a visible 50–100px hitch/jolt.
+ *
+ * SOLUTION:
+ * We use a balanced ease-in-out cubic-bezier: `Easing.bezier(0.40, 0.0, 0.20, 1.0)`.
+ * 1. Initial derivative at t=0 is 0: The camera accelerates gently from rest over the first 30–50ms.
+ * 2. Mounting tolerance: Any native layout pass completes during this near-zero-displacement phase,
+ *    eliminating visual stuttering.
+ * 3. Final derivative at t=1 is 0: The camera softly cushions to a halt into the target slot.
+ * 4. Duration is set to 340ms to provide an exquisitely fluid, cinematic lateral glide.
  */
-const CURVE = Easing.bezier(0.22, 1, 0.36, 1);
-const DURATION = 320;
+const CURVE = Easing.bezier(0.4, 0.0, 0.2, 1.0);
+const DURATION = 340;
 
 /**
  * Normalizes an Expo Router href pathname into an internal route name key.
@@ -169,25 +156,91 @@ const dismissKeyboard = () => {
   Keyboard.dismiss();
 };
 
+/**
+ * Global Tab Navigation & Synchronization Context
+ *
+ * ARCHITECTURAL CONTEXT & RATIONALE:
+ * Coordinates bottom bar taps and horizontal swipe gestures through a unified controller.
+ * Bypasses Expo Router's `<TabTrigger>` `!trigger.isFocused` click lockout bug (where React
+ * Navigation's state.index === 0 causes Knightly taps to be discarded as already focused).
+ * Shields the active tab selection and screen interactivity against spurious unrouted
+ * resume intent drops to '/' triggered by Android native activities (e.g. ImagePicker).
+ */
+export type TabNavigationContextValue = {
+  activeTabIndex: number;
+  setActiveTabIndex: (index: number) => void;
+  navigateToTab: (targetIndex: number, targetHref?: string) => void;
+  tabs: TabMeta[];
+};
+
+export const TabNavigationContext = createContext<TabNavigationContextValue | null>(null);
+
+export function useTabNavigation() {
+  return useContext(TabNavigationContext);
+}
+
 export default function AppTabs() {
   const bottomBarTranslateY = useSharedValue(0);
   const { isLeader } = useClubLeadership();
   const tabs = isLeader ? LEADER_TABS : BASE_TABS;
+  const pathname = usePathname();
+  const initialIndex = tabs.findIndex((tab) => tab.href === pathname);
+  const [activeTabIndex, setActiveTabIndex] = useState(() => (initialIndex >= 0 ? initialIndex : 0));
+  const pagerNavigateRef = useRef<((index: number, href?: string) => void) | null>(null);
+
+  // Synchronize activeTabIndex with current route pathname & dynamic tab layout
+  useEffect(() => {
+    const idx = tabs.findIndex((tab) => tab.href === pathname);
+    if (idx >= 0) {
+      setActiveTabIndex(idx);
+    }
+  }, [pathname, tabs]);
+
+  const navigateToTab = useCallback(
+    (targetIndex: number, targetHref?: string) => {
+      if (pagerNavigateRef.current) {
+        pagerNavigateRef.current(targetIndex, targetHref);
+      } else {
+        setActiveTabIndex(targetIndex);
+        const href = targetHref || tabs[targetIndex]?.href;
+        if (href) router.navigate(href as any);
+      }
+    },
+    [tabs]
+  );
+
+  const tabNavValue = useMemo(
+    () => ({
+      activeTabIndex,
+      setActiveTabIndex,
+      navigateToTab,
+      tabs,
+    }),
+    [activeTabIndex, navigateToTab, tabs]
+  );
 
   return (
-    <Tabs>
-      <SwipeableTabPager bottomBarTranslateY={bottomBarTranslateY} tabs={tabs} />
+    <TabNavigationContext.Provider value={tabNavValue}>
+      <Tabs>
+        <SwipeableTabPager
+          bottomBarTranslateY={bottomBarTranslateY}
+          tabs={tabs}
+          pagerNavigateRef={pagerNavigateRef}
+          activeTabIndex={activeTabIndex}
+          setActiveTabIndex={setActiveTabIndex}
+        />
 
-      <TabList asChild>
-        <BottomBar translateY={bottomBarTranslateY}>
-          {tabs.map((meta) => (
-            <TabTrigger key={meta.name} name={meta.name} href={meta.href} asChild>
-              <TabButton meta={meta} />
-            </TabTrigger>
-          ))}
-        </BottomBar>
-      </TabList>
-    </Tabs>
+        <TabList asChild>
+          <BottomBar translateY={bottomBarTranslateY}>
+            {tabs.map((meta, index) => (
+              <TabTrigger key={meta.name} name={meta.name} href={meta.href} asChild>
+                <TabButton meta={meta} index={index} />
+              </TabTrigger>
+            ))}
+          </BottomBar>
+        </TabList>
+      </Tabs>
+    </TabNavigationContext.Provider>
   );
 }
 
@@ -199,11 +252,17 @@ export default function AppTabs() {
 function SwipeableTabPager({
   bottomBarTranslateY,
   tabs,
+  pagerNavigateRef,
+  activeTabIndex,
+  setActiveTabIndex,
 }: {
   bottomBarTranslateY: SharedValue<number>;
   tabs: TabMeta[];
+  pagerNavigateRef: React.MutableRefObject<((index: number, href?: string) => void) | null>;
+  activeTabIndex: number;
+  setActiveTabIndex: (index: number) => void;
 }) {
-  const { state, descriptors } = Navigator.useContext();
+  const { state, descriptors, navigation } = Navigator.useContext();
   const pathname = usePathname();
   const { width } = useWindowDimensions();
 
@@ -212,11 +271,17 @@ function SwipeableTabPager({
   const [activeIndex, setActiveIndex] = useState(() => (tabIndex >= 0 ? tabIndex : 0));
   const [headerIndex, setHeaderIndex] = useState(() => (tabIndex >= 0 ? tabIndex : 0));
 
+  const translateX = useSharedValue(-activeIndex * width);
+  const scrollY = useSharedValue(0);
+  const startX = useSharedValue(0);
+  const isGestureActive = useSharedValue(false);
+  const lastGestureTarget = useSharedValue<number | null>(null);
+
   // Leadership claim setup state
   // Why useSharedValue alongside React state? Reanimated worklets running on the
   // native UI thread cannot read React state synchronously without crossing the JS bridge.
   // We mirror the boolean state into a shared value so gesture worklets make zero-latency routing decisions.
-  const { isLeader, claimSetupState, cancelClaimSetup, completeClaimSetup } = useClubLeadership();
+  const { claimSetupState, cancelClaimSetup, completeClaimSetup } = useClubLeadership();
   const isClubSetupOpenShared = useSharedValue(false);
 
   useEffect(() => {
@@ -243,31 +308,95 @@ function SwipeableTabPager({
   const [showClubsDirectory, setShowClubsDirectory] = useState(false);
   const [showClubDetail, setShowClubDetail] = useState(false);
   const [showClubSetup, setShowClubSetup] = useState(false);
+  const [cachedSetupCode, setCachedSetupCode] = useState<string>('');
   const [activeClubId, setActiveClubId] = useState<string | null>(null);
   const clubsLevelShared = useSharedValue<number>(0);
 
-  // Photo cropper state (Slot 5 Phantom Tab adjacent to Create Post)
-  // Why Slot 5? Placing the cropper at Slot 5 directly to the right of Create Post (Slot 4)
-  // enables a native camera slide into the crop viewfinder and allows swiping right
-  // back to Create Post to cancel, avoiding native OS modal window focus desync bugs.
-  const {
-    isOpen: isCropperOpen,
-    activeOptions,
-    closeCropper,
-    applyCrop,
-    isProcessing: isCropperProcessing,
-  } = useImageCropper();
-  const [showCropper, setShowCropper] = useState(false);
-  const isCropperOpenShared = useSharedValue(false);
+  const navigateToTab = useCallback(
+    (targetIndex: number, targetHref?: string) => {
+      const target = tabs[targetIndex];
+      if (!target) return;
+
+      if (claimSetupState.isOpen) {
+        cancelClaimSetup();
+      }
+      if (isActivityOpenShared.value) {
+        isActivityOpenShared.value = false;
+        setIsActivityOpen(false);
+        setShowActivity(false);
+        bottomBarTranslateY.value = withTiming(0, { duration: 200, easing: CURVE });
+      }
+      if (clubsLevelShared.value > 0) {
+        clubsLevelShared.value = 0;
+        setClubsLevel(0);
+        setShowClubsDirectory(false);
+        setShowClubDetail(false);
+        setActiveClubId(null);
+        bottomBarTranslateY.value = withTiming(0, { duration: 200, easing: CURVE });
+      }
+
+      cancelAnimation(translateX);
+      isGestureActive.value = false;
+
+      const targetX = -targetIndex * width;
+      lastGestureTarget.value = targetIndex;
+      translateX.value = withTiming(targetX, { duration: DURATION, easing: CURVE });
+
+      setActiveIndex(targetIndex);
+      setHeaderIndex(targetIndex);
+      setActiveTabIndex(targetIndex);
+
+      const href = targetHref || target.href;
+      if (pathname !== href) {
+        router.navigate(href as any);
+      }
+      try {
+        navigation?.dispatch({
+          type: 'JUMP_TO',
+          payload: { name: getRouteName(target.href) },
+        });
+      } catch {}
+    },
+    [
+      tabs,
+      claimSetupState.isOpen,
+      cancelClaimSetup,
+      isActivityOpenShared,
+      bottomBarTranslateY,
+      clubsLevelShared,
+      translateX,
+      isGestureActive,
+      width,
+      lastGestureTarget,
+      setActiveTabIndex,
+      pathname,
+      navigation,
+    ]
+  );
 
   useEffect(() => {
-    isCropperOpenShared.value = isCropperOpen;
-  }, [isCropperOpen, isCropperOpenShared]);
+    pagerNavigateRef.current = navigateToTab;
+    return () => {
+      pagerNavigateRef.current = null;
+    };
+  }, [navigateToTab, pagerNavigateRef]);
 
+  const prevTabIndex = useRef(tabIndex);
   useEffect(() => {
     if (tabIndex >= 0) {
+      const isRouteTabChange = prevTabIndex.current !== tabIndex;
+      prevTabIndex.current = tabIndex;
+
+      if (lastGestureTarget.value === tabIndex) {
+        lastGestureTarget.value = null;
+        return;
+      }
+      lastGestureTarget.value = null;
+
       setActiveIndex(tabIndex);
       setHeaderIndex(tabIndex);
+      setActiveTabIndex(tabIndex);
+
       // When navigated to any tab other than Dining, Activity must be completely closed
       if (tabIndex !== 1 && isActivityOpenShared.value) {
         isActivityOpenShared.value = false;
@@ -287,20 +416,36 @@ function SwipeableTabPager({
         setActiveClubId(null);
         bottomBarTranslateY.value = 0;
       }
-      // When navigated to any tab other than Post, Cropper must be completely closed
-      if (tabIndex !== 4 && isCropperOpenShared.value) {
-        closeCropper();
-        isCropperOpenShared.value = false;
-        setShowCropper(false);
-        bottomBarTranslateY.value = 0;
+
+      // Subpage-aware camera positioning:
+      // Only animate translateX to -tabIndex * width if an actual tab route change occurred
+      // OR if no inline subpages (Campus Clubs, Complete Profile, Activity) are currently active.
+      const isSubpageOpen =
+        (tabIndex === 0 && (clubsLevelShared.value > 0 || claimSetupState.isOpen)) ||
+        (tabIndex === 1 && isActivityOpenShared.value);
+
+      if (!isSubpageOpen || isRouteTabChange) {
+        const targetX = -tabIndex * width;
+        if (Math.abs(translateX.value - targetX) >= 1) {
+          cancelAnimation(translateX);
+          isGestureActive.value = false;
+          translateX.value = withTiming(targetX, { duration: DURATION, easing: CURVE });
+        }
       }
     }
-  }, [tabIndex, bottomBarTranslateY, isActivityOpenShared, clubsLevelShared, isCropperOpenShared, claimSetupState.isOpen, cancelClaimSetup, closeCropper]);
-
-  const translateX = useSharedValue(-activeIndex * width);
-  const scrollY = useSharedValue(0);
-  const startX = useSharedValue(0);
-  const isGestureActive = useSharedValue(false);
+  }, [
+    tabIndex,
+    width,
+    translateX,
+    isGestureActive,
+    isActivityOpenShared,
+    clubsLevelShared,
+    claimSetupState.isOpen,
+    cancelClaimSetup,
+    bottomBarTranslateY,
+    lastGestureTarget,
+    setActiveTabIndex,
+  ]);
 
   const blankAfterSlot = getBlankAfterSlot({
     pathname,
@@ -313,8 +458,6 @@ function SwipeableTabPager({
     isActivityOpen,
     showActivity,
     hasActiveClubId: !!activeClubId,
-    isCropperOpen,
-    showCropper,
   });
 
   // Priority coordination for inner horizontal scrollable content (e.g. tag filter chips)
@@ -336,9 +479,6 @@ function SwipeableTabPager({
     [isInnerScrollActive, setInnerScrollActive]
   );
 
-  // Avoid fighting the gesture spring when pathname updates after swipe release
-  const lastGestureTarget = useSharedValue<number | null>(null);
-
   // Keep translateX in sync on screen rotation or resize
   const prevWidth = useRef(width);
   useEffect(() => {
@@ -356,13 +496,11 @@ function SwipeableTabPager({
         }
       } else if (pathname === '/dining') {
         translateX.value = isActivityOpenShared.value ? -2 * width : -1 * width;
-      } else if (pathname === '/post') {
-        translateX.value = isCropperOpenShared.value ? -5 * width : -4 * width;
       } else {
         translateX.value = -activeIndex * width;
       }
     }
-  }, [width, activeIndex, pathname, translateX, isActivityOpenShared, clubsLevelShared, isCropperOpenShared]);
+  }, [width, activeIndex, pathname, translateX, isActivityOpenShared, clubsLevelShared]);
 
   // Open Activity with a smooth horizontal slide identical to switching tabs from Dining to Safety
   const openActivity = useCallback(() => {
@@ -494,6 +632,7 @@ function SwipeableTabPager({
   useEffect(() => {
     if (claimSetupState.isOpen && claimSetupState.code) {
       setShowClubSetup(true);
+      setCachedSetupCode(claimSetupState.code);
       if (claimSetupState.source === 'profile') {
         // Opened from HeaderAvatar on Knightly Home (slot 0)
         // Camera smoothly pans right to Slot 1, bottom bar slides down off-screen!
@@ -506,9 +645,12 @@ function SwipeableTabPager({
       } else if (claimSetupState.source === 'banner') {
         // Opened from Campus Clubs directory (which is already in Slot 1 at -1 * width)
         // Camera is already at -1 * width; bottom bar is already hidden.
-        // It replaces the content in-place without jarring pan!
+        // Lock camera firmly at Slot 1 (-1 * width) without jarring pan or bounce back!
         clubsLevelShared.value = 1;
         setClubsLevel(1);
+        cancelAnimation(translateX);
+        isGestureActive.value = false;
+        translateX.value = -1 * width;
       }
     }
   }, [
@@ -524,38 +666,38 @@ function SwipeableTabPager({
 
   const handleBackFromSetup = useCallback(() => {
     const source = claimSetupState.source;
-    cancelClaimSetup();
     if (source === 'banner') {
-      // Returns to Campus Clubs directory at Slot 1
+      // Returns cleanly to Campus Clubs directory at Slot 1
       clubsLevelShared.value = 1;
       setClubsLevel(1);
+      cancelClaimSetup();
       setShowClubSetup(false);
     } else {
-      // Returns to Knightly Home (Slot 0)
+      // Smoothly glides back to Knightly Home (Slot 0)
       clubsLevelShared.value = 0;
       setClubsLevel(0);
       isGestureActive.value = false;
       bottomBarTranslateY.value = withTiming(0, { duration: 260, easing: CURVE });
       cancelAnimation(translateX);
       translateX.value = withTiming(0, { duration: DURATION, easing: CURVE }, () => {
+        runOnJS(cancelClaimSetup)();
         runOnJS(setShowClubSetup)(false);
       });
     }
   }, [claimSetupState.source, cancelClaimSetup, clubsLevelShared, bottomBarTranslateY, translateX, isGestureActive]);
 
   const handleDismissSetupFromGesture = useCallback(() => {
-    cancelClaimSetup();
     clubsLevelShared.value = 0;
     setClubsLevel(0);
     isGestureActive.value = false;
     bottomBarTranslateY.value = withTiming(0, { duration: 260, easing: CURVE });
     setTimeout(() => {
+      cancelClaimSetup();
       setShowClubSetup(false);
-    }, 350);
+    }, DURATION);
   }, [cancelClaimSetup, clubsLevelShared, isGestureActive, bottomBarTranslateY]);
 
   const handleSuccessFromSetup = useCallback(() => {
-    completeClaimSetup();
     clubsLevelShared.value = 0;
     setClubsLevel(0);
     setShowClubsDirectory(false);
@@ -565,39 +707,10 @@ function SwipeableTabPager({
     bottomBarTranslateY.value = withTiming(0, { duration: 260, easing: CURVE });
     cancelAnimation(translateX);
     translateX.value = withTiming(0, { duration: DURATION, easing: CURVE }, () => {
+      runOnJS(completeClaimSetup)();
       runOnJS(setShowClubSetup)(false);
     });
   }, [completeClaimSetup, clubsLevelShared, bottomBarTranslateY, translateX, isGestureActive]);
-
-  // Camera Pan effect when Cropper is activated
-  useEffect(() => {
-    if (isCropperOpen) {
-      setShowCropper(true);
-      cancelAnimation(translateX);
-      isGestureActive.value = false;
-      bottomBarTranslateY.value = withTiming(120, { duration: 260, easing: CURVE });
-      translateX.value = withTiming(-5 * width, { duration: DURATION, easing: CURVE });
-    }
-  }, [isCropperOpen, width, translateX, isGestureActive, bottomBarTranslateY]);
-
-  const handleCloseCropper = useCallback(() => {
-    closeCropper();
-    isGestureActive.value = false;
-    bottomBarTranslateY.value = withTiming(0, { duration: 260, easing: CURVE });
-    cancelAnimation(translateX);
-    translateX.value = withTiming(-4 * width, { duration: DURATION, easing: CURVE }, () => {
-      runOnJS(setShowCropper)(false);
-    });
-  }, [closeCropper, bottomBarTranslateY, translateX, isGestureActive, width]);
-
-  const handleCloseCropperFromGesture = useCallback(() => {
-    closeCropper();
-    isGestureActive.value = false;
-    bottomBarTranslateY.value = withTiming(0, { duration: 260, easing: CURVE });
-    setTimeout(() => {
-      setShowCropper(false);
-    }, 350);
-  }, [closeCropper, isGestureActive, bottomBarTranslateY]);
 
   const forceCloseSubpageStates = useCallback(() => {
     setIsActivityOpen(false);
@@ -609,12 +722,6 @@ function SwipeableTabPager({
     }
     setShowClubSetup(false);
 
-    if (isCropperOpenShared.value) {
-      closeCropper();
-      setShowCropper(false);
-      isCropperOpenShared.value = false;
-    }
-
     setClubsLevel(0);
     setShowClubsDirectory(false);
     setShowClubDetail(false);
@@ -622,17 +729,13 @@ function SwipeableTabPager({
     clubsLevelShared.value = 0;
 
     bottomBarTranslateY.value = withTiming(0, { duration: 200, easing: CURVE });
-  }, [bottomBarTranslateY, isActivityOpenShared, clubsLevelShared, claimSetupState.isOpen, cancelClaimSetup, isCropperOpenShared, closeCropper]);
+  }, [bottomBarTranslateY, isActivityOpenShared, clubsLevelShared, claimSetupState.isOpen, cancelClaimSetup]);
 
-  // Intercept Android hardware back button when Activity, Clubs, Setup, or Cropper are open
+  // Intercept Android hardware back button when Activity, Clubs, or Setup are open
   useEffect(() => {
-    if (!isActivityOpen && clubsLevel === 0 && !claimSetupState.isOpen && !isCropperOpen) return;
+    if (!isActivityOpen && clubsLevel === 0 && !claimSetupState.isOpen) return;
 
     const onBackPress = () => {
-      if (isCropperOpen) {
-        handleCloseCropper();
-        return true;
-      }
       if (claimSetupState.isOpen) {
         handleBackFromSetup();
         return true;
@@ -654,7 +757,7 @@ function SwipeableTabPager({
 
     const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
     return () => sub.remove();
-  }, [isActivityOpen, clubsLevel, claimSetupState.isOpen, isCropperOpen, handleCloseCropper, handleBackFromSetup, closeClubDetail, closeClubsDirectory, closeActivity]);
+  }, [isActivityOpen, clubsLevel, claimSetupState.isOpen, handleBackFromSetup, closeClubDetail, closeClubsDirectory, closeActivity]);
 
   const activityContextValue = useMemo(
     () => ({
@@ -677,71 +780,11 @@ function SwipeableTabPager({
     [clubsLevel, activeClubId, openClubsDirectory, openClubDetail, closeClubDetail, closeClubsDirectory]
   );
 
-  // Animate smoothly when tab changes via bottom bar taps
-  useEffect(() => {
-    if (tabIndex < 0) return;
-    if (isActivityOpenShared.value || clubsLevelShared.value > 0 || claimSetupState.isOpen) return;
-
-    // If this pathname change was triggered by swipe release, skip since withSpring is already handling it
-    if (lastGestureTarget.value === tabIndex) {
-      lastGestureTarget.value = null;
-      return;
-    }
-    lastGestureTarget.value = null;
-
-    // Tapping a tab overrides any active gesture or settling spring
-    cancelAnimation(translateX);
-    isGestureActive.value = false;
-
-    const targetX = -tabIndex * width;
-    if (Math.abs(translateX.value - targetX) < 1) return;
-
-    translateX.value = withTiming(targetX, { duration: DURATION, easing: CURVE });
-  }, [tabIndex, width, translateX, isGestureActive, isActivityOpenShared, clubsLevelShared, lastGestureTarget]);
-
   const onTabChange = useCallback(
     (targetIndex: number) => {
-      const target = tabs[targetIndex];
-      if (target) {
-        if (claimSetupState.isOpen) {
-          cancelClaimSetup();
-        }
-        if (isActivityOpenShared.value) {
-          isActivityOpenShared.value = false;
-          setIsActivityOpen(false);
-          setShowActivity(false);
-          bottomBarTranslateY.value = withTiming(0, { duration: 200, easing: CURVE });
-        }
-        if (clubsLevelShared.value > 0) {
-          clubsLevelShared.value = 0;
-          setClubsLevel(0);
-          setShowClubsDirectory(false);
-          setShowClubDetail(false);
-          setActiveClubId(null);
-          bottomBarTranslateY.value = withTiming(0, { duration: 200, easing: CURVE });
-        }
-        if (isCropperOpenShared.value) {
-          closeCropper();
-          isCropperOpenShared.value = false;
-          setShowCropper(false);
-          bottomBarTranslateY.value = withTiming(0, { duration: 200, easing: CURVE });
-        }
-        setActiveIndex(targetIndex);
-        setHeaderIndex(targetIndex);
-        if (targetIndex !== tabIndex) {
-          lastGestureTarget.value = targetIndex;
-          router.navigate(target.href);
-        } else {
-          const targetX = -targetIndex * width;
-          if (Math.abs(translateX.value - targetX) >= 1) {
-            cancelAnimation(translateX);
-            isGestureActive.value = false;
-            translateX.value = withTiming(targetX, { duration: DURATION, easing: CURVE });
-          }
-        }
-      }
+      navigateToTab(targetIndex);
     },
-    [bottomBarTranslateY, isActivityOpenShared, clubsLevelShared, isCropperOpenShared, closeCropper, claimSetupState.isOpen, cancelClaimSetup, tabIndex, lastGestureTarget, tabs, width, translateX, isGestureActive]
+    [navigateToTab]
   );
 
   /**
@@ -782,7 +825,7 @@ function SwipeableTabPager({
           startX.value = translateX.value;
           isGestureActive.value = true;
           runOnJS(dismissKeyboard)();
-          if (!isActivityOpenShared.value && clubsLevelShared.value === 0 && !isCropperOpenShared.value) {
+          if (!isActivityOpenShared.value && clubsLevelShared.value === 0) {
             runOnJS(forceCloseSubpageStates)();
           }
         })
@@ -796,10 +839,7 @@ function SwipeableTabPager({
 
           // Restrict horizontal camera bounds when inside Phantom Tab subpages:
           // Users inside a subpage can only stay on that subpage or swipe backwards to its parent.
-          if (isCropperOpenShared.value) {
-            minX = -5 * width; // Slot 5 Cropper
-            maxX = -4 * width; // Slot 4 Create Post
-          } else if (isActivityOpenShared.value) {
+          if (isActivityOpenShared.value) {
             minX = -2 * width; // Slot 2 Activity
             maxX = -1 * width; // Slot 1 Dining
           } else if (clubsLevelShared.value === 2) {
@@ -831,27 +871,6 @@ function SwipeableTabPager({
           const currentX = translateX.value;
           const rawIndex = -currentX / width;
           const vx = event.velocityX;
-
-          if (isCropperOpenShared.value) {
-            // In Cropper mode, user can drag right back to Post (index 4)
-            let targetIndex = 5; // stay on Cropper
-            if (vx > 400 || rawIndex < 4.6) {
-              targetIndex = 4; // back to Post
-            }
-
-            const targetX = -targetIndex * width;
-            translateX.value = withSpring(targetX, {
-              damping: 26,
-              stiffness: 240,
-              mass: 0.9,
-              velocity: event.velocityX,
-            });
-
-            if (targetIndex === 4) {
-              runOnJS(handleCloseCropperFromGesture)();
-            }
-            return;
-          }
 
           if (isActivityOpenShared.value) {
             // In Activity mode, user can drag right back to Dining (index 1)
@@ -953,7 +972,6 @@ function SwipeableTabPager({
       closeClubDetailFromGesture,
       closeClubsDirectoryFromGesture,
       handleDismissSetupFromGesture,
-      handleCloseCropperFromGesture,
       forceCloseSubpageStates,
       translateX,
       startX,
@@ -962,7 +980,6 @@ function SwipeableTabPager({
       isActivityOpenShared,
       clubsLevelShared,
       isClubSetupOpenShared,
-      isCropperOpenShared,
     ]
   );
 
@@ -970,9 +987,7 @@ function SwipeableTabPager({
     transform: [{ translateX: translateX.value }],
   }));
 
-  const activeClub = useMemo(() => {
-    return activeClubId ? getClubById(activeClubId) : undefined;
-  }, [activeClubId]);
+  const activeClub = activeClubId ? getClubById(activeClubId) : undefined;
 
   const currentTab = tabs[headerIndex] ?? tabs[0];
   const headerInfo = getTabHeader(currentTab.name);
@@ -1034,34 +1049,6 @@ function SwipeableTabPager({
       };
     }
 
-    if (pathname === '/post' && isCropperOpen) {
-      return {
-        title: 'Crop Banner',
-        subtitle: '16:9 Post Aspect Ratio',
-        left: (
-          <HeaderBackButton
-            onPress={handleCloseCropper}
-            accessibilityLabel="Cancel photo crop"
-          />
-        ),
-        right: (
-          <Pressable
-            onPress={applyCrop}
-            disabled={isCropperProcessing}
-            accessibilityRole="button"
-            accessibilityLabel="Done cropping"
-            style={styles.doneHeaderButton}
-          >
-            {isCropperProcessing ? (
-              <ActivityIndicator size="small" color="#0B0C0E" />
-            ) : (
-              <ThemedText style={styles.doneHeaderButtonText}>Done</ThemedText>
-            )}
-          </Pressable>
-        ),
-      };
-    }
-
     return {
       title: headerInfo.title,
       subtitle: headerInfo.subtitle,
@@ -1079,10 +1066,6 @@ function SwipeableTabPager({
     closeClubsDirectory,
     isActivityOpen,
     closeActivity,
-    isCropperOpen,
-    handleCloseCropper,
-    applyCrop,
-    isCropperProcessing,
     headerInfo,
   ]);
 
@@ -1105,14 +1088,9 @@ function SwipeableTabPager({
               <GestureDetector gesture={pan}>
                 {/* 
                   Horizontal Pager Track
-                  Width is calculated dynamically:
-                  - Regular students: width * 4 (Knightly, Dining, Safety, Directory)
-                  - Club leaders: width * 6 (Knightly, Dining, Safety, Directory, Create Post, Photo Cropper)
-                  Why extend the track for the Cropper?
-                  Putting the cropper into Slot 5 allows the camera to slide naturally from Slot 4 to Slot 5
-                  on photo selection, keeping the cropper fully inline without creating separate Modal windows.
+                  Width is strictly width * tabs.length (4 for students, 5 for club leaders).
                 */}
-                <Animated.View style={[styles.pagerTrack, { width: width * (isLeader ? tabs.length + 1 : tabs.length) }, style]}>
+                <Animated.View style={[styles.pagerTrack, { width: width * tabs.length }, style]}>
                   {tabs.map((tab, i) => {
                     const routeName = getRouteName(tab.href);
                     const route =
@@ -1172,12 +1150,13 @@ function SwipeableTabPager({
                       <View
                         key={tab.name}
                         style={[styles.page, { width }]}
+                        pointerEvents={isCurrentPage || activeIndex === i || activeTabIndex === i ? 'auto' : 'none'}
                         aria-hidden={!isCurrentPage}
                         accessibilityElementsHidden={!isCurrentPage}
                         importantForAccessibility={isCurrentPage ? 'auto' : 'no-hide-descendants'}>
                         {isShowingClubSetup ? (
                           <CompleteClubProfileView
-                            code={claimSetupState.code ?? ''}
+                            code={claimSetupState.code ?? cachedSetupCode}
                             onBack={handleBackFromSetup}
                             onSuccess={handleSuccessFromSetup}
                           />
@@ -1195,26 +1174,6 @@ function SwipeableTabPager({
                       </View>
                     );
                   })}
-                  {isLeader ? (
-                    <View
-                      key="slot-5-cropper"
-                      style={[styles.page, { width }]}
-                      aria-hidden={!isCropperOpen}
-                      accessibilityElementsHidden={!isCropperOpen}
-                      importantForAccessibility={isCropperOpen ? 'auto' : 'no-hide-descendants'}>
-                      {(isCropperOpen || showCropper) && activeOptions ? (
-                        <ImageCropperView
-                          imageUri={activeOptions.imageUri}
-                          imageDimensions={activeOptions.imageDimensions}
-                          onClose={handleCloseCropper}
-                          onCropComplete={(croppedUri) => {
-                            activeOptions.onCropComplete(croppedUri);
-                            handleCloseCropper();
-                          }}
-                        />
-                      ) : null}
-                    </View>
-                  ) : null}
                 </Animated.View>
               </GestureDetector>
             </View>
@@ -1282,10 +1241,18 @@ function BottomBar({
  * - Vertical Lift: Lifts the active icon from y: 6 up to y: -1 to make room for the text label.
  * - Dual Icon Layers: Cross-fades between the muted outline icon and tinted solid icon.
  */
-function TabButton({ meta, isFocused, ...props }: TabTriggerSlotProps & { meta: TabMeta }) {
+function TabButton({
+  meta,
+  index,
+  isFocused: _isFocused,
+  ...props
+}: TabTriggerSlotProps & { meta: TabMeta; index: number }) {
   const theme = useTheme();
   const pathname = usePathname();
-  const effectivelyFocused = meta.href === pathname;
+  const tabNav = useTabNavigation();
+  const effectivelyFocused = tabNav
+    ? tabNav.activeTabIndex === index
+    : meta.href === pathname;
   const progress = useSharedValue(effectivelyFocused ? 1 : 0);
 
   useEffect(() => {
@@ -1327,9 +1294,15 @@ function TabButton({ meta, isFocused, ...props }: TabTriggerSlotProps & { meta: 
     };
   });
 
+  const handlePress = (e: GestureResponderEvent) => {
+    tabNav?.navigateToTab(index, meta.href);
+    props.onPress?.(e);
+  };
+
   return (
     <Pressable
       {...props}
+      onPress={handlePress}
       accessibilityRole="button"
       accessibilityState={{ selected: !!effectivelyFocused }}
       accessibilityLabel={meta.label}
@@ -1440,19 +1413,5 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     fontWeight: '700',
     letterSpacing: 0.2,
-  },
-  doneHeaderButton: {
-    backgroundColor: Brand.gold,
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    borderRadius: Radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 64,
-  },
-  doneHeaderButtonText: {
-    color: '#0B0C0E',
-    fontSize: 14,
-    fontWeight: '700',
   },
 });

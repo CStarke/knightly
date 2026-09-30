@@ -1,7 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import {
-  BASE_CANVAS_AREA,
   BASE_FOREGROUND_COUNT,
   PIXEL_9A_HEIGHT,
   PIXEL_9A_WIDTH,

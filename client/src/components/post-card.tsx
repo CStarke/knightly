@@ -10,6 +10,7 @@ import { Brand, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useClubFollow } from '@/context/club-follow-context';
 import type { Post } from '@/data/feed';
 import { useTheme } from '@/hooks/use-theme';
+import { formatPostRelativeTime } from '@/utils/date-format';
 
 function categoryBadgeTone(category: string): BadgeTone {
   switch (category) {
@@ -21,13 +22,49 @@ function categoryBadgeTone(category: string): BadgeTone {
       return 'danger';
     case 'Faith':
       return 'brand';
-    case 'The Arts':
-    case 'Music':
-    case 'Social':
-    case 'Service':
     default:
       return 'gold';
   }
+}
+
+function OrgBadge({
+  org,
+  followed,
+  isOverlay,
+  onPress,
+}: {
+  org: string;
+  followed: boolean;
+  isOverlay: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`View ${org} club page`}
+      style={({ pressed }) => [
+        isOverlay ? styles.orgPill : styles.noImageOrgRow,
+        pressed && styles.pressedPill,
+      ]}
+    >
+      {followed ? (
+        <Icon
+          sf="checkmark.seal.fill"
+          md="verified"
+          size={isOverlay ? 14 : 15}
+          color={isOverlay ? Brand.gold : Brand.goldDark}
+        />
+      ) : null}
+      <ThemedText
+        type={isOverlay ? undefined : 'smallBold'}
+        style={isOverlay ? styles.overlayOrgText : styles.noImageOrgText}
+        numberOfLines={isOverlay ? 1 : undefined}
+      >
+        {org}
+      </ThemedText>
+    </Pressable>
+  );
 }
 
 /**
@@ -67,19 +104,7 @@ export function PostCard({ post }: { post: Post }) {
           <View style={styles.scrim} />
 
           <View style={styles.overlayBar}>
-            <Pressable
-              onPress={handlePressOrg}
-              accessibilityRole="button"
-              accessibilityLabel={`View ${post.org} club page`}
-              style={({ pressed }) => [styles.orgPill, pressed && styles.pressedPill]}
-            >
-              {followed ? (
-                <Icon sf="checkmark.seal.fill" md="verified" size={14} color={Brand.gold} />
-              ) : null}
-              <ThemedText style={styles.overlayOrgText} numberOfLines={1}>
-                {post.org}
-              </ThemedText>
-            </Pressable>
+            <OrgBadge org={post.org} followed={followed} isOverlay onPress={handlePressOrg} />
 
             <View style={styles.badgeWrapper}>
               <Badge label={post.category} tone={categoryBadgeTone(post.category)} />
@@ -92,20 +117,7 @@ export function PostCard({ post }: { post: Post }) {
         {/* Editorial header strip for posts without an image */}
         {!post.image ? (
           <View style={styles.noImageHeader}>
-            <Pressable
-              onPress={handlePressOrg}
-              accessibilityRole="button"
-              accessibilityLabel={`View ${post.org} club page`}
-              style={({ pressed }) => [styles.noImageOrgRow, pressed && styles.pressedPill]}
-            >
-              {followed ? (
-                <Icon sf="checkmark.seal.fill" md="verified" size={15} color={Brand.goldDark} />
-              ) : null}
-              <ThemedText type="smallBold" style={styles.noImageOrgText}>
-                {post.org}
-              </ThemedText>
-            </Pressable>
-
+            <OrgBadge org={post.org} followed={followed} isOverlay={false} onPress={handlePressOrg} />
             <Badge label={post.category} tone={categoryBadgeTone(post.category)} />
           </View>
         ) : null}
@@ -116,25 +128,20 @@ export function PostCard({ post }: { post: Post }) {
         {post.when || post.where ? (
           <View style={styles.metaSection}>
             {post.when ? (
-              <View style={styles.metaRow}>
-                <View style={[styles.metaIconWrap, { backgroundColor: theme.tintSoft }]}>
-                  <Icon sf="calendar" md="event" size={13} color={Brand.maroon} />
-                </View>
-                <ThemedText type="smallBold" style={styles.metaText}>
-                  {post.when}
-                </ThemedText>
-              </View>
+              <MetaBadge
+                icon={{ sf: 'calendar', md: 'event' }}
+                text={post.when}
+                bold
+                tintSoft={theme.tintSoft}
+              />
             ) : null}
 
             {post.where ? (
-              <View style={styles.metaRow}>
-                <View style={[styles.metaIconWrap, { backgroundColor: theme.tintSoft }]}>
-                  <Icon sf="mappin.and.ellipse" md="place" size={13} color={Brand.maroon} />
-                </View>
-                <ThemedText type="small" themeColor="textSecondary" style={styles.metaText}>
-                  {post.where}
-                </ThemedText>
-              </View>
+              <MetaBadge
+                icon={{ sf: 'mappin.and.ellipse', md: 'place' }}
+                text={post.where}
+                tintSoft={theme.tintSoft}
+              />
             ) : null}
           </View>
         ) : null}
@@ -145,7 +152,7 @@ export function PostCard({ post }: { post: Post }) {
 
         <View style={styles.footer}>
           <ThemedText type="caption" themeColor="textMuted">
-            {post.postedAt} ago
+            {formatPostRelativeTime(post.postedAt, post.createdAt, post.monotonicCreatedAt)}
           </ThemedText>
           {post.campusWide ? (
             <ThemedText type="caption" themeColor="textMuted">
@@ -277,3 +284,31 @@ const styles = StyleSheet.create({
     opacity: 0.75,
   },
 });
+
+function MetaBadge({
+  icon,
+  text,
+  bold = false,
+  tintSoft,
+}: {
+  icon: { sf: 'calendar' | 'mappin.and.ellipse'; md: 'event' | 'place' };
+  text: string;
+  bold?: boolean;
+  tintSoft: string;
+}) {
+  return (
+    <View style={styles.metaRow}>
+      <View style={[styles.metaIconWrap, { backgroundColor: tintSoft }]}>
+        <Icon sf={icon.sf} md={icon.md} size={13} color={Brand.maroon} />
+      </View>
+      <ThemedText
+        type={bold ? 'smallBold' : 'small'}
+        themeColor={bold ? undefined : 'textSecondary'}
+        style={styles.metaText}
+      >
+        {text}
+      </ThemedText>
+    </View>
+  );
+}
+

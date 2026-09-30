@@ -26,8 +26,8 @@ import {
   type TabListProps,
   type TabTriggerSlotProps,
 } from 'expo-router/ui';
-import { useEffect, useMemo } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { useEffect } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
@@ -38,22 +38,13 @@ import { Brand, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { ClubsNavigationProvider } from '@/context/clubs-navigation-context';
 import { useClubLeadership } from '@/context/club-leadership-context';
 import { DiningActivityProvider } from '@/context/dining-activity-context';
-import { ImageCropperView, useImageCropper } from '@/context/image-cropper-context';
 import { TabPagerPriorityProvider } from '@/context/tab-pager-priority-context';
 import { StarfieldContext } from '@/context/starfield-context';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function AppTabs() {
-  const theme = useTheme();
   const pathname = usePathname();
   const { isLeader, claimSetupState, cancelClaimSetup } = useClubLeadership();
-  const {
-    isOpen: isCropperOpen,
-    activeOptions: cropperOptions,
-    closeCropper,
-    applyCrop,
-    isProcessing: isCropperProcessing,
-  } = useImageCropper();
   const headerInfo = getTabHeader(pathname);
   const translateX = useSharedValue(0);
   const scrollY = useSharedValue(0);
@@ -69,137 +60,61 @@ export default function AppTabs() {
     }
   }, [claimSetupState.isOpen, claimSetupState.code, cancelClaimSetup]);
 
-  const headerProps = useMemo(() => {
-    if (isCropperOpen && cropperOptions) {
-      return {
-        title: 'Crop Banner',
-        subtitle: '16:9 Post Aspect Ratio',
-        left: (
-          <Pressable
-            onPress={closeCropper}
-            hitSlop={12}
-            style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, paddingVertical: 6, paddingHorizontal: 4 }]}
-          >
-            <ThemedText type="smallBold" style={{ color: theme.textSecondary }}>
-              Cancel
-            </ThemedText>
-          </Pressable>
-        ),
-        right: (
-          <Pressable
-            onPress={applyCrop}
-            disabled={isCropperProcessing}
-            style={({ pressed }) => [
-              styles.doneHeaderButton,
-              { backgroundColor: Brand.gold, opacity: isCropperProcessing ? 0.6 : pressed ? 0.8 : 1 },
-            ]}
-          >
-            {isCropperProcessing ? (
-              <ActivityIndicator size="small" color="#0B0C0E" />
-            ) : (
-              <ThemedText type="smallBold" style={styles.doneHeaderButtonText}>
-                Done
-              </ThemedText>
-            )}
-          </Pressable>
-        ),
-      };
-    }
-    return {
-      title: headerInfo.title,
-      subtitle: headerInfo.subtitle,
-      left: undefined,
-      right: headerInfo.right,
-    };
-  }, [isCropperOpen, cropperOptions, closeCropper, applyCrop, isCropperProcessing, headerInfo, theme]);
+  const isInnerScrollActive = useSharedValue(false);
 
-  const diningActivityValue = useMemo(
-    () => ({
+  return (
+    <DiningActivityProvider value={{
       isActivityOpen: false,
       openActivity: () => {},
       closeActivity: () => {},
-    }),
-    []
-  );
-
-  const clubsNavigationValue = useMemo(
-    () => ({
-      clubsLevel: 0 as const,
-      activeClubId: null,
-      openClubsDirectory: () => {
-        router.push('/clubs/index');
-      },
-      openClubDetail: (clubId: string) => {
-        router.push({ pathname: '/clubs/[id]', params: { id: clubId } });
-      },
-      closeClubDetail: () => {
-        router.back();
-      },
-      closeClubsDirectory: () => {
-        router.back();
-      },
-    }),
-    []
-  );
-
-  const isInnerScrollActive = useSharedValue(false);
-  const tabPagerPriorityValue = useMemo(
-    () => ({
-      isInnerScrollActive,
-      setInnerScrollActive: () => {},
-    }),
-    [isInnerScrollActive]
-  );
-
-  return (
-    <DiningActivityProvider value={diningActivityValue}>
-      <ClubsNavigationProvider value={clubsNavigationValue}>
-        <TabPagerPriorityProvider value={tabPagerPriorityValue}>
+    }}>
+      <ClubsNavigationProvider value={{
+        clubsLevel: 0 as const,
+        activeClubId: null,
+        openClubsDirectory: () => { router.push('/clubs/index'); },
+        openClubDetail: (clubId: string) => { router.push({ pathname: '/clubs/[id]', params: { id: clubId } }); },
+        closeClubDetail: () => { router.back(); },
+        closeClubsDirectory: () => { router.back(); },
+      }}>
+        <TabPagerPriorityProvider value={{
+          isInnerScrollActive,
+          setInnerScrollActive: () => {},
+        }}>
           <StarfieldContext.Provider value={{ translateX, scrollY }}>
             <View style={{ flex: 1, position: 'relative' }}>
               <ParallaxStarfield translateX={translateX} scrollY={scrollY} />
 
-          <Tabs>
-            <TabList asChild>
-              <TopBar>
-                <TabTrigger name="knightly" href="/" asChild>
-                  <TabButton>Knightly</TabButton>
-                </TabTrigger>
-                <TabTrigger name="dining" href="/dining" asChild>
-                  <TabButton>Dining</TabButton>
-                </TabTrigger>
-                <TabTrigger name="safety" href="/safety" asChild>
-                  <TabButton>Safety</TabButton>
-                </TabTrigger>
-                <TabTrigger name="directory" href="/directory" asChild>
-                  <TabButton>Directory</TabButton>
-                </TabTrigger>
-                {isLeader ? (
-                  <TabTrigger name="post" href="/post" asChild>
-                    <TabButton>Post</TabButton>
-                  </TabTrigger>
-                ) : null}
-              </TopBar>
-            </TabList>
+              <Tabs>
+                <TabList asChild>
+                  <TopBar>
+                    <TabTrigger name="knightly" href="/" asChild>
+                      <TabButton>Knightly</TabButton>
+                    </TabTrigger>
+                    <TabTrigger name="dining" href="/dining" asChild>
+                      <TabButton>Dining</TabButton>
+                    </TabTrigger>
+                    <TabTrigger name="safety" href="/safety" asChild>
+                      <TabButton>Safety</TabButton>
+                    </TabTrigger>
+                    <TabTrigger name="directory" href="/directory" asChild>
+                      <TabButton>Directory</TabButton>
+                    </TabTrigger>
+                    {isLeader ? (
+                      <TabTrigger name="post" href="/post" asChild>
+                        <TabButton>Post</TabButton>
+                      </TabTrigger>
+                    ) : null}
+                  </TopBar>
+                </TabList>
 
-            <AppHeader
-              title={headerProps.title}
-              subtitle={headerProps.subtitle}
-              left={headerProps.left}
-              right={headerProps.right}
-            />
-            <TabSlot style={styles.slot} />
-            {isCropperOpen && cropperOptions ? (
-              <View style={[StyleSheet.absoluteFill, styles.cropperOverlay]}>
-                <ImageCropperView
-                  imageUri={cropperOptions.imageUri}
-                  imageDimensions={cropperOptions.imageDimensions}
-                  onClose={closeCropper}
-                  onCropComplete={cropperOptions.onCropComplete}
+                <AppHeader
+                  title={headerInfo.title}
+                  subtitle={headerInfo.subtitle}
+                  left={undefined}
+                  right={headerInfo.right}
                 />
-              </View>
-            ) : null}
-          </Tabs>
+                <TabSlot style={styles.slot} />
+              </Tabs>
             </View>
           </StarfieldContext.Provider>
         </TabPagerPriorityProvider>
@@ -296,22 +211,5 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.one + 2,
     paddingHorizontal: Spacing.three,
     borderRadius: Radius.pill,
-  },
-  cropperOverlay: {
-    top: 56,
-    backgroundColor: '#000000',
-    zIndex: 100,
-  },
-  doneHeaderButton: {
-    paddingHorizontal: Spacing.three,
-    paddingVertical: 6,
-    borderRadius: Radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  doneHeaderButtonText: {
-    color: '#0B0C0E',
-    fontWeight: '700',
-    fontSize: 13,
   },
 });

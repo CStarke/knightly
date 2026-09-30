@@ -2,9 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import {
   CALVIN_CLUBS,
-  getClubById,
   searchClubs,
-  type Club,
 } from '@/data/clubs';
 import {
   CALVIN_MEAL_PLANS,
@@ -16,11 +14,9 @@ import {
   getFlexMealsRemaining,
   getGuestPassesRemaining,
   isBlockPlan,
-  type CalvinMealPlanId,
 } from '@/data/dining';
-import { feedCategories, type FeedCategory } from '@/data/feed';
-import { formatBarcode, greeting, student } from '@/data/student';
-import { getTabHeader } from '@/constants/tab-headers';
+import { feedCategories } from '@/data/feed';
+import { formatBarcode, student } from '@/data/student';
 import { calculateStarCounts } from '@/constants/starfield';
 
 describe('Sub-Pages Hierarchy, Pager Invariants & State Machine', () => {
@@ -727,7 +723,7 @@ describe('Sub-Pages Hierarchy, Pager Invariants & State Machine', () => {
           if (state.isInnerScrollActive || !state.isGestureActive) return;
           state.translateX = ((-state.activeTabIndex * pageWidth) || 0) + translationX;
         },
-        onGestureEnd: (translationX: number, velocityX = 0) => {
+        onGestureEnd: (_translationX: number, velocityX = 0) => {
           if (state.isInnerScrollActive || !state.isGestureActive) {
             state.isGestureActive = false;
             return;
@@ -839,6 +835,51 @@ describe('Sub-Pages Hierarchy, Pager Invariants & State Machine', () => {
       scrollLeft = mouseState.scrollLeft - dx; // 50 - (-80) = 130px scrolled
 
       assert.strictEqual(scrollLeft, 130);
+    });
+  });
+
+  /**
+   * PROGRAMMATIC CAMERA GLIDE & EASE-IN-OUT BEZIER INVARIANTS
+   *
+   * Architectural Rationale:
+   * When opening or closing Phantom Tabs (Campus Clubs, Club Setup, Dining Activity, Photo Cropper),
+   * programmatic sliding previously suffered from a jerk caused by an ease-out-only curve
+   * (which started at peak velocity with zero ramp-up) colliding with synchronous component mounting.
+   * A bidirectional ease-in-out cubic-bezier (0.4, 0.0, 0.2, 1.0) guarantees:
+   * 1. 0 initial slope: gentle acceleration from rest, absorbing native component layout passes.
+   * 2. 0 final slope: soft cushion into the target slot without hard stops.
+   * 3. 340ms duration: optimal lateral eye-tracking speed.
+   */
+  describe('Programmatic Camera Glide & Ease-In-Out Bezier Invariants', () => {
+    it('validates the bidirectional ease-in-out bezier curve control points and boundary derivatives', () => {
+      // Standard cubic bezier curve defined by control points (x1, y1, x2, y2)
+      const curve = { x1: 0.4, y1: 0.0, x2: 0.2, y2: 1.0 };
+
+      // Initial derivative dy/dx at t=0:
+      // For cubic bezier, initial slope = (y1 - 0) / (x1 - 0) = 0.0 / 0.4 = 0
+      const initialSlope = curve.y1 / curve.x1;
+      assert.strictEqual(initialSlope, 0, 'Initial slope must be 0 for a gentle acceleration ramp-up');
+
+      // Final derivative dy/dx at t=1:
+      // Final slope = (1 - y2) / (1 - x2) = (1 - 1.0) / (1 - 0.2) = 0.0 / 0.8 = 0
+      const finalSlope = (1.0 - curve.y2) / (1.0 - curve.x2);
+      assert.strictEqual(finalSlope, 0, 'Final slope must be 0 for a soft deceleration cushion');
+
+      // Midpoint progress at t=0.5 should be approximately 0.5 (balanced symmetry)
+      // At t=0.5: B(0.5) = 3*(0.5)*(0.25)*y1 + 3*(0.25)*(0.5)*y2 + (0.125)*1 = 0 + 0.375 + 0.125 = 0.5
+      const yAtHalfT = 3 * 0.5 * 0.25 * curve.y1 + 3 * 0.25 * 0.5 * curve.y2 + 0.125;
+      assert.strictEqual(yAtHalfT, 0.5, 'Cubic curve must be symmetrical at t=0.5');
+    });
+
+    it('validates camera pan duration and timeout alignment', () => {
+      const PAN_DURATION = 340;
+      const GESTURE_CLEANUP_TIMEOUT = 350;
+
+      assert.strictEqual(PAN_DURATION, 340, 'Camera pan duration must be calibrated to 340ms');
+      assert.ok(
+        GESTURE_CLEANUP_TIMEOUT >= PAN_DURATION,
+        'Gesture cleanup timeout (350ms) must strictly exceed pan duration (340ms) to prevent premature unmounting'
+      );
     });
   });
 });

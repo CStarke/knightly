@@ -15,14 +15,14 @@
  */
 
 import { Image } from 'expo-image';
-import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { PostCard } from '@/components/post-card';
 import { ThemedText } from '@/components/themed-text';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { Icon } from '@/components/ui/icon';
+import { FollowButton } from '@/components/ui/follow-button';
+import { Icon, type MaterialSymbolName, type SfSymbolName } from '@/components/ui/icon';
 import { Screen } from '@/components/ui/screen';
 import { Brand, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useClubFollow } from '@/context/club-follow-context';
@@ -34,14 +34,8 @@ export function ClubDetailView({ clubId }: { clubId: string }) {
   const { isFollowing, toggleFollow } = useClubFollow();
   const { closeClubDetail } = useClubsNavigation();
 
-  const club = useMemo(() => {
-    return clubId ? getClubById(clubId) : undefined;
-  }, [clubId]);
-
-  // Feed posts authored by this club
-  const clubPosts = useMemo(() => {
-    return club ? getPostsByClubId(club.id) : [];
-  }, [club]);
+  const club = clubId ? getClubById(clubId) : undefined;
+  const clubPosts = club ? getPostsByClubId(club.id) : [];
 
   if (!club) {
     return (
@@ -107,31 +101,12 @@ export function ClubDetailView({ clubId }: { clubId: string }) {
           </View>
 
           {/* Prominent Follow Button */}
-          <Pressable
+          <FollowButton
+            following={following}
             onPress={() => toggleFollow(club.id)}
-            accessibilityRole="button"
-            accessibilityLabel={following ? `Unfollow ${club.name}` : `Follow ${club.name}`}
-            style={({ pressed }) => [
-              styles.heroFollowBtn,
-              following ? styles.heroFollowBtnActive : styles.heroFollowBtnInactive,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Icon
-              sf={following ? 'checkmark.circle.fill' : 'plus.circle.fill'}
-              md={following ? 'check_circle' : 'add_circle'}
-              size={18}
-              color={following ? Brand.gold : '#0B0C0E'}
-            />
-            <ThemedText
-              style={[
-                styles.heroFollowText,
-                following ? styles.heroFollowTextActive : styles.heroFollowTextInactive,
-              ]}
-            >
-              {following ? 'Following this club' : 'Follow this club'}
-            </ThemedText>
-          </Pressable>
+            clubName={club.name}
+            variant="prominent"
+          />
         </View>
       </Card>
 
@@ -146,58 +121,42 @@ export function ClubDetailView({ clubId }: { clubId: string }) {
 
         <View style={styles.metaList}>
           {club.meetingSchedule ? (
-            <View style={styles.metaListItem}>
-              <View style={[styles.metaIconCircle, { backgroundColor: 'rgba(217, 155, 38, 0.14)' }]}>
-                <Icon sf="calendar" md="event" size={14} color={Brand.gold} />
-              </View>
-              <View style={styles.metaListContent}>
-                <ThemedText type="caption" themeColor="textMuted">
-                  Meeting Schedule
-                </ThemedText>
-                <ThemedText type="smallBold">{club.meetingSchedule}</ThemedText>
-              </View>
-            </View>
+            <MetaItem
+              sf="calendar"
+              md="event"
+              color={Brand.gold}
+              label="Meeting Schedule"
+              value={club.meetingSchedule}
+            />
           ) : null}
 
           {club.location ? (
-            <View style={styles.metaListItem}>
-              <View style={[styles.metaIconCircle, { backgroundColor: 'rgba(140, 33, 49, 0.14)' }]}>
-                <Icon sf="mappin.and.ellipse" md="place" size={14} color={Brand.maroon} />
-              </View>
-              <View style={styles.metaListContent}>
-                <ThemedText type="caption" themeColor="textMuted">
-                  Location
-                </ThemedText>
-                <ThemedText type="smallBold">{club.location}</ThemedText>
-              </View>
-            </View>
+            <MetaItem
+              sf="mappin.and.ellipse"
+              md="place"
+              color={Brand.maroon}
+              label="Location"
+              value={club.location}
+            />
           ) : null}
 
           {club.leader ? (
-            <View style={styles.metaListItem}>
-              <View style={[styles.metaIconCircle, { backgroundColor: 'rgba(56, 126, 184, 0.14)' }]}>
-                <Icon sf="person.fill" md="person" size={14} color={Brand.renewBlue} />
-              </View>
-              <View style={styles.metaListContent}>
-                <ThemedText type="caption" themeColor="textMuted">
-                  Leadership
-                </ThemedText>
-                <ThemedText type="smallBold">{club.leader}</ThemedText>
-              </View>
-            </View>
+            <MetaItem
+              sf="person.fill"
+              md="person"
+              color={Brand.renewBlue}
+              label="Leadership"
+              value={club.leader}
+            />
           ) : null}
 
-          <View style={styles.metaListItem}>
-            <View style={[styles.metaIconCircle, { backgroundColor: 'rgba(64, 137, 85, 0.14)' }]}>
-              <Icon sf="envelope.fill" md="mail" size={14} color={Brand.trueGreen} />
-            </View>
-            <View style={styles.metaListContent}>
-              <ThemedText type="caption" themeColor="textMuted">
-                Contact
-              </ThemedText>
-              <ThemedText type="smallBold">{club.contactEmail}</ThemedText>
-            </View>
-          </View>
+          <MetaItem
+            sf="envelope.fill"
+            md="mail"
+            color={Brand.trueGreen}
+            label="Contact"
+            value={club.contactEmail}
+          />
         </View>
       </Card>
 
@@ -233,9 +192,6 @@ export function ClubDetailView({ clubId }: { clubId: string }) {
 const styles = StyleSheet.create({
   screenInner: {
     gap: Spacing.three,
-  },
-  pressed: {
-    opacity: 0.75,
   },
   heroCard: {
     borderRadius: Radius.lg,
@@ -297,33 +253,6 @@ const styles = StyleSheet.create({
   heroTagline: {
     fontSize: 14,
     lineHeight: 20,
-  },
-  heroFollowBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 10,
-    borderRadius: Radius.pill,
-    marginTop: Spacing.one,
-  },
-  heroFollowBtnInactive: {
-    backgroundColor: Brand.gold,
-  },
-  heroFollowBtnActive: {
-    backgroundColor: 'rgba(217, 155, 38, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(217, 155, 38, 0.4)',
-  },
-  heroFollowText: {
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  heroFollowTextInactive: {
-    color: '#0B0C0E',
-  },
-  heroFollowTextActive: {
-    color: Brand.gold,
   },
   aboutCard: {
     gap: Spacing.two,
@@ -405,3 +334,34 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 });
+
+function MetaItem({
+  sf,
+  md,
+  color,
+  bgColor,
+  label,
+  value,
+}: {
+  sf: SfSymbolName;
+  md: MaterialSymbolName;
+  color: string;
+  bgColor?: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <View style={styles.metaListItem}>
+      <View style={[styles.metaIconCircle, { backgroundColor: bgColor ?? `${color}24` }]}>
+        <Icon sf={sf} md={md} size={14} color={color} />
+      </View>
+      <View style={styles.metaListContent}>
+        <ThemedText type="caption" themeColor="textMuted">
+          {label}
+        </ThemedText>
+        <ThemedText type="smallBold">{value}</ThemedText>
+      </View>
+    </View>
+  );
+}
+

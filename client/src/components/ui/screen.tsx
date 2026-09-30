@@ -27,10 +27,6 @@ export function Screen({ children, style, header, scroll = true }: ScreenProps) 
     },
   });
 
-  const body = <View style={[styles.inner, style]}>{children}</View>;
-  const topPadding = Spacing.three;
-  const bottomPadding = Math.max(insets.bottom, Spacing.two) + BottomTabContentInset;
-
   return (
     <View style={[styles.fill, { backgroundColor: starfield ? 'transparent' : theme.background }]}>
       {header}
@@ -38,14 +34,17 @@ export function Screen({ children, style, header, scroll = true }: ScreenProps) 
       {scroll ? (
         <Animated.ScrollView
           style={styles.fill}
-          contentContainerStyle={[styles.outer, { paddingTop: topPadding, paddingBottom: bottomPadding }]}
+          contentContainerStyle={[styles.outer, {
+            paddingTop: Spacing.three,
+            paddingBottom: Math.max(insets.bottom, Spacing.two) + BottomTabContentInset,
+          }]}
           keyboardShouldPersistTaps="handled"
           automaticallyAdjustKeyboardInsets={true}
           contentInsetAdjustmentBehavior="automatic"
           showsVerticalScrollIndicator={false}
           onScroll={scrollHandler}
           scrollEventThrottle={16}>
-          {body}
+          <View style={[styles.inner, style]}>{children}</View>
         </Animated.ScrollView>
       ) : (
         <View style={styles.fill}>{children}</View>

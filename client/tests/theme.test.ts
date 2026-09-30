@@ -22,6 +22,7 @@ describe('Theme & Branding Tokens', () => {
       assert.strictEqual(Brand.renewBlue, '#71B1C8');
       assert.strictEqual(Brand.trueGreen, '#A2D683');
       assert.strictEqual(Brand.renewGreen, '#A2D683');
+      assert.strictEqual(Brand.onRenewGreen, '#142912');
     });
 
     it('defines standard neutrals', () => {
@@ -43,6 +44,7 @@ describe('Theme & Branding Tokens', () => {
         'tint',
         'tintSoft',
         'onTint',
+        'onRenewGreen',
         'accent',
         'accentDark',
         'accentSoft',

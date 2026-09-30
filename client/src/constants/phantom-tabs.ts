@@ -39,15 +39,14 @@ export type PhantomTabId =
   | 'complete-club-profile'
   | 'campus-clubs'
   | 'club-detail'
-  | 'dining-activity'
-  | 'photo-cropper';
+  | 'dining-activity';
 
 export type PhantomTabMeta = {
   id: PhantomTabId;
   /** Human-readable display label for logging, analytics & testing */
   displayName: string;
   /** The root tab pathname this phantom tab attaches to */
-  rootPath: '/' | '/dining' | '/post';
+  rootPath: '/' | '/dining';
   /** The horizontal slot index in the pager (0-indexed) */
   slotIndex: number;
   /** The slot index that navigating back / swiping right returns to */
@@ -61,16 +60,6 @@ export type PhantomTabMeta = {
 };
 
 export const PHANTOM_TABS: Record<PhantomTabId, PhantomTabMeta> = {
-  'photo-cropper': {
-    id: 'photo-cropper',
-    displayName: 'Photo Cropper',
-    rootPath: '/post',
-    slotIndex: 5,
-    parentSlotIndex: 4,
-    defaultTitle: 'Crop Banner',
-    defaultSubtitle: '16:9 Post Aspect Ratio',
-    backA11yLabel: 'Cancel photo crop',
-  },
   'complete-club-profile': {
     id: 'complete-club-profile',
     displayName: 'Complete Club Profile',
@@ -122,8 +111,6 @@ export type PhantomTabState = {
   isActivityOpen: boolean;
   showActivity: boolean;
   hasActiveClubId: boolean;
-  isCropperOpen?: boolean;
-  showCropper?: boolean;
 };
 
 /**
@@ -148,12 +135,6 @@ export function getActivePhantomTab(state: PhantomTabState): PhantomTabMeta | nu
     }
   }
 
-  if (state.pathname === '/post') {
-    if (state.isCropperOpen) {
-      return PHANTOM_TABS['photo-cropper'];
-    }
-  }
-
   return null;
 }
 
@@ -163,7 +144,7 @@ export function getActivePhantomTab(state: PhantomTabState): PhantomTabMeta | nu
  * elastic overscroll past the right boundary displays clean parallax starfield
  * canvas rather than exposing subsequent tabs.
  *
- * Crucially accounts for exit transitions (`showClubDetail`, `showActivity`, `showClubsDirectory`, `showClubSetup`, `showCropper`)
+ * Crucially accounts for exit transitions (`showClubDetail`, `showActivity`, `showClubsDirectory`, `showClubSetup`)
  * so that a closing phantom tab remains smoothly visible during its back-slide animation.
  */
 export function getBlankAfterSlot(state: PhantomTabState): number | null {
@@ -183,14 +164,6 @@ export function getBlankAfterSlot(state: PhantomTabState): number | null {
     if (state.isActivityOpen || state.showActivity) {
       return 2;
     }
-  }
-
-  if (state.pathname === '/post') {
-    // If Photo Cropper is open OR transitioning out, slot 5 preserved; otherwise slot 5 is blanked
-    if (state.isCropperOpen || state.showCropper) {
-      return 5;
-    }
-    return 4;
   }
 
   // Normal bottom tab navigation — all slots render normally

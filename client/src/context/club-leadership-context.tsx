@@ -21,11 +21,11 @@
  * persisted arrays by student ID / username.
  */
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { CALVIN_CLUBS, type Club } from '@/data/clubs';
 import { checkClubCode } from '@/data/club-codes';
-import { useAuth, type AuthUser } from '@/context/auth-context';
+import { useAuth } from '@/context/auth-context';
 
 export type ClaimModalSource = 'banner' | 'profile' | null;
 
@@ -122,7 +122,7 @@ const CLAIM_BANNER_DISMISSED_KEY = 'knightly_claim_banner_dismissed';
 
 const ClubLeadershipContext = createContext<ClubLeadershipContextType | null>(null);
 
-export function ClubLeadershipProvider({ children }: { children: React.ReactNode }) {
+export function ClubLeadershipProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
 
   // Overridden club details in local memory (e.g. customized description, schedule)

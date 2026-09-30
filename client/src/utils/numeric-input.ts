@@ -88,7 +88,34 @@ export function attachNumericDomFilters(element: any): () => void {
     return () => {};
   }
 
+  const ensureCaretAtEnd = () => {
+    setTimeout(() => {
+      try {
+        const len = inputEl.value.length;
+        inputEl.setSelectionRange(len, len);
+      } catch {}
+    }, 0);
+  };
+
   const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      const start = inputEl.selectionStart ?? 0;
+      const end = inputEl.selectionEnd ?? 0;
+      const val = inputEl.value;
+
+      // In masked overlay numeric inputs with trailing cursor, collapsed Backspace/Delete
+      // MUST delete the trailing digit so caret position quirks never prevent deletion
+      // or corrupt digits by deleting from the front/middle!
+      if (start === end && val.length > 0) {
+        e.preventDefault();
+        const next = val.slice(0, -1);
+        inputEl.value = next;
+        ensureCaretAtEnd();
+        inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+        return;
+      }
+    }
+
     const isAllowed = isAllowedNumericKey(e.key, {
       ctrlKey: e.ctrlKey,
       metaKey: e.metaKey,
@@ -126,10 +153,16 @@ export function attachNumericDomFilters(element: any): () => void {
   inputEl.addEventListener('keydown', onKeyDown);
   inputEl.addEventListener('paste', onPaste);
   inputEl.addEventListener('beforeinput', onBeforeInput);
+  inputEl.addEventListener('focus', ensureCaretAtEnd);
+  inputEl.addEventListener('click', ensureCaretAtEnd);
+  inputEl.addEventListener('mouseup', ensureCaretAtEnd);
 
   return () => {
     inputEl.removeEventListener('keydown', onKeyDown);
     inputEl.removeEventListener('paste', onPaste);
     inputEl.removeEventListener('beforeinput', onBeforeInput);
+    inputEl.removeEventListener('focus', ensureCaretAtEnd);
+    inputEl.removeEventListener('click', ensureCaretAtEnd);
+    inputEl.removeEventListener('mouseup', ensureCaretAtEnd);
   };
 }

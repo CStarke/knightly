@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { feedCategories, followedOrgs, posts, searchPosts, type FeedCategory, type Post } from '@/data/feed';
+import { feedCategories, followedOrgs, posts, searchPosts, type FeedCategory } from '@/data/feed';
+import { formatPostRelativeTime } from '@/utils/date-format';
 
 describe('Knightly Feed Domain', () => {
   describe('Feed Categories', () => {
@@ -163,6 +164,103 @@ describe('Knightly Feed Domain', () => {
         assert.strictEqual(p.colors!.length, 2);
         assert.match(p.colors![0], hexPattern);
         assert.match(p.colors![1], hexPattern);
+      }
+    });
+  });
+
+  describe('Relative Timestamp & Clock Skew Resilience', () => {
+    it('never produces "Just now ago" under any circumstance', () => {
+      assert.strictEqual(formatPostRelativeTime('Just now'), 'Just now');
+      assert.strictEqual(formatPostRelativeTime('just now'), 'Just now');
+      assert.strictEqual(formatPostRelativeTime('Just now ago'), 'Just now');
+      assert.strictEqual(formatPostRelativeTime('now'), 'Just now');
+      assert.strictEqual(formatPostRelativeTime(undefined), 'Just now');
+      assert.notStrictEqual(formatPostRelativeTime('Just now'), 'Just now ago');
+    });
+
+    it('formats freshly created posts within 60s as "Just now"', () => {
+      const created = 1_700_000_000_000;
+      assert.strictEqual(
+        formatPostRelativeTime(undefined, created, undefined, { now: created + 5_000 }),
+        'Just now'
+      );
+      assert.strictEqual(
+        formatPostRelativeTime(undefined, created, undefined, { now: created + 59_000 }),
+        'Just now'
+      );
+    });
+
+    it('handles clock rolled back into past (user sets phone back or clock skew)', () => {
+      const created = 1_700_000_000_000;
+      // Phone clock was manually moved back 2 hours or 10 days
+      assert.strictEqual(
+        formatPostRelativeTime(undefined, created, undefined, { now: created - 7_200_000 }),
+        'Just now'
+      );
+      assert.strictEqual(
+        formatPostRelativeTime(undefined, created, undefined, { now: created - 864_000_000 }),
+        'Just now'
+      );
+    });
+
+    it('shields against device clock changes during active session using monotonic clock', () => {
+      const monotonicStart = 10_000;
+      // Wall clock jumps 5 days into future due to user manual time change
+      const wallCreated = 1_700_000_000_000;
+      const wallNowTampered = wallCreated + 5 * 86_400_000;
+      // But only 20 seconds elapsed monotonically
+      const monotonicNow = monotonicStart + 20_000;
+
+      const formatted = formatPostRelativeTime('Just now', wallCreated, monotonicStart, {
+        now: wallNowTampered,
+        monotonicNow,
+      });
+
+      assert.strictEqual(formatted, 'Just now');
+    });
+
+    it('accurately increments elapsed time monotonically during active session', () => {
+      const monotonicStart = 10_000;
+      assert.strictEqual(
+        formatPostRelativeTime('Just now', undefined, monotonicStart, { monotonicNow: monotonicStart + 5 * 60_000 }),
+        '5m ago'
+      );
+      assert.strictEqual(
+        formatPostRelativeTime('Just now', undefined, monotonicStart, { monotonicNow: monotonicStart + 3 * 3_600_000 }),
+        '3h ago'
+      );
+      assert.strictEqual(
+        formatPostRelativeTime('Just now', undefined, monotonicStart, { monotonicNow: monotonicStart + 2 * 86_400_000 }),
+        '2d ago'
+      );
+    });
+
+    it('is timezone-invariant across different timezones for identical UTC deltas', () => {
+      // 2 hours ago in UTC epoch ms
+      const createdUtc = 1_700_000_000_000;
+      const nowUtc = createdUtc + 2 * 3_600_000;
+
+      // Both EDT (UTC-4) and JST (UTC+9) share the same epoch millisecond delta
+      const resultTimezoneA = formatPostRelativeTime(undefined, createdUtc, undefined, { now: nowUtc });
+      const resultTimezoneB = formatPostRelativeTime(undefined, createdUtc, undefined, { now: nowUtc });
+
+      assert.strictEqual(resultTimezoneA, '2h ago');
+      assert.strictEqual(resultTimezoneA, resultTimezoneB);
+    });
+
+    it('correctly handles pre-seeded feed tokens and never double-suffixes "ago"', () => {
+      assert.strictEqual(formatPostRelativeTime('2h'), '2h ago');
+      assert.strictEqual(formatPostRelativeTime('1d'), '1d ago');
+      assert.strictEqual(formatPostRelativeTime('45m'), '45m ago');
+      assert.strictEqual(formatPostRelativeTime('2h ago'), '2h ago');
+      assert.strictEqual(formatPostRelativeTime('Yesterday ago'), 'Yesterday ago');
+    });
+
+    it('formats all mock posts without producing "Just now ago"', () => {
+      for (const p of posts) {
+        const formatted = formatPostRelativeTime(p.postedAt, p.createdAt, p.monotonicCreatedAt);
+        assert.ok(!formatted.includes('Just now ago'), `Post ${p.id} rendered "Just now ago"`);
+        assert.ok(!formatted.endsWith('ago ago'), `Post ${p.id} rendered double "ago"`);
       }
     });
   });

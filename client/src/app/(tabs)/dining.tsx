@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { DashMeter } from "@/components/ui/dash-meter";
 import { Icon } from "@/components/ui/icon";
+import { MealPlanStats } from "@/components/meal-plan-stats";
 import { Screen } from "@/components/ui/screen";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Brand, Fonts, Radius, Spacing } from "@/constants/theme";
@@ -26,7 +27,6 @@ import { useDiningActivity } from "@/context/dining-activity-context";
 import {
   diningHalls,
   flexMealsRemaining,
-  getSwipeMetricLabel,
   getSwipeResetText,
   getSwipesTotal,
   guestPassesRemaining,
@@ -74,56 +74,7 @@ export default function DiningScreen() {
           </View>
 
           {/* 3 Metrics: Swipes Left / Meals Left, KnightBucks, Dining Dollars */}
-          <View style={styles.cardStats}>
-            <View style={styles.cardStat}>
-              <ThemedText style={styles.cardStatValue} numberOfLines={1}>
-                {swipesRemaining}
-              </ThemedText>
-              <ThemedText
-                type="caption"
-                style={styles.cardLabel}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.75}
-              >
-                {getSwipeMetricLabel(mealPlan)}
-              </ThemedText>
-            </View>
-
-            <View style={styles.cardStatDivider} />
-
-            <View style={styles.cardStat}>
-              <ThemedText style={styles.cardStatValue} numberOfLines={1}>
-                ${mealPlan.knightBucks.toFixed(2)}
-              </ThemedText>
-              <ThemedText
-                type="caption"
-                style={styles.cardLabel}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.75}
-              >
-                KnightBucks
-              </ThemedText>
-            </View>
-
-            <View style={styles.cardStatDivider} />
-
-            <View style={styles.cardStat}>
-              <ThemedText style={styles.cardStatValue} numberOfLines={1}>
-                ${mealPlan.diningDollars.toFixed(2)}
-              </ThemedText>
-              <ThemedText
-                type="caption"
-                style={styles.cardLabel}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.75}
-              >
-                Dining Dollars
-              </ThemedText>
-            </View>
-          </View>
+          <MealPlanStats variant="hero" />
 
           {/* Main Swipes DashMeter in Calvin Gold */}
           <DashMeter
@@ -138,75 +89,21 @@ export default function DiningScreen() {
           {(hasFlexMeals(mealPlan) || hasGuestPasses(mealPlan)) && (
             <View style={styles.subMetersRow}>
               {hasFlexMeals(mealPlan) && (
-                <View style={styles.subMeterCol}>
-                  <View style={styles.subMeterHeader}>
-                    <View style={styles.subMeterTitleRow}>
-                      <View
-                        style={[
-                          styles.colorPip,
-                          { backgroundColor: Brand.renewBlue },
-                        ]}
-                      />
-                      <ThemedText
-                        type="caption"
-                        style={styles.subMeterLabel}
-                        numberOfLines={1}
-                      >
-                        Flex meals
-                      </ThemedText>
-                    </View>
-                    <ThemedText
-                      type="caption"
-                      style={styles.subMeterLabel}
-                      numberOfLines={1}
-                    >
-                      {flexMealsRemaining} of {mealPlan.flexMeals}
-                    </ThemedText>
-                  </View>
-                  <DashMeter
-                    total={mealPlan.flexMeals ?? 0}
-                    remaining={flexMealsRemaining}
-                    color={Brand.renewBlue}
-                    height={6}
-                    emptyColor="rgba(255,255,255,0.2)"
-                  />
-                </View>
+                <SubMeter
+                  label="Flex meals"
+                  color={Brand.renewBlue}
+                  remaining={flexMealsRemaining}
+                  total={mealPlan.flexMeals ?? 0}
+                />
               )}
 
               {hasGuestPasses(mealPlan) && (
-                <View style={styles.subMeterCol}>
-                  <View style={styles.subMeterHeader}>
-                    <View style={styles.subMeterTitleRow}>
-                      <View
-                        style={[
-                          styles.colorPip,
-                          { backgroundColor: Brand.trueGreen },
-                        ]}
-                      />
-                      <ThemedText
-                        type="caption"
-                        style={styles.subMeterLabel}
-                        numberOfLines={1}
-                      >
-                        Guest passes
-                      </ThemedText>
-                    </View>
-                    <ThemedText
-                      type="caption"
-                      style={styles.subMeterLabel}
-                      numberOfLines={1}
-                    >
-                      {guestPassesRemaining} of {mealPlan.guestPasses}
-                    </ThemedText>
-                  </View>
-                  <DashMeter
-                    total={mealPlan.guestPasses ?? 0}
-                    remaining={guestPassesRemaining}
-                    color={Brand.trueGreen}
-                    height={6}
-                    emptyColor="rgba(255,255,255,0.2)"
-                  />
-                </View>
+                <SubMeter
+                  label="Guest passes"
+                  color={Brand.trueGreen}
+                  remaining={guestPassesRemaining}
+                  total={mealPlan.guestPasses ?? 0}
+                />
               )}
             </View>
           )}
@@ -356,46 +253,12 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     textTransform: "uppercase",
   },
-  cardLabel: {
-    color: Brand.gold,
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 1.2,
-    textAlign: "center",
-    width: "100%",
-  },
   cardName: {
     color: "#FFFFFF",
     fontFamily: Fonts.serif,
     fontSize: 22,
     lineHeight: 26,
     fontWeight: "700",
-  },
-  cardStats: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  cardStat: {
-    flex: 1,
-    flexBasis: 0,
-    minWidth: 0,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: Spacing.half,
-    paddingHorizontal: 2,
-  },
-  cardStatDivider: {
-    width: 1,
-    height: 30,
-    backgroundColor: "rgba(255, 255, 255, 0.18)",
-  },
-  cardStatValue: {
-    color: "#FFFFFF",
-    fontSize: 21,
-    lineHeight: 26,
-    fontWeight: "800",
-    textAlign: "center",
   },
   subMetersRow: {
     flexDirection: "row",
@@ -486,3 +349,38 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.three,
   },
 });
+
+function SubMeter({
+  label,
+  color,
+  remaining,
+  total,
+}: {
+  label: string;
+  color: string;
+  remaining: number;
+  total: number;
+}) {
+  return (
+    <View style={styles.subMeterCol}>
+      <View style={styles.subMeterHeader}>
+        <View style={styles.subMeterTitleRow}>
+          <View style={[styles.colorPip, { backgroundColor: color }]} />
+          <ThemedText type="caption" style={styles.subMeterLabel} numberOfLines={1}>
+            {label}
+          </ThemedText>
+        </View>
+        <ThemedText type="caption" style={styles.subMeterLabel} numberOfLines={1}>
+          {remaining} of {total}
+        </ThemedText>
+      </View>
+      <DashMeter
+        total={total}
+        remaining={remaining}
+        color={color}
+        height={6}
+        emptyColor="rgba(255,255,255,0.2)"
+      />
+    </View>
+  );
+}

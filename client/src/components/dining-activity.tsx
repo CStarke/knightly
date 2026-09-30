@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
@@ -66,58 +67,31 @@ export function DiningActivityView() {
         </View>
 
         <View style={styles.summaryRow}>
-          <View style={styles.summaryBox}>
-            <ThemedText style={styles.summaryNum}>
-              {swipesUsedLastWeek}
-            </ThemedText>
-            <ThemedText
-              type="caption"
-              style={styles.summaryLabel}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.75}
-            >
-              Swipes used
-            </ThemedText>
-          </View>
-
-          <View
-            style={[styles.summaryDivider, { backgroundColor: theme.border }]}
-          />
-
-          <View style={styles.summaryBox}>
-            <ThemedText style={styles.summaryNum}>
-              ${knightBucksSpentLastWeek.toFixed(2)}
-            </ThemedText>
-            <ThemedText
-              type="caption"
-              style={styles.summaryLabel}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.75}
-            >
-              KnightBucks
-            </ThemedText>
-          </View>
-
-          <View
-            style={[styles.summaryDivider, { backgroundColor: theme.border }]}
-          />
-
-          <View style={styles.summaryBox}>
-            <ThemedText style={styles.summaryNum}>
-              ${diningDollarsSpentLastWeek.toFixed(2)}
-            </ThemedText>
-            <ThemedText
-              type="caption"
-              style={styles.summaryLabel}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.75}
-            >
-              Dining Dollars
-            </ThemedText>
-          </View>
+          {[
+            { value: `${swipesUsedLastWeek}`, label: "Swipes used" },
+            { value: `$${knightBucksSpentLastWeek.toFixed(2)}`, label: "KnightBucks" },
+            { value: `$${diningDollarsSpentLastWeek.toFixed(2)}`, label: "Dining Dollars" },
+          ].map((item, index) => (
+            <Fragment key={item.label}>
+              {index > 0 && (
+                <View
+                  style={[styles.summaryDivider, { backgroundColor: theme.border }]}
+                />
+              )}
+              <View style={styles.summaryBox}>
+                <ThemedText style={styles.summaryNum}>{item.value}</ThemedText>
+                <ThemedText
+                  type="caption"
+                  style={styles.summaryLabel}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}
+                >
+                  {item.label}
+                </ThemedText>
+              </View>
+            </Fragment>
+          ))}
         </View>
       </Card>
 

@@ -37,8 +37,12 @@ export type Post = {
   org: string;
   /** Monogram shown in the post avatar. */
   mark?: string;
-  category: FeedCategory;
   postedAt: string;
+  category: FeedCategory;
+  /** UTC Epoch timestamp (ms) when post was published */
+  createdAt?: number;
+  /** Monotonic timestamp (ms) for clock-tamper immunity during active session */
+  monotonicCreatedAt?: number;
   headline: string;
   body: string;
   when?: string;
