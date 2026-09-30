@@ -6,9 +6,9 @@ import { AppState, Platform, Pressable, StyleSheet, Text, View } from "react-nat
 
 import { Avatar } from "@/components/avatar";
 import { Barcode } from "@/components/barcode";
+import { MealPlanStats } from "@/components/meal-plan-stats";
 import { HeaderBackButton } from "@/components/ui/header-back-button";
 import { Brand, Fonts, Radius, Spacing } from "@/constants/theme";
-import { getSwipeMetricLabel, mealPlan, swipesRemaining } from "@/data/dining";
 import { fullName, student } from "@/data/student";
 
 /**
@@ -135,49 +135,7 @@ export default function KnightCardScreen() {
           </View>
 
           {/* Balance & Meal Plan Metrics */}
-          <View style={styles.statsRow}>
-            <View style={styles.statBox}>
-              <Text style={styles.statNum} numberOfLines={1}>
-                {swipesRemaining}
-              </Text>
-              <Text
-                style={styles.statLabel}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.75}
-              >
-                {getSwipeMetricLabel(mealPlan)}
-              </Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statBox}>
-              <Text style={styles.statNum} numberOfLines={1}>
-                ${mealPlan.knightBucks.toFixed(2)}
-              </Text>
-              <Text
-                style={styles.statLabel}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.75}
-              >
-                KnightBucks
-              </Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statBox}>
-              <Text style={styles.statNum} numberOfLines={1}>
-                ${mealPlan.diningDollars.toFixed(2)}
-              </Text>
-              <Text
-                style={styles.statLabel}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.75}
-              >
-                Dining Dollars
-              </Text>
-            </View>
-          </View>
+          <MealPlanStats variant="light" />
 
           <Text style={styles.hint}>Tap anywhere to close</Text>
         </View>
@@ -293,45 +251,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: "#E2E4E9",
     padding: Spacing.two,
-  },
-  statsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-    width: "100%",
-    paddingVertical: Spacing.two,
-    backgroundColor: "#F6F6F8",
-    borderRadius: Radius.md,
-  },
-  statBox: {
-    flex: 1,
-    flexBasis: 0,
-    minWidth: 0,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    paddingHorizontal: 2,
-  },
-  statNum: {
-    color: Brand.maroon,
-    fontSize: 20,
-    fontWeight: "800",
-    letterSpacing: -0.3,
-    textAlign: "center",
-  },
-  statLabel: {
-    color: "#717982",
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 1.2,
-    textAlign: "center",
-    width: "100%",
-  },
-  statDivider: {
-    width: 1,
-    height: 30,
-    backgroundColor: "#E2E4E9",
-    alignSelf: "center",
   },
   hint: {
     color: "#838D95",

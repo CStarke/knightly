@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { emergencyContacts, safetyAlerts, type EmergencyContact, type SafetyAlert } from '@/data/safety';
+import { emergencyContacts, safetyAlerts, type SafetyAlert } from '@/data/safety';
 
 describe('Campus Safety Domain', () => {
   describe('Emergency Contacts', () => {

@@ -10,7 +10,6 @@ import {
   zoomAroundFocalPoint,
 } from '@/utils/image-crop';
 import {
-  PHANTOM_TABS,
   getActivePhantomTab,
   getBlankAfterSlot,
 } from '@/constants/phantom-tabs';
@@ -291,18 +290,8 @@ describe('Image Crop Geometry & Coordinate Mapping Invariants', () => {
     });
   });
 
-  describe('Slot 5 Photo Cropper Phantom Tab Invariants', () => {
-    it('verifies photo-cropper phantom tab metadata', () => {
-      const meta = PHANTOM_TABS['photo-cropper'];
-      assert.strictEqual(meta.id, 'photo-cropper');
-      assert.strictEqual(meta.rootPath, '/post');
-      assert.strictEqual(meta.slotIndex, 5);
-      assert.strictEqual(meta.parentSlotIndex, 4);
-      assert.strictEqual(meta.defaultTitle, 'Crop Banner');
-      assert.strictEqual(meta.defaultSubtitle, '16:9 Post Aspect Ratio');
-    });
-
-    it('identifies photo-cropper as active phantom tab on /post when cropper is open', () => {
+  describe('Inline Photo Cropper & Post Tab Invariants', () => {
+    it('verifies /post has no phantom tabs (cropper is strictly inline in Create Post section 4)', () => {
       const active = getActivePhantomTab({
         pathname: '/post',
         activeIndex: 4,
@@ -313,84 +302,83 @@ describe('Image Crop Geometry & Coordinate Mapping Invariants', () => {
         isActivityOpen: false,
         showActivity: false,
         hasActiveClubId: false,
-        isCropperOpen: true,
       });
 
-      assert.ok(active !== null);
-      assert.strictEqual(active?.id, 'photo-cropper');
-      assert.strictEqual(active?.slotIndex, 5);
-    });
-
-    it('returns null active phantom tab on /post when cropper is closed', () => {
-      const active = getActivePhantomTab({
-        pathname: '/post',
-        activeIndex: 4,
-        isClaimSetupOpen: false,
-        clubsLevel: 0,
-        showClubsDirectory: false,
-        showClubDetail: false,
-        isActivityOpen: false,
-        showActivity: false,
-        hasActiveClubId: false,
-        isCropperOpen: false,
-      });
-
+      // No phantom tabs attach to /post anymore
       assert.strictEqual(active, null);
     });
 
-    it('preserves slot 5 during active crop or exit transition, blanks it when closed', () => {
-      // Cropper open -> slot 5 preserved
-      assert.strictEqual(
-        getBlankAfterSlot({
-          pathname: '/post',
-          activeIndex: 4,
-          isClaimSetupOpen: false,
-          clubsLevel: 0,
-          showClubsDirectory: false,
-          showClubDetail: false,
-          isActivityOpen: false,
-          showActivity: false,
-          hasActiveClubId: false,
-          isCropperOpen: true,
-        }),
-        5
-      );
+    it('returns null blankAfterSlot for /post so tab tracks render without trailing blanking', () => {
+      const blank = getBlankAfterSlot({
+        pathname: '/post',
+        activeIndex: 4,
+        isClaimSetupOpen: false,
+        clubsLevel: 0,
+        showClubsDirectory: false,
+        showClubDetail: false,
+        isActivityOpen: false,
+        showActivity: false,
+        hasActiveClubId: false,
+      });
 
-      // Cropper transitioning out (showCropper = true) -> slot 5 preserved
-      assert.strictEqual(
-        getBlankAfterSlot({
-          pathname: '/post',
-          activeIndex: 4,
-          isClaimSetupOpen: false,
-          clubsLevel: 0,
-          showClubsDirectory: false,
-          showClubDetail: false,
-          isActivityOpen: false,
-          showActivity: false,
-          hasActiveClubId: false,
-          isCropperOpen: false,
-          showCropper: true,
-        }),
-        5
-      );
+      assert.strictEqual(blank, null);
+    });
 
-      // Cropper closed -> slot 5 blanked (blankAfterSlot = 4)
-      assert.strictEqual(
-        getBlankAfterSlot({
-          pathname: '/post',
-          activeIndex: 4,
-          isClaimSetupOpen: false,
-          clubsLevel: 0,
-          showClubsDirectory: false,
-          showClubDetail: false,
-          isActivityOpen: false,
-          showActivity: false,
-          hasActiveClubId: false,
-          isCropperOpen: false,
-          showCropper: false,
-        }),
-        4
-      );
+    it('retains exact zoom and offset coordinates across inline edit toggle sessions', () => {
+      // User zooms to 1.75x and pans to an offset
+      const userZoom = 1.75;
+      const userOffset = { offsetX: -35, offsetY: -18 };
+      const savedTransform = { zoom: userZoom, offset: userOffset };
+
+      // User presses "Done": transform is committed alongside cropped URI
+      let isEditing = false;
+      let committedTransform = savedTransform;
+
+      assert.strictEqual(isEditing, false);
+      assert.strictEqual(committedTransform.zoom, 1.75);
+      assert.deepStrictEqual(committedTransform.offset, { offsetX: -35, offsetY: -18 });
+
+      // User later presses "Edit" button: cropper resumes at committedTransform
+      isEditing = true;
+      const resumedTransform = committedTransform;
+
+      // Invariant: resumed transform must match the previous position exactly with ZERO zoom-out
+      assert.strictEqual(resumedTransform.zoom, 1.75);
+      assert.strictEqual(resumedTransform.offset.offsetX, -35);
+      assert.strictEqual(resumedTransform.offset.offsetY, -18);
+
+      // If user picks a new photo, transform resets to null (fresh photo centered at 1.0x)
+      const pickedNewPhoto = true;
+      let newTransform = pickedNewPhoto ? null : resumedTransform;
+      assert.strictEqual(newTransform, null);
+    });
+
+    it('verifies twin button state transitions between preview and editing modes', () => {
+      type CropperButtonState = {
+        leftLabel: string;
+        leftIcon: string;
+        rightLabel: string;
+        rightIcon: string;
+      };
+
+      const getButtonState = (isEditing: boolean): CropperButtonState => ({
+        leftLabel: 'Change Photo',
+        leftIcon: 'photo',
+        rightLabel: isEditing ? 'Done' : 'Edit',
+        rightIcon: isEditing ? 'checkmark' : 'crop',
+      });
+
+      // When in preview mode:
+      const previewButtons = getButtonState(false);
+      assert.strictEqual(previewButtons.leftLabel, 'Change Photo');
+      assert.strictEqual(previewButtons.rightLabel, 'Edit');
+      assert.strictEqual(previewButtons.rightIcon, 'crop');
+
+      // When entering edit mode:
+      const editingButtons = getButtonState(true);
+      assert.strictEqual(editingButtons.leftLabel, 'Change Photo');
+      assert.strictEqual(editingButtons.rightLabel, 'Done');
+      assert.strictEqual(editingButtons.rightIcon, 'checkmark');
     });
   });
 

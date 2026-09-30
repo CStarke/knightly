@@ -32,7 +32,6 @@ import { useClubsNavigation } from "@/context/clubs-navigation-context";
 import { useFeed } from "@/context/feed-context";
 import {
   feedCategories,
-  posts,
   searchPosts,
   type FeedCategory,
 } from "@/data/feed";

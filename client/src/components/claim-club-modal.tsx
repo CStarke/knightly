@@ -22,21 +22,30 @@
  * 3. A custom `BlinkingCursor` simulates a high-fidelity native cursor at the active insertion point.
  */
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Modal,
+  Keyboard,
   Pressable,
   ScrollView,
-  StyleProp,
   StyleSheet,
   TextInput,
   View,
-  ViewStyle,
 } from 'react-native';
+import Animated, {
+  Easing,
+  interpolate,
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
-import { Button } from '@/components/ui/button';
+import { BlinkingCursor } from '@/components/ui/blinking-cursor';
+import { FieldLabel } from '@/components/ui/field-label';
 import { Icon } from '@/components/ui/icon';
+import { ModalDialog, ModalHeader } from '@/components/ui/modal-dialog';
+import { SuccessModal } from '@/components/ui/success-modal';
 import { Brand, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useClubLeadership } from '@/context/club-leadership-context';
 import {
@@ -46,48 +55,6 @@ import {
 } from '@/data/club-codes';
 import { formatRawCodeSegments } from '@/utils/date-format';
 import { useTheme } from '@/hooks/use-theme';
-
-/**
- * Smooth blinking gold cursor for masked text fields.
- *
- * WHY CUSTOM BLINKING CURSOR:
- * Because the underlying `TextInput` has `caretHidden={true}` to prevent native cursor
- * conflicts with our custom segmented layout, we render a faux cursor that blinks at standard
- * 530ms intervals (matching standard iOS/Android text cursor cadence).
- */
-function BlinkingCursor({
-  color = Brand.gold,
-  height = 20,
-  style,
-}: {
-  color?: string;
-  height?: number;
-  style?: StyleProp<ViewStyle>;
-}) {
-  const [visible, setVisible] = useState(true);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setVisible((prev) => !prev);
-    }, 530);
-    return () => clearInterval(id);
-  }, []);
-
-  return (
-    <View
-      style={[
-        {
-          width: 1.5,
-          height,
-          backgroundColor: color,
-          borderRadius: 0,
-          opacity: visible ? 1 : 0,
-        },
-        style,
-      ]}
-    />
-  );
-}
 
 export function ClaimClubModal() {
   const theme = useTheme();
@@ -102,16 +69,76 @@ export function ClaimClubModal() {
   const [rawCode, setRawCode] = useState('');
   const [isCodeFocused, setIsCodeFocused] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSuccess, setIsSuccess] = useState(false);
   const [showDismissNotice, setShowDismissNotice] = useState(false);
   const codeInputRef = useRef<TextInput>(null);
+  const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /**
+   * Reanimated shared progress driver for the verification success sequence:
+   * 0 -> Idle / Code Entry State
+   * 1 -> Success State (Renew Green border, Renew Green button fill, wheel rotated to "Success!")
+   */
+  const successProgress = useSharedValue(0);
+
+  // Clear any pending navigation or reset timeouts on component unmount
+  useEffect(() => {
+    return () => {
+      if (transitionTimerRef.current) {
+        clearTimeout(transitionTimerRef.current);
+        transitionTimerRef.current = null;
+      }
+      if (resetTimerRef.current) {
+        clearTimeout(resetTimerRef.current);
+        resetTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  // Ensure fresh, pristine state whenever the modal opens
+  useEffect(() => {
+    if (isClaimModalOpen) {
+      if (resetTimerRef.current) {
+        clearTimeout(resetTimerRef.current);
+        resetTimerRef.current = null;
+      }
+      setError(null);
+      setIsSuccess(false);
+      successProgress.value = 0;
+      setRawCode('');
+    }
+  }, [isClaimModalOpen, successProgress]);
 
   // Derived segments for visual non-selectable hyphen masking
   const codeSegments = useMemo(() => formatRawCodeSegments(rawCode), [rawCode]);
 
+  /**
+   * Close the modal and defer resetting state until the fade-out completes.
+   *
+   * ARCHITECTURAL RATIONALE:
+   * When closing the modal, React Native's fade animation takes ~250-300ms.
+   * If state is reset synchronously, the button and border snap back to their default
+   * colors during the fade-out, breaking visual continuity. Deferring the reset by 400ms
+   * ensures the active visual state remains intact until the modal is completely off-screen.
+   */
   const handleClose = () => {
-    setError(null);
-    setRawCode('');
+    if (transitionTimerRef.current) {
+      clearTimeout(transitionTimerRef.current);
+      transitionTimerRef.current = null;
+    }
+    if (resetTimerRef.current) {
+      clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = null;
+    }
     closeClaimModal();
+
+    resetTimerRef.current = setTimeout(() => {
+      setError(null);
+      setIsSuccess(false);
+      successProgress.value = 0;
+      setRawCode('');
+    }, 400);
   };
 
   const handleConfirmDismiss = () => {
@@ -124,6 +151,10 @@ export function ClaimClubModal() {
   // Strips punctuation, whitespace, and lowercase characters immediately as the student types,
   // preventing illegal characters from ever entering the state buffer.
   const handleRawCodeChange = (text: string) => {
+    if (isSuccess) {
+      setIsSuccess(false);
+      successProgress.value = 0;
+    }
     setError(null);
     const clean = text.replace(/[^0-9a-zA-Z]/g, '').toUpperCase().slice(0, 10);
     setRawCode(clean);
@@ -132,85 +163,148 @@ export function ClaimClubModal() {
   // WHY DEMO QUICK-FILL:
   // Enables instant one-tap evaluation during testing and presentations without manual typing.
   const handleUseDemoCode = () => {
+    if (isSuccess) {
+      setIsSuccess(false);
+      successProgress.value = 0;
+    }
     setError(null);
     const clean = DEMO_CLAIM_CODE_ABSTRACTION.replace(/[^0-9a-zA-Z]/g, '').toUpperCase();
     setRawCode(clean);
   };
 
-  // WHY TRANSITION TO IN-PAGER SETUP:
-  // Once the code passes verification, we close this modal dialog and trigger `startClaimSetup`.
-  // This transitions the UI to the full setup subpage inside the pager, providing ample screen
-  // real estate for filling out meeting schedules, locations, and mission statements.
+  /**
+   * Dynamic Code Box Outline Interpolation:
+   * Smoothly morphs from gold (if focused) or standard border to Renew Green (#A2D683)
+   * upon successful verification, while immediately turning Bright Red (#C2002F) on error.
+   */
+  const animatedCodeBoxStyle = useAnimatedStyle(() => {
+    if (error) {
+      return { borderColor: Brand.brightRed };
+    }
+    const baseBorder = isCodeFocused ? Brand.gold : theme.border;
+    const borderColor = interpolateColor(
+      successProgress.value,
+      [0, 1],
+      [baseBorder, Brand.renewGreen]
+    );
+    return { borderColor };
+  }, [error, isCodeFocused, theme.border]);
+
+  /**
+   * Dynamic Verify Button Background Color Interpolation:
+   * Smoothly transitions from Calvin Maroon (theme.tint) to Renew Green (Brand.renewGreen).
+   */
+  const animatedButtonStyle = useAnimatedStyle(() => {
+    const backgroundColor = interpolateColor(
+      successProgress.value,
+      [0, 1],
+      [theme.tint, Brand.renewGreen]
+    );
+    return { backgroundColor };
+  }, [theme.tint]);
+
+  /**
+   * 3D Cylindrical Tumbler Wheel Animation — "Verify Code" label:
+   * Rotates vertically up and backward along the horizontal X axis perpendicular to the screen:
+   * translateY moves from 0 to -26px, rotateX tilts from 0 to -60deg, opacity fades from 1 to 0.
+   */
+  const animatedVerifyTextStyle = useAnimatedStyle(() => {
+    const translateY = interpolate(successProgress.value, [0, 1], [0, -26]);
+    const rotateX = `${interpolate(successProgress.value, [0, 1], [0, -60])}deg`;
+    const opacity = interpolate(successProgress.value, [0, 0.65], [1, 0]);
+    return {
+      opacity,
+      transform: [{ perspective: 300 }, { translateY }, { rotateX }],
+    };
+  });
+
+  /**
+   * 3D Cylindrical Tumbler Wheel Animation — "Success!" label:
+   * Rotates vertically up and forward into view from below along the horizontal X axis:
+   * translateY moves from +26px to 0, rotateX rotates from +60deg to 0deg, opacity fades from 0 to 1.
+   */
+  const animatedSuccessTextStyle = useAnimatedStyle(() => {
+    const translateY = interpolate(successProgress.value, [0, 1], [26, 0]);
+    const rotateX = `${interpolate(successProgress.value, [0, 1], [60, 0])}deg`;
+    const opacity = interpolate(successProgress.value, [0.35, 1], [0, 1]);
+    return {
+      opacity,
+      transform: [{ perspective: 300 }, { translateY }, { rotateX }],
+    };
+  });
+
+  // WHY CHOREOGRAPHED SUCCESS SEQUENCE:
+  // Instead of an abrupt screen jump, triggering a 380ms 3D tumbler wheel spin and a brief
+  // ~570ms hold gives the student unmistakable, delightful visual feedback that their
+  // credential has been verified before smoothly gliding to the profile setup screen.
   const handleVerifyCode = () => {
+    if (isSuccess) return;
+
     const result = checkClubCode(rawCode);
     if (!result.valid) {
       setError(result.error);
       return;
     }
 
-    // Code is valid and unused — initiate in-pager setup and close modal
-    const source = claimModalSource ?? 'profile';
-    handleClose();
-    startClaimSetup(rawCode, source);
+    // Dismiss virtual keyboard so the card layout stays centered and unobstructed
+    Keyboard.dismiss();
+    setError(null);
+    setIsSuccess(true);
+
+    // Run the 380ms wheel rotation and color fade
+    successProgress.value = withTiming(1, {
+      duration: 380,
+      easing: Easing.bezier(0.25, 1, 0.5, 1),
+    });
+
+    // Hold the "Success!" state for ~570ms (total elapsed ~950ms) before transitioning
+    transitionTimerRef.current = setTimeout(() => {
+      const source = claimModalSource ?? 'profile';
+      closeClaimModal();
+      startClaimSetup(rawCode, source);
+
+      // Defer state reset by 400ms so the green outline, green button fill,
+      // and "Success!" label remain stable and visible throughout the entire fade-out!
+      resetTimerRef.current = setTimeout(() => {
+        setIsSuccess(false);
+        successProgress.value = 0;
+        setRawCode('');
+        setError(null);
+      }, 400);
+    }, 950);
   };
 
   return (
     <>
-      <Modal
+      <ModalDialog
         visible={isClaimModalOpen && !showDismissNotice}
-        animationType="fade"
-        transparent
-        onRequestClose={handleClose}
+        onClose={handleClose}
+        onRequestClose={isSuccess ? () => {} : handleClose}
+        dismissOnBackdropPress={!isSuccess}
       >
-        <View style={styles.backdrop}>
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={handleClose}
-            accessibilityRole="button"
-            accessibilityLabel="Dismiss dialog"
-          />
-          <View style={[styles.modalCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-          {/* Header */}
-          <View style={styles.modalHeader}>
-            <View style={styles.headerTitleRow}>
-              <Icon sf="key.fill" md="key" size={20} color={Brand.gold} />
-              <ThemedText type="headline" style={styles.headerTitle}>
-                Claim Club Leadership
-              </ThemedText>
-            </View>
-            <Pressable
-              onPress={handleClose}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-              style={styles.closeButton}
-            >
-              <Icon sf="xmark" md="close" size={18} color={theme.textMuted} />
-            </Pressable>
-          </View>
+        {/* Header */}
+        <ModalHeader
+          title="Claim Club Leadership"
+          icon={{ sf: 'key.fill', md: 'key', color: Brand.gold }}
+          onClose={isSuccess ? undefined : handleClose}
+        />
 
-          {/* Body — code entry only */}
-          <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        {/* Body — code entry only */}
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
             <View style={styles.stepContainer}>
               <ThemedText type="default" themeColor="textMuted" style={styles.stepSubtitle}>
                 Enter the 10-character code issued to your club by Student Life to link your account.
               </ThemedText>
 
               <View style={styles.inputContainer}>
-                <ThemedText type="caption" themeColor="textMuted" style={styles.inputLabel}>
-                  LEADER CLAIM CODE (0-9, A-Z)
-                </ThemedText>
-                <View
+                <FieldLabel label="LEADER CLAIM CODE (0-9, A-Z)" />
+                <Animated.View
                   style={[
                     styles.codeMaskedBox,
                     {
-                      borderColor: error
-                        ? Brand.brightRed
-                        : isCodeFocused
-                        ? Brand.gold
-                        : theme.border,
                       backgroundColor: theme.background,
                     },
+                    animatedCodeBoxStyle,
                   ]}
                 >
                   <TextInput
@@ -252,7 +346,7 @@ export function ClaimClubModal() {
                           {codeSegments.part1}
                         </ThemedText>
                         {codeSegments.showHyphen1 && (
-                          <ThemedText style={[styles.codeSeparatorText, { color: theme.text }]}>
+                          <ThemedText style={[styles.codeCharText, { color: theme.text }]}>
                             -
                           </ThemedText>
                         )}
@@ -260,7 +354,7 @@ export function ClaimClubModal() {
                           {codeSegments.part2}
                         </ThemedText>
                         {codeSegments.showHyphen2 && (
-                          <ThemedText style={[styles.codeSeparatorText, { color: theme.text }]}>
+                          <ThemedText style={[styles.codeCharText, { color: theme.text }]}>
                             -
                           </ThemedText>
                         )}
@@ -277,7 +371,7 @@ export function ClaimClubModal() {
                       </View>
                     )}
                   </View>
-                </View>
+                </Animated.View>
                 {error ? (
                   <ThemedText type="caption" style={styles.errorText}>
                     {error}
@@ -300,13 +394,60 @@ export function ClaimClubModal() {
               </Pressable>
 
               <View style={styles.actionButtonGroup}>
-                <Button
-                  label="Verify Code"
-                  variant="primary"
-                  onPress={handleVerifyCode}
-                  disabled={!isValidClubCode(rawCode)}
-                  style={styles.actionButton}
-                />
+                {/*
+                 * Animated Rotating Wheel Verification Button
+                 *
+                 * ARCHITECTURAL RATIONALE:
+                 * Replacing the static button with a 3D cylindrical tumbling wheel animation
+                 * provides instant, tactile confirmation that the entered credentials are valid.
+                 * 1. The background color smoothly fades from Calvin Maroon (theme.tint) to
+                 *    Renew Green (Brand.renewGreen).
+                 * 2. "Verify Code" rotates up-and-out on the X axis while fading out.
+                 * 3. "Success!" rotates up-and-in from below on the X axis while fading in,
+                 *    styled in high-contrast Dark Forest Slate (Brand.onRenewGreen).
+                 * 4. A brief ~570ms pause lets the student visually celebrate before the modal
+                 *    glides into the in-pager club profile customization screen.
+                 */}
+                <Animated.View
+                  style={[
+                    styles.animatedActionButton,
+                    animatedButtonStyle,
+                    (!isValidClubCode(rawCode) && !isSuccess) && styles.buttonDisabled,
+                  ]}
+                >
+                  <Pressable
+                    onPress={handleVerifyCode}
+                    disabled={!isValidClubCode(rawCode) || isSuccess}
+                    accessibilityRole="button"
+                    accessibilityLabel={isSuccess ? 'Success!' : 'Verify Code'}
+                    style={({ pressed }) => [
+                      styles.actionButtonPressable,
+                      pressed && !isSuccess && { opacity: 0.8 },
+                    ]}
+                  >
+                    <View style={styles.wheelTrack}>
+                      {/* "Verify Code" label — tumbling up and out */}
+                      <Animated.View style={[styles.wheelLabelSlot, animatedVerifyTextStyle]}>
+                        <ThemedText style={[styles.verifyButtonText, { color: theme.onTint }]}>
+                          Verify Code
+                        </ThemedText>
+                      </Animated.View>
+
+                      {/* "Success!" label — tumbling up and in from below */}
+                      <Animated.View
+                        style={[
+                          styles.wheelLabelSlot,
+                          styles.wheelLabelAbsolute,
+                          animatedSuccessTextStyle,
+                        ]}
+                      >
+                        <ThemedText style={styles.successButtonText}>
+                          Success!
+                        </ThemedText>
+                      </Animated.View>
+                    </View>
+                  </Pressable>
+                </Animated.View>
 
                 {claimModalSource === 'banner' && (
                   <Pressable
@@ -326,87 +467,25 @@ export function ClaimClubModal() {
               </View>
             </View>
           </ScrollView>
-        </View>
-        </View>
-      </Modal>
+      </ModalDialog>
 
-      <Modal
+      <SuccessModal
         visible={showDismissNotice}
-        animationType="fade"
-        transparent
-        onRequestClose={handleConfirmDismiss}
-      >
-        <View style={styles.backdrop}>
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={handleConfirmDismiss}
-            accessibilityRole="button"
-            accessibilityLabel="Dismiss dialog"
-          />
-          <View style={[styles.noticeCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-            <View style={styles.noticeIconCircle}>
-              <Icon sf="bell.slash.fill" md="notifications_off" size={24} color={Brand.gold} />
-            </View>
-            <ThemedText type="headline" style={styles.noticeTitle}>
-              We'll get rid of that for you!
-            </ThemedText>
-            <ThemedText type="default" themeColor="textMuted" style={styles.noticeMessage}>
-              If you want to claim a club in the future, click on your profile picture in the top right of the Knightly home page.
-            </ThemedText>
-            <Button
-              label="Got it"
-              variant="primary"
-              onPress={handleConfirmDismiss}
-              style={{ width: '100%', marginTop: Spacing.two }}
-            />
-          </View>
-        </View>
-      </Modal>
+        icon={{ sf: 'bell.slash.fill', md: 'notifications_off' }}
+        accentColor={Brand.gold}
+        title="We'll get rid of that for you!"
+        message="If you want to claim a club in the future, click on your profile picture in the top right of the Knightly home page."
+        primaryButton={{
+          label: 'Got it',
+          onPress: handleConfirmDismiss,
+        }}
+        onClose={handleConfirmDismiss}
+      />
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.three,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 480,
-    maxHeight: '90%',
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.three + 4,
-    paddingVertical: Spacing.two + 4,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  headerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  closeButton: {
-    padding: 4,
-  },
   scrollContent: {
     paddingHorizontal: Spacing.three + 4,
     paddingTop: Spacing.three + 4,
@@ -421,14 +500,6 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     gap: 6,
-  },
-  inputGroup: {
-    gap: 6,
-  },
-  inputLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.6,
   },
   codeMaskedBox: {
     height: 52,
@@ -494,35 +565,8 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.mono,
     letterSpacing: 2,
   },
-  codeSeparatorText: {
-    fontSize: 20,
-    lineHeight: 26,
-    fontWeight: '700',
-    fontFamily: Fonts.mono,
-    letterSpacing: 2,
-  },
   codeTrailingCursor: {
     marginLeft: 4,
-  },
-  singleInput: {
-    borderWidth: 1,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.two + 4,
-    paddingVertical: Spacing.two,
-    fontSize: 15,
-    outlineWidth: 0,
-    outlineColor: 'transparent',
-  },
-  multilineInput: {
-    borderWidth: 1,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.two + 4,
-    paddingVertical: Spacing.two,
-    fontSize: 15,
-    minHeight: 70,
-    textAlignVertical: 'top',
-    outlineWidth: 0,
-    outlineColor: 'transparent',
   },
   errorText: {
     color: Brand.brightRed,
@@ -539,52 +583,54 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(243, 195, 0, 0.08)',
     alignSelf: 'center',
   },
-  clubBanner: {
-    padding: Spacing.two + 2,
-    borderRadius: Radius.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    gap: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  claimedClubName: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
   actionButtonGroup: {
     width: '100%',
     alignItems: 'center',
     gap: 2,
     marginTop: Spacing.one,
   },
-  actionButton: {
+  animatedActionButton: {
     width: '100%',
+    borderRadius: Radius.md,
     marginTop: Spacing.one,
+    overflow: 'hidden',
   },
-  successContainer: {
-    alignItems: 'center',
-    paddingVertical: Spacing.three,
-    textAlign: 'center',
-  },
-  successIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#10B981',
+  actionButtonPressable: {
+    width: '100%',
+    paddingVertical: Spacing.two + 2,
+    paddingHorizontal: Spacing.three,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Spacing.two,
+    minHeight: 44,
   },
-  successHeadline: {
-    fontSize: 22,
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  wheelTrack: {
+    height: 24,
+    width: '100%',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  wheelLabelSlot: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  wheelLabelAbsolute: {
+    position: 'absolute',
+  },
+  verifyButtonText: {
+    fontSize: 15,
     fontWeight: '700',
     textAlign: 'center',
   },
-  successBody: {
-    fontSize: 14,
-    lineHeight: 20,
+  successButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
     textAlign: 'center',
-    maxWidth: 340,
+    color: Brand.onRenewGreen,
   },
   stopShowingButton: {
     alignSelf: 'center',
@@ -599,39 +645,5 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.2,
     textAlign: 'center',
-  },
-  noticeCard: {
-    width: '100%',
-    maxWidth: 380,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    padding: Spacing.three + 4,
-    alignItems: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 10,
-  },
-  noticeIconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: 'rgba(243, 195, 0, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.two,
-  },
-  noticeTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: Spacing.one,
-  },
-  noticeMessage: {
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: 'center',
-    marginBottom: Spacing.two,
   },
 });

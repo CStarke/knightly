@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View } from 'react-native';
@@ -10,8 +11,8 @@ import { AuthProvider, useAuth } from '@/context/auth-context';
 import { ClubFollowProvider } from '@/context/club-follow-context';
 import { ClubLeadershipProvider } from '@/context/club-leadership-context';
 import { FeedProvider } from '@/context/feed-context';
-import { ImageCropperProvider } from '@/context/image-cropper-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { setupUniversalWebSmoothFocus } from '@/utils/smooth-input-focus';
 
 const lightTheme = {
   ...DefaultTheme,
@@ -41,6 +42,10 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
+  useEffect(() => {
+    return setupUniversalWebSmoothFocus();
+  }, []);
+
   return (
     // Required for the tab fling gesture to reach the handlers on Android.
     <GestureHandlerRootView style={StyleSheet.absoluteFill}>
@@ -49,9 +54,7 @@ export default function RootLayout() {
           <ClubFollowProvider>
             <ClubLeadershipProvider>
               <FeedProvider>
-                <ImageCropperProvider>
-                  <RootNavigator isDark={isDark} />
-                </ImageCropperProvider>
+                <RootNavigator isDark={isDark} />
               </FeedProvider>
             </ClubLeadershipProvider>
           </ClubFollowProvider>

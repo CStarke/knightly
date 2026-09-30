@@ -22,6 +22,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { ChipRow } from '@/components/ui/chip';
+import { FollowButton } from '@/components/ui/follow-button';
 import { Icon } from '@/components/ui/icon';
 import { Screen } from '@/components/ui/screen';
 import { SearchField } from '@/components/ui/search-field';
@@ -49,22 +50,15 @@ export function ClubsDirectoryView() {
     const needle = query.trim().toLowerCase();
 
     return CALVIN_CLUBS.filter((club) => {
-      // 1. Category filter
-      if (category !== 'All' && club.category !== category) {
-        return false;
-      }
-
-      // 2. Search query filter
-      if (needle.length > 0) {
-        const matchesName = club.name.toLowerCase().includes(needle);
-        const matchesTagline = club.tagline.toLowerCase().includes(needle);
-        const matchesDesc = club.description.toLowerCase().includes(needle);
-        const matchesCategory = club.category.toLowerCase().includes(needle);
-        const matchesLocation = (club.location ?? '').toLowerCase().includes(needle);
-        return matchesName || matchesTagline || matchesDesc || matchesCategory || matchesLocation;
-      }
-
-      return true;
+      if (category !== 'All' && club.category !== category) return false;
+      if (!needle) return true;
+      return (
+        club.name.toLowerCase().includes(needle) ||
+        club.tagline.toLowerCase().includes(needle) ||
+        club.description.toLowerCase().includes(needle) ||
+        club.category.toLowerCase().includes(needle) ||
+        (club.location ?? '').toLowerCase().includes(needle)
+      );
     });
   }, [query, category]);
 
@@ -248,34 +242,15 @@ function ClubCard({
           <Badge label={club.category} tone="gold" />
 
           {/* Follow / Following Toggle Button */}
-          <Pressable
+          <FollowButton
+            following={following}
             onPress={(e) => {
-              e.stopPropagation();
+              e?.stopPropagation();
               onToggleFollow();
             }}
-            accessibilityRole="button"
-            accessibilityLabel={following ? `Unfollow ${club.name}` : `Follow ${club.name}`}
-            style={({ pressed }) => [
-              styles.followButton,
-              following ? styles.followingButton : styles.unfollowedButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Icon
-              sf={following ? 'checkmark' : 'plus'}
-              md={following ? 'check' : 'add'}
-              size={13}
-              color={following ? Brand.gold : '#0B0C0E'}
-            />
-            <ThemedText
-              style={[
-                styles.followButtonText,
-                following ? styles.followingButtonText : styles.unfollowedButtonText,
-              ]}
-            >
-              {following ? 'Following' : 'Follow'}
-            </ThemedText>
-          </Pressable>
+            clubName={club.name}
+            variant="compact"
+          />
         </View>
       </Pressable>
     </Card>
@@ -386,32 +361,6 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.two,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  followButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: Radius.pill,
-  },
-  unfollowedButton: {
-    backgroundColor: Brand.gold,
-  },
-  followingButton: {
-    backgroundColor: 'rgba(217, 155, 38, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(217, 155, 38, 0.4)',
-  },
-  followButtonText: {
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  unfollowedButtonText: {
-    color: '#0B0C0E',
-  },
-  followingButtonText: {
-    color: Brand.gold,
   },
   emptyCard: {
     alignItems: 'center',

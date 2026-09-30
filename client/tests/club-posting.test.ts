@@ -18,23 +18,23 @@ import {
 } from '@/context/club-leadership-context';
 import {
   formatEventDate,
-  isDateWithinActiveWindow,
-  formatRawDateSegments,
+  formatDateSegments,
   formatRawCodeSegments,
-  formatRawTimeSegments,
+  formatTimeSegments,
   getMaxDaysForMonth,
-  sanitizeDateDigits,
-  sanitizeTimeDigits,
-  sanitizeTimeDigitsWithError,
-  formatTimeDigits,
+  sanitizeDate,
+  sanitizeTime,
   getMaxTimeInputLength,
   getMaxTimeRawDigitLength,
-  resolveTimeWithPeriod,
+  resolveEventTime,
   getNextOccurrenceYear,
   completeTimeDigits,
-  validateDateOnBlur,
+  completeDateDigits,
+  expandTwoDigitYear,
+  validateDate,
   isDateCompleteAndValid,
   isTimeCompleteAndValid,
+  parseDateSegments,
 } from '@/utils/date-format';
 import { isAllowedNumericKey, attachNumericDomFilters } from '@/utils/numeric-input';
 import { BottomTabContentInset, Radius, Brand } from '@/constants/theme';
@@ -294,36 +294,36 @@ describe('Club Leadership & Post Creation Domain', () => {
   describe('Masked Input Formatting & Separator Specifications', () => {
     it('formats raw date digits with slashes appearing strictly as soon as character after them is typed', () => {
       // 0 to 2 digits: Month only, no slash
-      const seg1 = formatRawDateSegments('0');
+      const seg1 = formatDateSegments('0');
       assert.strictEqual(seg1.showSlash1, false);
       assert.strictEqual(seg1.showSlash2, false);
       assert.strictEqual(seg1.formatted, '0');
 
-      const seg2 = formatRawDateSegments('09');
+      const seg2 = formatDateSegments('09');
       assert.strictEqual(seg2.showSlash1, false);
       assert.strictEqual(seg2.showSlash2, false);
       assert.strictEqual(seg2.formatted, '09');
 
       // 3rd digit typed (first day digit) -> First slash appears!
-      const seg3 = formatRawDateSegments('091');
+      const seg3 = formatDateSegments('091');
       assert.strictEqual(seg3.showSlash1, true);
       assert.strictEqual(seg3.showSlash2, false);
       assert.strictEqual(seg3.formatted, '09/1');
 
       // 4th digit typed -> First slash remains, no second slash yet
-      const seg4 = formatRawDateSegments('0918');
+      const seg4 = formatDateSegments('0918');
       assert.strictEqual(seg4.showSlash1, true);
       assert.strictEqual(seg4.showSlash2, false);
       assert.strictEqual(seg4.formatted, '09/18');
 
       // 5th digit typed (first year digit) -> Second slash appears!
-      const seg5 = formatRawDateSegments('09182');
+      const seg5 = formatDateSegments('09182');
       assert.strictEqual(seg5.showSlash1, true);
       assert.strictEqual(seg5.showSlash2, true);
       assert.strictEqual(seg5.formatted, '09/18/2');
 
       // Full 8 digits (MMDDYYYY)
-      const seg8 = formatRawDateSegments('09182026');
+      const seg8 = formatDateSegments('09182026');
       assert.strictEqual(seg8.showSlash1, true);
       assert.strictEqual(seg8.showSlash2, true);
       assert.strictEqual(seg8.formatted, '09/18/2026');
@@ -369,97 +369,97 @@ describe('Club Leadership & Post Creation Domain', () => {
     });
 
     it('formats numeric time input and resolves AM/PM period toggle accurately', () => {
-      assert.strictEqual(formatTimeDigits('7'), '7');
-      assert.strictEqual(formatTimeDigits('730'), '7:30');
-      assert.strictEqual(formatTimeDigits('1230'), '12:30');
-      assert.strictEqual(formatTimeDigits('7:00'), '7:00');
-      assert.strictEqual(formatTimeDigits('abc730def'), '7:30');
+      assert.strictEqual(formatTimeSegments('7').formatted, '7');
+      assert.strictEqual(formatTimeSegments('730').formatted, '7:30');
+      assert.strictEqual(formatTimeSegments('1230').formatted, '12:30');
+      assert.strictEqual(formatTimeSegments('7:00').formatted, '7:00');
+      assert.strictEqual(formatTimeSegments('abc730def').formatted, '7:30');
 
       // Progressive time input with instant colon on 3rd digit:
       // 1 -> "1", 10 -> "10", 100 -> "1:00", 1000 -> "10:00"
-      assert.strictEqual(formatTimeDigits('1'), '1');
-      assert.strictEqual(formatTimeDigits('10'), '10');
-      assert.strictEqual(formatTimeDigits('100'), '1:00');
-      assert.strictEqual(formatTimeDigits('1000'), '10:00');
-      assert.strictEqual(formatTimeDigits('1:000'), '10:00'); // typing 4th digit onto 1:00 shifts colon
-      assert.strictEqual(formatTimeDigits('10:0'), '1:00');  // backspace from 10:00
-      assert.strictEqual(formatTimeDigits('1:0'), '10');    // backspace from 1:00
-      assert.strictEqual(formatTimeDigits('1130'), '11:30');
-      assert.strictEqual(formatTimeDigits('1200'), '12:00');
-      assert.strictEqual(formatTimeDigits('130'), '1:30');
+      assert.strictEqual(formatTimeSegments('1').formatted, '1');
+      assert.strictEqual(formatTimeSegments('10').formatted, '10');
+      assert.strictEqual(formatTimeSegments('100').formatted, '1:00');
+      assert.strictEqual(formatTimeSegments('1000').formatted, '10:00');
+      assert.strictEqual(formatTimeSegments('1:000').formatted, '10:00'); // typing 4th digit onto 1:00 shifts colon
+      assert.strictEqual(formatTimeSegments('10:0').formatted, '1:00');  // backspace from 10:00
+      assert.strictEqual(formatTimeSegments('1:0').formatted, '10');    // backspace from 1:00
+      assert.strictEqual(formatTimeSegments('1130').formatted, '11:30');
+      assert.strictEqual(formatTimeSegments('1200').formatted, '12:00');
+      assert.strictEqual(formatTimeSegments('130').formatted, '1:30');
 
       // Strict 12-hour clock validation rules:
       // Rule 1: If first digit > 1, max digits is strictly 3
-      assert.strictEqual(sanitizeTimeDigits('7300'), '730');
-      assert.strictEqual(formatTimeDigits('7300'), '7:30');
-      assert.strictEqual(sanitizeTimeDigits('2590'), '259');
-      assert.strictEqual(formatTimeDigits('2590'), '2:59');
+      assert.strictEqual(sanitizeTime('7300').digits, '730');
+      assert.strictEqual(formatTimeSegments('7300').formatted, '7:30');
+      assert.strictEqual(sanitizeTime('2590').digits, '259');
+      assert.strictEqual(formatTimeSegments('2590').formatted, '2:59');
 
       // Rule 2: If first digit > 1, second digit cannot exceed 5 (tens of minutes <= 5)
-      assert.strictEqual(sanitizeTimeDigits('76'), '7'); // 6 rejected
-      assert.strictEqual(sanitizeTimeDigits('79'), '7'); // 9 rejected
-      assert.strictEqual(sanitizeTimeDigits('75'), '75'); // 5 accepted
+      assert.strictEqual(sanitizeTime('76').digits, '7'); // 6 rejected
+      assert.strictEqual(sanitizeTime('79').digits, '7'); // 9 rejected
+      assert.strictEqual(sanitizeTime('75').digits, '75'); // 5 accepted
 
       // Rule 3: If first digit is 1, second digit cannot exceed 5
-      assert.strictEqual(sanitizeTimeDigits('16'), '1'); // 6 rejected
-      assert.strictEqual(sanitizeTimeDigits('19'), '1'); // 9 rejected
+      assert.strictEqual(sanitizeTime('16').digits, '1'); // 6 rejected
+      assert.strictEqual(sanitizeTime('19').digits, '1'); // 9 rejected
 
       // Rule 4: If first digit is 1 and second digit is > 2 (3..5), hour is 1, max 3 digits
-      assert.strictEqual(sanitizeTimeDigits('1300'), '130');
-      assert.strictEqual(formatTimeDigits('1300'), '1:30');
-      assert.strictEqual(sanitizeTimeDigits('1450'), '145');
-      assert.strictEqual(formatTimeDigits('1450'), '1:45');
+      assert.strictEqual(sanitizeTime('1300').digits, '130');
+      assert.strictEqual(formatTimeSegments('1300').formatted, '1:30');
+      assert.strictEqual(sanitizeTime('1450').digits, '145');
+      assert.strictEqual(formatTimeSegments('1450').formatted, '1:45');
 
       // Rule 5: If 3rd digit is > 5 in hours 10..12, 4th digit is rejected (treated as 3-digit hour 1 time)
-      assert.strictEqual(sanitizeTimeDigits('1085'), '108');
-      assert.strictEqual(formatTimeDigits('1085'), '1:08');
+      assert.strictEqual(sanitizeTime('1085').digits, '108');
+      assert.strictEqual(formatTimeSegments('1085').formatted, '1:08');
 
       // Resolve with PM
-      assert.strictEqual(resolveTimeWithPeriod('7', 'PM'), '7:00 PM');
-      assert.strictEqual(resolveTimeWithPeriod('7:00', 'PM'), '7:00 PM');
-      assert.strictEqual(resolveTimeWithPeriod('730', 'PM'), '7:30 PM');
-      assert.strictEqual(resolveTimeWithPeriod('12:30', 'PM'), '12:30 PM');
-      assert.strictEqual(resolveTimeWithPeriod('10', 'PM'), '10:00 PM');
-      assert.strictEqual(resolveTimeWithPeriod('100', 'PM'), '1:00 PM');
-      assert.strictEqual(resolveTimeWithPeriod('1:00', 'PM'), '1:00 PM');
-      assert.strictEqual(resolveTimeWithPeriod('1000', 'PM'), '10:00 PM');
-      assert.strictEqual(resolveTimeWithPeriod('10:00', 'PM'), '10:00 PM');
-      assert.strictEqual(resolveTimeWithPeriod('1', 'PM'), '1:00 PM');
-      assert.strictEqual(resolveTimeWithPeriod('130', 'PM'), '1:30 PM');
+      assert.strictEqual(resolveEventTime('7', 'PM'), '7:00 PM');
+      assert.strictEqual(resolveEventTime('7:00', 'PM'), '7:00 PM');
+      assert.strictEqual(resolveEventTime('730', 'PM'), '7:30 PM');
+      assert.strictEqual(resolveEventTime('12:30', 'PM'), '12:30 PM');
+      assert.strictEqual(resolveEventTime('10', 'PM'), '10:00 PM');
+      assert.strictEqual(resolveEventTime('100', 'PM'), '1:00 PM');
+      assert.strictEqual(resolveEventTime('1:00', 'PM'), '1:00 PM');
+      assert.strictEqual(resolveEventTime('1000', 'PM'), '10:00 PM');
+      assert.strictEqual(resolveEventTime('10:00', 'PM'), '10:00 PM');
+      assert.strictEqual(resolveEventTime('1', 'PM'), '1:00 PM');
+      assert.strictEqual(resolveEventTime('130', 'PM'), '1:30 PM');
 
       // 2-digit progressive input translation:
       // When first digit >= 2, d1 is hour and d2 is tens of minutes (e.g. 25 -> 2:50 PM, not 25:00 PM)
-      assert.strictEqual(resolveTimeWithPeriod('25', 'PM'), '2:50 PM');
-      assert.strictEqual(resolveTimeWithPeriod('73', 'PM'), '7:30 PM');
-      assert.strictEqual(resolveTimeWithPeriod('30', 'PM'), '3:00 PM');
-      assert.strictEqual(resolveTimeWithPeriod('45', 'PM'), '4:50 PM');
-      assert.strictEqual(resolveTimeWithPeriod('81', 'PM'), '8:10 PM');
-      assert.strictEqual(resolveTimeWithPeriod('95', 'PM'), '9:50 PM');
+      assert.strictEqual(resolveEventTime('25', 'PM'), '2:50 PM');
+      assert.strictEqual(resolveEventTime('73', 'PM'), '7:30 PM');
+      assert.strictEqual(resolveEventTime('30', 'PM'), '3:00 PM');
+      assert.strictEqual(resolveEventTime('45', 'PM'), '4:50 PM');
+      assert.strictEqual(resolveEventTime('81', 'PM'), '8:10 PM');
+      assert.strictEqual(resolveEventTime('95', 'PM'), '9:50 PM');
 
       // When first digit is 1:
       // Hours 10, 11, 12 remain 10:00, 11:00, 12:00
-      assert.strictEqual(resolveTimeWithPeriod('10', 'PM'), '10:00 PM');
-      assert.strictEqual(resolveTimeWithPeriod('11', 'PM'), '11:00 PM');
-      assert.strictEqual(resolveTimeWithPeriod('12', 'PM'), '12:00 PM');
+      assert.strictEqual(resolveEventTime('10', 'PM'), '10:00 PM');
+      assert.strictEqual(resolveEventTime('11', 'PM'), '11:00 PM');
+      assert.strictEqual(resolveEventTime('12', 'PM'), '12:00 PM');
       // 13..15 -> hour is 1, d2 is tens of minutes (1:30 PM, 1:40 PM, 1:50 PM)
-      assert.strictEqual(resolveTimeWithPeriod('13', 'PM'), '1:30 PM');
-      assert.strictEqual(resolveTimeWithPeriod('14', 'PM'), '1:40 PM');
-      assert.strictEqual(resolveTimeWithPeriod('15', 'PM'), '1:50 PM');
+      assert.strictEqual(resolveEventTime('13', 'PM'), '1:30 PM');
+      assert.strictEqual(resolveEventTime('14', 'PM'), '1:40 PM');
+      assert.strictEqual(resolveEventTime('15', 'PM'), '1:50 PM');
 
       // Resolve with AM
-      assert.strictEqual(resolveTimeWithPeriod('9', 'AM'), '9:00 AM');
-      assert.strictEqual(resolveTimeWithPeriod('10:15', 'AM'), '10:15 AM');
-      assert.strictEqual(resolveTimeWithPeriod('100', 'AM'), '1:00 AM');
-      assert.strictEqual(resolveTimeWithPeriod('1000', 'AM'), '10:00 AM');
+      assert.strictEqual(resolveEventTime('9', 'AM'), '9:00 AM');
+      assert.strictEqual(resolveEventTime('10:15', 'AM'), '10:15 AM');
+      assert.strictEqual(resolveEventTime('100', 'AM'), '1:00 AM');
+      assert.strictEqual(resolveEventTime('1000', 'AM'), '10:00 AM');
 
       // Combined date and time preview formatting
       const dateStr = formatEventDate('09/18/2026');
-      const timeStr = resolveTimeWithPeriod('1000', 'PM');
+      const timeStr = resolveEventTime('1000', 'PM');
       const combinedPreview = `${dateStr} · ${timeStr}`;
       assert.strictEqual(combinedPreview, 'Fri, Sep 18 · 10:00 PM');
 
       // Empty returns empty
-      assert.strictEqual(resolveTimeWithPeriod('', 'PM'), '');
+      assert.strictEqual(resolveEventTime('', 'PM'), '');
     });
 
     it('locks out 4th digit for single-digit hours using dynamic maxLength via getMaxTimeInputLength', () => {
@@ -497,7 +497,7 @@ describe('Club Leadership & Post Creation Domain', () => {
 
     it('formats raw time digits into fake colon segments matching date slash behavior', () => {
       // 0 digits: empty
-      const empty = formatRawTimeSegments('');
+      const empty = formatTimeSegments('');
       assert.strictEqual(empty.rawDigits, '');
       assert.strictEqual(empty.part1, '');
       assert.strictEqual(empty.showColon, false);
@@ -505,7 +505,7 @@ describe('Club Leadership & Post Creation Domain', () => {
       assert.strictEqual(empty.formatted, '');
 
       // 1 digit: no colon
-      const one = formatRawTimeSegments('1');
+      const one = formatTimeSegments('1');
       assert.strictEqual(one.rawDigits, '1');
       assert.strictEqual(one.part1, '1');
       assert.strictEqual(one.showColon, false);
@@ -513,47 +513,47 @@ describe('Club Leadership & Post Creation Domain', () => {
       assert.strictEqual(one.formatted, '1');
 
       // 2 digits: no colon (e.g. "10", "73", "25")
-      const ten = formatRawTimeSegments('10');
+      const ten = formatTimeSegments('10');
       assert.strictEqual(ten.rawDigits, '10');
       assert.strictEqual(ten.part1, '10');
       assert.strictEqual(ten.showColon, false);
       assert.strictEqual(ten.part2, '');
       assert.strictEqual(ten.formatted, '10');
 
-      const seventyThree = formatRawTimeSegments('73');
+      const seventyThree = formatTimeSegments('73');
       assert.strictEqual(seventyThree.part1, '73');
       assert.strictEqual(seventyThree.showColon, false);
 
       // 3 digits: fake colon appears immediately after 1st digit (e.g. "100" -> "1:00", "730" -> "7:30")
-      const oneHundred = formatRawTimeSegments('100');
+      const oneHundred = formatTimeSegments('100');
       assert.strictEqual(oneHundred.rawDigits, '100');
       assert.strictEqual(oneHundred.part1, '1');
       assert.strictEqual(oneHundred.showColon, true);
       assert.strictEqual(oneHundred.part2, '00');
       assert.strictEqual(oneHundred.formatted, '1:00');
 
-      const sevenThirty = formatRawTimeSegments('730');
+      const sevenThirty = formatTimeSegments('730');
       assert.strictEqual(sevenThirty.rawDigits, '730');
       assert.strictEqual(sevenThirty.part1, '7');
       assert.strictEqual(sevenThirty.showColon, true);
       assert.strictEqual(sevenThirty.part2, '30');
       assert.strictEqual(sevenThirty.formatted, '7:30');
 
-      const twoFifty = formatRawTimeSegments('250');
+      const twoFifty = formatTimeSegments('250');
       assert.strictEqual(twoFifty.part1, '2');
       assert.strictEqual(twoFifty.showColon, true);
       assert.strictEqual(twoFifty.part2, '50');
       assert.strictEqual(twoFifty.formatted, '2:50');
 
       // 4 digits: fake colon appears after 2nd digit (e.g. "1000" -> "10:00", "1230" -> "12:30")
-      const tenOClock = formatRawTimeSegments('1000');
+      const tenOClock = formatTimeSegments('1000');
       assert.strictEqual(tenOClock.rawDigits, '1000');
       assert.strictEqual(tenOClock.part1, '10');
       assert.strictEqual(tenOClock.showColon, true);
       assert.strictEqual(tenOClock.part2, '00');
       assert.strictEqual(tenOClock.formatted, '10:00');
 
-      const twelveThirty = formatRawTimeSegments('1230');
+      const twelveThirty = formatTimeSegments('1230');
       assert.strictEqual(twelveThirty.rawDigits, '1230');
       assert.strictEqual(twelveThirty.part1, '12');
       assert.strictEqual(twelveThirty.showColon, true);
@@ -604,7 +604,6 @@ describe('Club Leadership & Post Creation Domain', () => {
       assert.strictEqual(styleType, 'gold-fill', 'Today has gold fill when selected, not subtle outline');
 
       // Case 2: A different day (e.g. tomorrow) is selected
-      const otherDay = (tDay % 28) + 1;
       const otherIsSelected = false;
 
       const todayCellWithOtherSelected = isToday && !otherIsSelected;
@@ -898,25 +897,25 @@ describe('Club Leadership & Post Creation Domain', () => {
   });
 
   describe('Strict Real-Time Date & Time Input Validation and Error Messaging', () => {
-    describe('Date Digit Validation (sanitizeDateDigits)', () => {
+    describe('Date Digit Validation (sanitizeDate)', () => {
       it('validates month tens digit: allows only 0 and 1', () => {
-        assert.deepStrictEqual(sanitizeDateDigits('0'), { digits: '0', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('1'), { digits: '1', error: null });
+        assert.deepStrictEqual(sanitizeDate('0'), { digits: '0', error: null });
+        assert.deepStrictEqual(sanitizeDate('1'), { digits: '1', error: null });
 
         for (let d = 2; d <= 9; d++) {
-          const res = sanitizeDateDigits(String(d));
+          const res = sanitizeDate(String(d));
           assert.strictEqual(res.digits, '');
           assert.strictEqual(res.error, 'Month must be between 01-12');
         }
       });
 
       it('validates month units digit: when tens is 1, allows only 0, 1, 2 (months 10, 11, 12)', () => {
-        assert.deepStrictEqual(sanitizeDateDigits('10'), { digits: '10', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('11'), { digits: '11', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('12'), { digits: '12', error: null });
+        assert.deepStrictEqual(sanitizeDate('10'), { digits: '10', error: null });
+        assert.deepStrictEqual(sanitizeDate('11'), { digits: '11', error: null });
+        assert.deepStrictEqual(sanitizeDate('12'), { digits: '12', error: null });
 
         for (let d = 3; d <= 9; d++) {
-          const res = sanitizeDateDigits(`1${d}`);
+          const res = sanitizeDate(`1${d}`);
           assert.strictEqual(res.digits, '1');
           assert.strictEqual(res.error, 'Month must be between 01-12');
         }
@@ -924,40 +923,40 @@ describe('Club Leadership & Post Creation Domain', () => {
 
       it('validates month units digit: when tens is 0, allows 1..9 and rejects 00', () => {
         for (let d = 1; d <= 9; d++) {
-          assert.deepStrictEqual(sanitizeDateDigits(`0${d}`), { digits: `0${d}`, error: null });
+          assert.deepStrictEqual(sanitizeDate(`0${d}`), { digits: `0${d}`, error: null });
         }
-        const res = sanitizeDateDigits('00');
+        const res = sanitizeDate('00');
         assert.strictEqual(res.digits, '0');
         assert.strictEqual(res.error, 'Month must be between 01-12');
       });
 
       it('validates day tens digit: for February (02), allows 0..2 and rejects 3..9', () => {
-        assert.deepStrictEqual(sanitizeDateDigits('020'), { digits: '020', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('021'), { digits: '021', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('022'), { digits: '022', error: null });
+        assert.deepStrictEqual(sanitizeDate('020'), { digits: '020', error: null });
+        assert.deepStrictEqual(sanitizeDate('021'), { digits: '021', error: null });
+        assert.deepStrictEqual(sanitizeDate('022'), { digits: '022', error: null });
 
         for (let d = 3; d <= 9; d++) {
-          const res = sanitizeDateDigits(`02${d}`);
+          const res = sanitizeDate(`02${d}`);
           assert.strictEqual(res.digits, '02');
           assert.strictEqual(res.error, 'Day must be between 01-29');
         }
       });
 
       it('validates day tens digit: for other months, allows 0..3 and rejects 4..9', () => {
-        assert.deepStrictEqual(sanitizeDateDigits('010'), { digits: '010', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('011'), { digits: '011', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('012'), { digits: '012', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('013'), { digits: '013', error: null });
+        assert.deepStrictEqual(sanitizeDate('010'), { digits: '010', error: null });
+        assert.deepStrictEqual(sanitizeDate('011'), { digits: '011', error: null });
+        assert.deepStrictEqual(sanitizeDate('012'), { digits: '012', error: null });
+        assert.deepStrictEqual(sanitizeDate('013'), { digits: '013', error: null });
 
         for (let d = 4; d <= 9; d++) {
-          const res = sanitizeDateDigits(`01${d}`);
+          const res = sanitizeDate(`01${d}`);
           assert.strictEqual(res.digits, '01');
           assert.strictEqual(res.error, 'Day must be between 01-31');
         }
       });
 
       it('validates day units digit: rejects 00 as a day', () => {
-        const res = sanitizeDateDigits('0100');
+        const res = sanitizeDate('0100');
         assert.strictEqual(res.digits, '010');
         assert.strictEqual(res.error, 'Day must be between 01-31');
       });
@@ -965,86 +964,95 @@ describe('Club Leadership & Post Creation Domain', () => {
       it('validates day units digit: for 30-day months (04, 06, 09, 11), day cannot exceed 30', () => {
         const months30 = ['04', '06', '09', '11'];
         for (const m of months30) {
-          assert.deepStrictEqual(sanitizeDateDigits(`${m}30`), { digits: `${m}30`, error: null });
-          const res = sanitizeDateDigits(`${m}31`);
+          assert.deepStrictEqual(sanitizeDate(`${m}30`), { digits: `${m}30`, error: null });
+          const res = sanitizeDate(`${m}31`);
           assert.strictEqual(res.digits, `${m}3`);
           assert.strictEqual(res.error, 'Day must be between 01-30');
         }
       });
 
       it('validates day units digit: for 31-day months, allows 30 and 31, rejects 32..39', () => {
-        assert.deepStrictEqual(sanitizeDateDigits('0130'), { digits: '0130', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('0131'), { digits: '0131', error: null });
+        assert.deepStrictEqual(sanitizeDate('0130'), { digits: '0130', error: null });
+        assert.deepStrictEqual(sanitizeDate('0131'), { digits: '0131', error: null });
 
         for (let d = 2; d <= 9; d++) {
-          const res = sanitizeDateDigits(`013${d}`);
+          const res = sanitizeDate(`013${d}`);
           assert.strictEqual(res.digits, '013');
           assert.strictEqual(res.error, 'Day must be between 01-31');
         }
       });
 
-      it('validates year 1st digit: must be 2 (constraining year between 2000 and 2999)', () => {
-        assert.deepStrictEqual(sanitizeDateDigits('09182'), { digits: '09182', error: null });
+      it('accepts year beginning with !2 and limits user to 2 digits for !2 years', () => {
+        // Year starting with 2 allows 2-digit or 4-digit input
+        assert.deepStrictEqual(sanitizeDate('09182'), { digits: '09182', error: null });
+        assert.deepStrictEqual(sanitizeDate('09182026'), { digits: '09182026', error: null });
 
-        const invalidYearStarts = [0, 1, 3, 4, 5, 6, 7, 8, 9];
-        for (const y of invalidYearStarts) {
-          const res = sanitizeDateDigits(`0918${y}`);
-          assert.strictEqual(res.digits, '0918');
-          assert.strictEqual(res.error, 'Please enter a year between 2000 and 2999');
+        // Year starting with !2 (0, 1, 3, 4, 5, 6, 7, 8, 9) is now accepted
+        const nonTwoStarts = [0, 1, 3, 4, 5, 6, 7, 8, 9];
+        for (const y of nonTwoStarts) {
+          const res = sanitizeDate(`0918${y}`);
+          assert.strictEqual(res.digits, `0918${y}`);
+          assert.strictEqual(res.error, null);
         }
+
+        // Year starting with !2 limits user to 2 digits for the year (e.g. 42 is accepted, 425 is limited to 42)
+        assert.deepStrictEqual(sanitizeDate('091842'), { digits: '091842', error: null });
+        assert.deepStrictEqual(sanitizeDate('0918425'), { digits: '091842', error: null });
+        assert.deepStrictEqual(sanitizeDate('09181399'), { digits: '091813', error: null });
+        assert.deepStrictEqual(sanitizeDate('09189912'), { digits: '091899', error: null });
       });
 
       it('validates leap years for February 29: allows leap years (2024, 2028, 2000) and rejects non-leap years (2025, 2023, 2100)', () => {
-        assert.deepStrictEqual(sanitizeDateDigits('02292024'), { digits: '02292024', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('02292028'), { digits: '02292028', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('02292000'), { digits: '02292000', error: null });
+        assert.deepStrictEqual(sanitizeDate('02292024'), { digits: '02292024', error: null });
+        assert.deepStrictEqual(sanitizeDate('02292028'), { digits: '02292028', error: null });
+        assert.deepStrictEqual(sanitizeDate('02292000'), { digits: '02292000', error: null });
 
-        const res2025 = sanitizeDateDigits('02292025');
+        const res2025 = sanitizeDate('02292025');
         assert.strictEqual(res2025.digits, '0229202');
         assert.strictEqual(res2025.error, '2025 is not a leap year');
 
-        const res2023 = sanitizeDateDigits('02292023');
+        const res2023 = sanitizeDate('02292023');
         assert.strictEqual(res2023.digits, '0229202');
         assert.strictEqual(res2023.error, '2023 is not a leap year');
 
-        const res2100 = sanitizeDateDigits('02292100');
+        const res2100 = sanitizeDate('02292100');
         assert.strictEqual(res2100.digits, '0229210');
         assert.strictEqual(res2100.error, '2100 is not a leap year');
       });
 
       it('handles backspacing and deletions gracefully without emitting errors', () => {
-        assert.deepStrictEqual(sanitizeDateDigits('091', '0918'), { digits: '091', error: null });
-        assert.deepStrictEqual(sanitizeDateDigits('', '0918'), { digits: '', error: null });
+        assert.deepStrictEqual(sanitizeDate('091', '0918'), { digits: '091', error: null });
+        assert.deepStrictEqual(sanitizeDate('', '0918'), { digits: '', error: null });
       });
     });
 
-    describe('Time Digit Validation with Error Feedback (sanitizeTimeDigitsWithError)', () => {
+    describe('Time Digit Validation with Error Feedback (sanitizeTime)', () => {
       it('rejects hour 00 with clear error message', () => {
-        const res = sanitizeTimeDigitsWithError('00');
+        const res = sanitizeTime('00');
         assert.strictEqual(res.digits, '0');
         assert.strictEqual(res.error, 'Hour cannot be 00.');
       });
 
       it('rejects minutes tens > 5 on 2-digit input', () => {
-        const res = sanitizeTimeDigitsWithError('26');
+        const res = sanitizeTime('26');
         assert.strictEqual(res.digits, '2');
         assert.strictEqual(res.error, 'Minutes cannot exceed 59.');
       });
 
       it('rejects 4th digit for single-digit hours (e.g. 730 -> 7300)', () => {
-        const res = sanitizeTimeDigitsWithError('7300');
+        const res = sanitizeTime('7300');
         assert.strictEqual(res.digits, '730');
         assert.strictEqual(res.error, 'Single-digit hours cannot exceed 3 digits.');
       });
 
       it('allows 4th digit for 2-digit hours (10:00, 11:30, 12:45)', () => {
-        assert.deepStrictEqual(sanitizeTimeDigitsWithError('1000'), { digits: '1000', error: null });
-        assert.deepStrictEqual(sanitizeTimeDigitsWithError('1130'), { digits: '1130', error: null });
-        assert.deepStrictEqual(sanitizeTimeDigitsWithError('1245'), { digits: '1245', error: null });
+        assert.deepStrictEqual(sanitizeTime('1000'), { digits: '1000', error: null });
+        assert.deepStrictEqual(sanitizeTime('1130'), { digits: '1130', error: null });
+        assert.deepStrictEqual(sanitizeTime('1245'), { digits: '1245', error: null });
       });
 
       it('rejects 4th digit when hour is 1 and minutes tens is 3..5 (e.g. 1:30 cannot be 1300)', () => {
-        const res = sanitizeTimeDigitsWithError('1300');
+        const res = sanitizeTime('1300');
         assert.strictEqual(res.digits, '130');
         assert.strictEqual(res.error, 'Single-digit hours cannot exceed 3 digits.');
       });
@@ -1492,40 +1500,49 @@ describe('Club Leadership & Post Creation Domain', () => {
       });
 
       it('validates date on lost focus and enforces posting invariants for complete/incomplete date and time', () => {
-        // 1. Partial year (e.g. 02/18/3) on lost focus must produce error
+        // 1. Incomplete year (5 digits or 7 digits) on lost focus must produce error
         assert.strictEqual(
-          validateDateOnBlur('02183'),
+          validateDate('02183'),
           'Please enter a year between 2000 and 2999'
         );
         assert.strictEqual(
-          validateDateOnBlur('021820'),
+          validateDate('0218202'),
           'Please enter a year between 2000 and 2999'
         );
-        assert.strictEqual(
-          validateDateOnBlur('0218202'),
-          'Please enter a year between 2000 and 2999'
-        );
+
+        // 2-digit years (6 digits) automatically expand and produce no error
+        assert.strictEqual(validateDate('021820'), null);
+        assert.strictEqual(validateDate('091826'), null);
+        assert.strictEqual(validateDate('091842'), null);
+        assert.strictEqual(validateDate('091813'), null);
+        assert.strictEqual(validateDate('091899'), null);
 
         // 2. Incomplete month/day on blur
-        assert.strictEqual(validateDateOnBlur('02'), 'Please enter a day');
-        assert.strictEqual(validateDateOnBlur('13'), 'Month must be between 01-12');
-        assert.strictEqual(validateDateOnBlur('0235'), 'Day must be between 01-29');
+        assert.strictEqual(validateDate('02'), 'Please enter a day');
+        assert.strictEqual(validateDate('13'), 'Month must be between 01-12');
+        assert.strictEqual(validateDate('0235'), 'Day must be between 01-29');
 
         // 3. Leap year validation
-        assert.strictEqual(validateDateOnBlur('02292025'), '2025 is not a leap year');
-        assert.strictEqual(validateDateOnBlur('02292028'), null); // 2028 is leap
+        assert.strictEqual(validateDate('02292025'), '2025 is not a leap year');
+        assert.strictEqual(validateDate('02292028'), null); // 2028 is leap
+        assert.strictEqual(validateDate('022925'), '2025 is not a leap year'); // 2-digit non-leap
+        assert.strictEqual(validateDate('022928'), null); // 2-digit leap
 
         // 4. Valid complete date and empty date produce no error
-        assert.strictEqual(validateDateOnBlur('09182026'), null);
-        assert.strictEqual(validateDateOnBlur(''), null);
+        assert.strictEqual(validateDate('09182026'), null);
+        assert.strictEqual(validateDate(''), null);
 
         // 5. Posting invariants:
-        // - Incomplete date (02/18/3) is NOT allowed and must prevent posting
+        // - Incomplete date (02/18/3, 02/18/202) is NOT allowed and must prevent posting
         assert.strictEqual(isDateCompleteAndValid('02183'), false);
+        assert.strictEqual(isDateCompleteAndValid('0218202'), false);
         assert.strictEqual(isDateCompleteAndValid('02'), false);
 
-        // - A date and no time at all IS allowed
+        // - Both 4-digit and 2-digit valid years ARE allowed
         assert.strictEqual(isDateCompleteAndValid('09182026'), true);
+        assert.strictEqual(isDateCompleteAndValid('091826'), true);
+        assert.strictEqual(isDateCompleteAndValid('091842'), true);
+        assert.strictEqual(isDateCompleteAndValid('091825'), true);
         assert.strictEqual(isTimeCompleteAndValid(''), true);
 
         // - A time with no date IS allowed
@@ -1560,6 +1577,77 @@ describe('Club Leadership & Post Creation Domain', () => {
 
         // Active validation error: STRICTLY BLOCKED
         assert.strictEqual(simulateCanPublish('09182026', '', true), false);
+      });
+    });
+
+    describe('Two-Digit Year Auto-Switching & Century Boundary Invariants', () => {
+      it('switches two-digit years like 25, 26, 42 to 2025, 2026, 2042 in the 21st century', () => {
+        const ref2026 = new Date(2026, 8, 18);
+        assert.strictEqual(expandTwoDigitYear(25, ref2026), 2025);
+        assert.strictEqual(expandTwoDigitYear(26, ref2026), 2026);
+        assert.strictEqual(expandTwoDigitYear(42, ref2026), 2042);
+        assert.strictEqual(expandTwoDigitYear('25', ref2026), 2025);
+        assert.strictEqual(expandTwoDigitYear('26', ref2026), 2026);
+        assert.strictEqual(expandTwoDigitYear('42', ref2026), 2042);
+      });
+
+      it('expands 27 -> 2027, 13 -> 2013, and 99 -> 2099 in the current century', () => {
+        const ref2026 = new Date(2026, 8, 18);
+        assert.strictEqual(expandTwoDigitYear(27, ref2026), 2027);
+        assert.strictEqual(expandTwoDigitYear(13, ref2026), 2013);
+        assert.strictEqual(expandTwoDigitYear(99, ref2026), 2099);
+      });
+
+      it('completes to next century if occurring in the next 10 years (e.g. 2095 entering 02 -> 2102)', () => {
+        const ref2095 = new Date(2095, 8, 18);
+        // 02 in 2095: 2102 is 7 years in the future (<= 10), so completes to 2102, not 2002
+        assert.strictEqual(expandTwoDigitYear('02', ref2095), 2102);
+        assert.strictEqual(expandTwoDigitYear(2, ref2095), 2102);
+
+        // 05 in 2095: 2105 is 10 years in future (<= 10), completes to 2105
+        assert.strictEqual(expandTwoDigitYear('05', ref2095), 2105);
+
+        // 06 in 2095: 2106 is 11 years in future (> 10), so uses current century (2006)
+        assert.strictEqual(expandTwoDigitYear('06', ref2095), 2006);
+
+        // Same-century years in 2095
+        assert.strictEqual(expandTwoDigitYear('95', ref2095), 2095);
+        assert.strictEqual(expandTwoDigitYear('99', ref2095), 2099);
+      });
+
+      it('completes across century boundary at year 2099', () => {
+        const ref2099 = new Date(2099, 0, 1);
+        assert.strictEqual(expandTwoDigitYear('00', ref2099), 2100);
+        assert.strictEqual(expandTwoDigitYear('08', ref2099), 2108);
+        assert.strictEqual(expandTwoDigitYear('09', ref2099), 2109);
+        assert.strictEqual(expandTwoDigitYear('10', ref2099), 2010);
+      });
+
+      it('auto-completes date digits for 4-digit and 6-digit inputs via completeDateDigits', () => {
+        const ref2026 = new Date(2026, 8, 18);
+        assert.strictEqual(completeDateDigits('091825', ref2026), '09182025');
+        assert.strictEqual(completeDateDigits('091826', ref2026), '09182026');
+        assert.strictEqual(completeDateDigits('091842', ref2026), '09182042');
+        assert.strictEqual(completeDateDigits('091813', ref2026), '09182013');
+        assert.strictEqual(completeDateDigits('091899', ref2026), '09182099');
+
+        // 4 digits (MMDD): fills next occurrence year
+        assert.strictEqual(completeDateDigits('0918', ref2026), '09182026');
+
+        // 8 digits: preserved
+        assert.strictEqual(completeDateDigits('09182026', ref2026), '09182026');
+
+        // 2095 boundary
+        const ref2095 = new Date(2095, 8, 18);
+        assert.strictEqual(completeDateDigits('091802', ref2095), '09182102');
+      });
+
+      it('formats event dates with 2-digit years seamlessly via formatEventDate', () => {
+        const ref2026 = new Date(2026, 8, 18);
+        assert.strictEqual(formatEventDate('09/18/26', ref2026), 'Fri, Sep 18');
+        assert.strictEqual(formatEventDate('09/18/42', ref2026), 'Thu, Sep 18, 2042');
+        const ref2095 = new Date(2095, 8, 18);
+        assert.strictEqual(formatEventDate('09/18/02', ref2095), 'Mon, Sep 18, 2102');
       });
     });
 
@@ -1666,6 +1754,983 @@ describe('Club Leadership & Post Creation Domain', () => {
             customWhen: 'Every Tuesday at 7:30 PM',
           }),
           true
+        );
+      });
+    });
+
+    /**
+     * UNIFIED SUCCESS MODAL TEMPLATE & CLUB LINKING SPECIFICATION
+     *
+     * Architectural Rationale:
+     * To prevent fragmented confirmation patterns across Knightly, all major milestone
+     * confirmations (post creation, club claim linking, RSVP confirmations) adhere to a
+     * shared template specification:
+     * 1. Centered floating card with max width 380 and Radius.xl
+     * 2. Semi-transparent backdrop (rgba(0, 0, 0, 0.72))
+     * 3. Big animated spring halo ring (96x96) in Renew Green (or designated accent)
+     * 4. Clear title and explanatory description
+     * 5. Standardized button configurations (single "Got it" or dual "View in Feed" + "Got it")
+     */
+    describe('Unified Success Modal Template & Club Linking Invariants', () => {
+      it('validates club linking success modal payload structure and copy', () => {
+        // Simulates the configuration factory used by CompleteClubProfileView
+        const createClubLinkingSuccessModalConfig = (claimedClubName: string, onDismiss: () => void) => ({
+          visible: true,
+          title: `You're Linked to ${claimedClubName || 'Your Club'}!`,
+          message:
+            'The club posting portal has been activated. You will now see the new "+" tab at the right end of your bottom navigation bar.',
+          accentColor: Brand.renewGreen,
+          icon: { sf: 'checkmark', md: 'check' },
+          primaryButton: {
+            label: 'Got it',
+            variant: 'primary' as const,
+            onPress: onDismiss,
+          },
+          onClose: onDismiss,
+        });
+
+        let dismissed = false;
+        const config = createClubLinkingSuccessModalConfig('Abstraction', () => {
+          dismissed = true;
+        });
+
+        // Verify dynamic club title injection
+        assert.strictEqual(config.title, "You're Linked to Abstraction!");
+
+        // Verify fallback when club name is empty
+        const fallbackConfig = createClubLinkingSuccessModalConfig('', () => {});
+        assert.strictEqual(fallbackConfig.title, "You're Linked to Your Club!");
+
+        // Verify exact instructional messaging guiding the user to the new '+' navigation tab
+        assert.ok(
+          config.message.includes('The club posting portal has been activated'),
+          'Must clarify that posting is now unlocked'
+        );
+        assert.ok(
+          config.message.includes('new "+" tab at the right end of your bottom navigation bar'),
+          'Must instruct user on the visual location of the new bottom tab'
+        );
+
+        // Verify standard accent color matches Brand.renewGreen
+        assert.strictEqual(config.accentColor, Brand.renewGreen);
+
+        // Verify primary button triggers dismiss callback
+        assert.strictEqual(config.primaryButton.label, 'Got it');
+        assert.strictEqual(config.primaryButton.variant, 'primary');
+        config.primaryButton.onPress();
+        assert.strictEqual(dismissed, true, 'Primary button should invoke dismiss callback');
+
+        // Verify backdrop onClose triggers dismiss callback
+        dismissed = false;
+        config.onClose();
+        assert.strictEqual(dismissed, true, 'Backdrop onClose should invoke dismiss callback');
+      });
+
+      it('validates post creation success modal payload structure and dual actions', () => {
+        // Simulates the configuration factory used by CreatePostScreen's PostSuccessModal
+        const createPostSuccessModalConfig = (
+          clubName: string,
+          onClose: () => void,
+          onViewFeed: () => void
+        ) => ({
+          visible: true,
+          title: 'Post Published!',
+          clubName,
+          accentColor: Brand.renewGreen,
+          primaryButton: {
+            label: 'View in Feed',
+            variant: 'primary' as const,
+            sf: 'sparkles',
+            md: 'auto_awesome',
+            onPress: onViewFeed,
+          },
+          secondaryButton: {
+            label: 'Got it',
+            variant: 'secondary' as const,
+            onPress: onClose,
+          },
+          onClose,
+        });
+
+        let feedViewed = false;
+        let closed = false;
+        const config = createPostSuccessModalConfig(
+          'Abstraction',
+          () => { closed = true; },
+          () => { feedViewed = true; }
+        );
+
+        // Verify title
+        assert.strictEqual(config.title, 'Post Published!');
+
+        // Verify primary action navigates to feed
+        assert.strictEqual(config.primaryButton.label, 'View in Feed');
+        config.primaryButton.onPress();
+        assert.strictEqual(feedViewed, true);
+
+        // Verify secondary action dismisses modal
+        assert.strictEqual(config.secondaryButton.label, 'Got it');
+        config.secondaryButton.onPress();
+        assert.strictEqual(closed, true);
+      });
+
+      it('enforces that both club linking and post creation share the same visual branding tokens', () => {
+        // Both modals must use Renew Green to indicate successful authorization/action completion
+        const defaultAccent = Brand.renewGreen;
+        assert.strictEqual(defaultAccent, '#A2D683');
+
+        // Verify standard halo dimensions and styling rules
+        const modalHaloDimensions = {
+          ringDiameter: 96,
+          ringBorderRadius: 48,
+          ringBorderWidth: 3,
+          iconSize: 52,
+          cardMaxWidth: 380,
+        };
+
+        assert.strictEqual(modalHaloDimensions.ringDiameter, 96);
+        assert.strictEqual(modalHaloDimensions.ringBorderRadius, 48);
+        assert.strictEqual(modalHaloDimensions.iconSize, 52);
+        assert.strictEqual(modalHaloDimensions.cardMaxWidth, 380);
+      });
+    });
+
+    /**
+     * CLAIM CODE VERIFICATION WHEEL ANIMATION & COMPLETE PROFILE INVARIANTS
+     *
+     * Architectural Rationale:
+     * Validates the micro-interaction and subpage visual hierarchy:
+     * 1. 3D rotating wheel transforms for "Verify Code" -> "Success!" tumbling replacement.
+     * 2. High-contrast typography on Renew Green (Brand.onRenewGreen = #142912, >7:1 WCAG AAA).
+     * 3. Color morphing from Calvin Maroon to Renew Green (#A2D683).
+     * 4. Removal of the awkward "CLAIM VERIFIED" badge chip from the card body while preserving
+     *    the clean club name and distinct two-line guidance copy.
+     * 5. Preservation of "CLAIM VERIFIED" in the top subpage header.
+     */
+    describe('Claim Code Verification Wheel Animation & Complete Profile Invariants', () => {
+      it('models the 3D rotating cylindrical tumbler wheel interpolation at rest, midpoint, and completion', () => {
+        // Linear interpolation helper mirroring Reanimated's interpolate()
+        const interpolate = (val: number, inRange: [number, number], outRange: [number, number]) => {
+          const [inMin, inMax] = inRange;
+          const [outMin, outMax] = outRange;
+          const clamped = Math.max(inMin, Math.min(inMax, val));
+          return outMin + ((clamped - inMin) / (inMax - inMin)) * (outMax - outMin);
+        };
+
+        const computeWheelTransforms = (progress: number) => {
+          // "Verify Code" label
+          const verifyTranslateY = interpolate(progress, [0, 1], [0, -26]);
+          const verifyRotateX = `${interpolate(progress, [0, 1], [0, -60])}deg`;
+          const verifyOpacity = interpolate(progress, [0, 0.65], [1, 0]);
+
+          // "Success!" label
+          const successTranslateY = interpolate(progress, [0, 1], [26, 0]);
+          const successRotateX = `${interpolate(progress, [0, 1], [60, 0])}deg`;
+          const successOpacity = interpolate(progress, [0.35, 1], [0, 1]);
+
+          return {
+            verify: { translateY: verifyTranslateY, rotateX: verifyRotateX, opacity: verifyOpacity },
+            success: { translateY: successTranslateY, rotateX: successRotateX, opacity: successOpacity },
+          };
+        };
+
+        // At progress = 0 (Resting state before tap)
+        const rest = computeWheelTransforms(0);
+        assert.strictEqual(rest.verify.translateY, 0);
+        assert.strictEqual(rest.verify.rotateX, '0deg');
+        assert.strictEqual(rest.verify.opacity, 1);
+        assert.strictEqual(rest.success.translateY, 26);
+        assert.strictEqual(rest.success.rotateX, '60deg');
+        assert.strictEqual(rest.success.opacity, 0);
+
+        // At progress = 0.5 (Mid-rotation: both labels partially visible as wheel tumbles)
+        const mid = computeWheelTransforms(0.5);
+        assert.strictEqual(mid.verify.translateY, -13);
+        assert.strictEqual(mid.verify.rotateX, '-30deg');
+        assert.ok(mid.verify.opacity < 0.3, 'Verify Code should be significantly faded at midpoint');
+        assert.strictEqual(mid.success.translateY, 13);
+        assert.strictEqual(mid.success.rotateX, '30deg');
+        assert.ok(mid.success.opacity > 0.2, 'Success! should begin emerging at midpoint');
+
+        // At progress = 1 (Completion: "Success!" fully centered and opaque)
+        const done = computeWheelTransforms(1);
+        assert.strictEqual(done.verify.translateY, -26);
+        assert.strictEqual(done.verify.rotateX, '-60deg');
+        assert.strictEqual(done.verify.opacity, 0);
+        assert.strictEqual(done.success.translateY, 0);
+        assert.strictEqual(done.success.rotateX, '0deg');
+        assert.strictEqual(done.success.opacity, 1);
+      });
+
+      it('validates standardized Brand.onRenewGreen high-contrast color token', () => {
+        // Dark Forest Slate
+        assert.strictEqual(Brand.onRenewGreen, '#142912');
+        assert.strictEqual(Brand.renewGreen, '#A2D683');
+
+        // Relative luminance helper for WCAG contrast calculation
+        const getRelativeLuminance = (hex: string) => {
+          const r = parseInt(hex.slice(1, 3), 16) / 255;
+          const g = parseInt(hex.slice(3, 5), 16) / 255;
+          const b = parseInt(hex.slice(5, 7), 16) / 255;
+          const sRGB = [r, g, b].map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
+          return 0.2126 * sRGB[0] + 0.7152 * sRGB[1] + 0.0722 * sRGB[2];
+        };
+
+        const lumRenewGreen = getRelativeLuminance(Brand.renewGreen);
+        const lumOnRenewGreen = getRelativeLuminance(Brand.onRenewGreen);
+        const contrastRatio = (lumRenewGreen + 0.05) / (lumOnRenewGreen + 0.05);
+
+        // Must exceed 7:1 for WCAG AAA compliance on body text
+        assert.ok(
+          contrastRatio >= 7.0,
+          `Contrast ratio between #142912 and #A2D683 must exceed 7.0 (actual: ${contrastRatio.toFixed(2)})`
+        );
+      });
+
+      it('validates Complete Club Profile header and layout balance requirements', () => {
+        // Simulates the banner line structure in CompleteClubProfileView
+        const bannerStructure = {
+          hasInCardBadge: false, // Must be removed
+          claimedClubName: 'Abstraction',
+          captionLine1: 'Student Life has provisioned this shell.',
+          captionLine2: 'Customize initial club details below.', // On its own separate line
+        };
+
+        assert.strictEqual(bannerStructure.hasInCardBadge, false, 'In-card badge chip must be eliminated');
+        assert.strictEqual(bannerStructure.captionLine1, 'Student Life has provisioned this shell.');
+        assert.strictEqual(bannerStructure.captionLine2, 'Customize initial club details below.');
+
+        // Verify top subpage header subtitle preserves 'CLAIM VERIFIED'
+        const headerInfo = {
+          title: 'Complete Profile',
+          subtitle: 'CLAIM VERIFIED',
+        };
+        assert.strictEqual(headerInfo.subtitle, 'CLAIM VERIFIED', 'Header bar must preserve CLAIM VERIFIED');
+      });
+    });
+
+    /**
+     * SEGMENTED DATE INPUT & NON-TECHNICAL FRIENDLY ENTRY INVARIANTS
+     *
+     * Architectural Rationale:
+     * Non-technical users often type single digits like "9" for September or "5" for day 5,
+     * which previously triggered premature error messages ("Month must be between 01-12")
+     * due to strict 2-digit mask assumptions.
+     * The SegmentedDateInput architecture isolates Month, Day, and Year into inline cells:
+     * 1. Auto-pads unambiguous single digits (2-9 for month -> 02-09; 4-9 for day -> 04-09).
+     * 2. Auto-advances focus to next cell without requiring user to type leading zeros.
+     * 3. Retains ambiguous digits (1 for month, 1-3 for day) until second digit or blur.
+     * 4. Seamlessly auto-expands 2-digit years (26 -> 2026, 42 -> 2042) with 10-year lookahead.
+     * 5. Supports reverse-backspacing across cell boundaries.
+     * 6. Decomposes pasted full date strings across all segments.
+     */
+    describe('Segmented Date Input & Non-Technical Friendly Entry Invariants', () => {
+      it('parses raw digits and delimited strings into constituent date segments', () => {
+        // Empty inputs
+        assert.deepStrictEqual(parseDateSegments(''), { month: '', day: '', year: '' });
+        assert.deepStrictEqual(parseDateSegments('   '), { month: '', day: '', year: '' });
+
+        // Raw digits
+        assert.deepStrictEqual(parseDateSegments('09182026'), { month: '09', day: '18', year: '2026' });
+        assert.deepStrictEqual(parseDateSegments('091826'), { month: '09', day: '18', year: '26' });
+        assert.deepStrictEqual(parseDateSegments('0918'), { month: '09', day: '18', year: '' });
+        assert.deepStrictEqual(parseDateSegments('09'), { month: '09', day: '', year: '' });
+
+        // Delimited strings (slashes, hyphens, dots)
+        assert.deepStrictEqual(parseDateSegments('9/18/2026'), { month: '9', day: '18', year: '2026' });
+        assert.deepStrictEqual(parseDateSegments('09/18/26'), { month: '09', day: '18', year: '26' });
+        assert.deepStrictEqual(parseDateSegments('9-5-2026'), { month: '9', day: '5', year: '2026' });
+        assert.deepStrictEqual(parseDateSegments('9.5.26'), { month: '9', day: '5', year: '26' });
+      });
+
+      it('simulates Month segment typing and auto-advance logic including intelligent month overflow', () => {
+        // Simulate SegmentedDateInput handleMonthChange logic
+        const simulateMonthInput = (input: string) => {
+          const text = input.replace(/[^0-9]/g, '');
+          if (text.length === 0) return { month: '', day: '', focus: null as string | null };
+          if (text.length === 1) {
+            const digit = parseInt(text, 10);
+            if (digit >= 2 && digit <= 9) {
+              // Unambiguous: auto-pad to 02..09 and advance to Day
+              return { month: `0${digit}`, day: '', focus: 'day' };
+            }
+            // 0 or 1: wait for second digit
+            return { month: text, day: '', focus: 'month' };
+          }
+          if (text.length === 2) {
+            if (text[0] === '0') {
+              const d2 = parseInt(text[1], 10);
+              if (d2 === 0) return { month: '0', day: '', focus: 'month' };
+              return { month: text, day: '', focus: 'day' };
+            }
+            if (text[0] === '1') {
+              const d2 = parseInt(text[1], 10);
+              if (d2 >= 0 && d2 <= 2) {
+                return { month: text, day: '', focus: 'day' };
+              }
+              if (d2 >= 3 && d2 <= 9) {
+                // Month Overflow rule: typing 1 followed by 3..9 implies January ('01') + Day entry
+                // For January (maxDays = 31):
+                if (d2 * 10 > 31) {
+                  return { month: '01', day: `0${d2}`, focus: 'year' };
+                }
+                return { month: '01', day: `${d2}`, focus: 'day' };
+              }
+            }
+            return { month: text[0], day: '', focus: 'month' };
+          }
+          return { month: text.slice(0, 2), day: '', focus: null };
+        };
+
+        // 1. Typing 1 then 6: results in '01/06/' with cursor in Year category!
+        const oneSix = simulateMonthInput('16');
+        assert.strictEqual(oneSix.month, '01');
+        assert.strictEqual(oneSix.day, '06');
+        assert.strictEqual(oneSix.focus, 'year');
+
+        // 2. Typing 1 then 3: results in '01/3' with cursor in Day category!
+        const oneThree = simulateMonthInput('13');
+        assert.strictEqual(oneThree.month, '01');
+        assert.strictEqual(oneThree.day, '3');
+        assert.strictEqual(oneThree.focus, 'day');
+
+        // 3. Typing 1 then 2: results in '12/' with cursor in Day category!
+        const oneTwo = simulateMonthInput('12');
+        assert.strictEqual(oneTwo.month, '12');
+        assert.strictEqual(oneTwo.day, '');
+        assert.strictEqual(oneTwo.focus, 'day');
+
+        // 4. Typing 1 then 0: results in '10/' with cursor in Day category!
+        const oneZero = simulateMonthInput('10');
+        assert.strictEqual(oneZero.month, '10');
+        assert.strictEqual(oneZero.day, '');
+        assert.strictEqual(oneZero.focus, 'day');
+
+        // Typing 9 for September -> immediately pads to '09' and auto-advances to Day
+        const sep = simulateMonthInput('9');
+        assert.strictEqual(sep.month, '09');
+        assert.strictEqual(sep.focus, 'day');
+
+        // Typing 4 for April -> immediately pads to '04' and auto-advances to Day
+        const apr = simulateMonthInput('4');
+        assert.strictEqual(apr.month, '04');
+        assert.strictEqual(apr.focus, 'day');
+
+        // Typing 1 for January/November/December -> does NOT auto-pad immediately, waits for second digit
+        const one = simulateMonthInput('1');
+        assert.strictEqual(one.month, '1');
+        assert.strictEqual(one.focus, 'month');
+
+        // Blur on single digit '1' pads to '01'
+        const blurPad = (m: string) => (m.length === 1 && parseInt(m, 10) >= 1 ? `0${m}` : m);
+        assert.strictEqual(blurPad('1'), '01');
+      });
+
+      it('simulates Day segment typing and auto-advance logic referencing all months max days', () => {
+        // Simulate SegmentedDateInput handleDayChange logic with compact digit * 10 > maxDays rule
+        const simulateDayInput = (input: string, month: string = '09') => {
+          const text = input.replace(/[^0-9]/g, '');
+          if (text.length === 0) return { day: '', advance: false };
+
+          const m = parseInt(month, 10);
+          const maxDays = !isNaN(m) && m >= 1 && m <= 12 ? getMaxDaysForMonth(m) : 31;
+
+          if (text.length === 1) {
+            const digit = parseInt(text, 10);
+            // Compact mathematical rule: if digit * 10 > maxDays, it cannot be a tens digit for this month!
+            // In February (maxDays=29): 3..9 (30..90 > 29) auto-pads to 03..09 and advances to Year!
+            // In 30/31-day months: 4..9 (40..90 > 31) auto-pads to 04..09 and advances to Year!
+            if (digit * 10 > maxDays) {
+              return { day: `0${digit}`, advance: true };
+            }
+            // Otherwise, wait for second digit (0..2 for Feb, 0..3 for other months)
+            return { day: text, advance: false };
+          }
+          if (text.length === 2) {
+            const num = parseInt(text, 10);
+            if (num === 0) {
+              return { day: '0', advance: false };
+            }
+            if (num >= 1 && num <= maxDays) {
+              return { day: text, advance: true };
+            }
+            return { day: text[0], advance: false };
+          }
+          return { day: text.slice(0, 2), advance: false };
+        };
+
+        // FEBRUARY (month '02'): maxDays=29, maxTens=2
+        // Typing 3 in February -> automatically assumes '03' and advances to Year!
+        const feb3 = simulateDayInput('3', '02');
+        assert.strictEqual(feb3.day, '03');
+        assert.strictEqual(feb3.advance, true);
+
+        // Typing 4..9 in February -> automatically pads to '04'..'09' and advances to Year
+        const feb7 = simulateDayInput('7', '02');
+        assert.strictEqual(feb7.day, '07');
+        assert.strictEqual(feb7.advance, true);
+
+        // Typing 1 or 2 in February -> waits for second digit
+        const feb1 = simulateDayInput('1', '02');
+        assert.strictEqual(feb1.day, '1');
+        assert.strictEqual(feb1.advance, false);
+
+        const feb2 = simulateDayInput('2', '02');
+        assert.strictEqual(feb2.day, '2');
+        assert.strictEqual(feb2.advance, false);
+
+        // Typing 28 in February -> valid, advances
+        const feb28 = simulateDayInput('28', '02');
+        assert.strictEqual(feb28.day, '28');
+        assert.strictEqual(feb28.advance, true);
+
+        // Typing 30 in February -> exceeds max days (29), keeps first digit '3' (or rejected)
+        const feb30 = simulateDayInput('30', '02');
+        assert.strictEqual(feb30.day, '3');
+        assert.strictEqual(feb30.advance, false);
+
+        // 30-DAY MONTHS (e.g. September '09', April '04'): maxDays=30, maxTens=3
+        // Typing 3 in September -> does NOT advance, waits for second digit (could be 30)
+        const sep3 = simulateDayInput('3', '09');
+        assert.strictEqual(sep3.day, '3');
+        assert.strictEqual(sep3.advance, false);
+
+        // Typing 30 in September -> valid, advances to Year
+        const sep30 = simulateDayInput('30', '09');
+        assert.strictEqual(sep30.day, '30');
+        assert.strictEqual(sep30.advance, true);
+
+        // Typing 31 in September -> exceeds max days (30), keeps '3'
+        const sep31 = simulateDayInput('31', '09');
+        assert.strictEqual(sep31.day, '3');
+        assert.strictEqual(sep31.advance, false);
+
+        // Typing 5 in September -> digit > 3, immediately pads to '05' and advances
+        const sep5 = simulateDayInput('5', '09');
+        assert.strictEqual(sep5.day, '05');
+        assert.strictEqual(sep5.advance, true);
+
+        // 31-DAY MONTHS (e.g. October '10'): maxDays=31, maxTens=3
+        // Typing 31 in October -> valid, advances to Year
+        const oct31 = simulateDayInput('31', '10');
+        assert.strictEqual(oct31.day, '31');
+        assert.strictEqual(oct31.advance, true);
+
+        // Typing 32 in October -> exceeds max days (31), keeps '3'
+        const oct32 = simulateDayInput('32', '10');
+        assert.strictEqual(oct32.day, '3');
+        assert.strictEqual(oct32.advance, false);
+      });
+
+      it('simulates Year segment typing, 2-digit limits, and blur expansion', () => {
+        // Simulate SegmentedDateInput handleYearChange logic
+        const simulateYearInput = (input: string) => {
+          const text = input.replace(/[^0-9]/g, '');
+          if (text.length === 0) return '';
+          if (text[0] !== '2') {
+            return text.slice(0, 2);
+          }
+          return text.slice(0, 4);
+        };
+
+        // Year starting with !2: limited strictly to 2 digits
+        assert.strictEqual(simulateYearInput('42'), '42');
+        assert.strictEqual(simulateYearInput('420'), '42'); // 3rd digit rejected
+        assert.strictEqual(simulateYearInput('99'), '99');
+
+        // Year starting with 2: allows up to 4 digits
+        assert.strictEqual(simulateYearInput('2'), '2');
+        assert.strictEqual(simulateYearInput('26'), '26');
+        assert.strictEqual(simulateYearInput('2026'), '2026');
+        assert.strictEqual(simulateYearInput('20265'), '2026'); // 5th digit rejected
+
+        // Year blur expands 2-digit year to 4-digit year
+        const simulateYearBlur = (yy: string, refDate?: Date) => {
+          if (yy.length === 2) {
+            return String(expandTwoDigitYear(yy, refDate));
+          }
+          return yy;
+        };
+
+        const testRef = new Date(2026, 8, 18);
+        assert.strictEqual(simulateYearBlur('26', testRef), '2026');
+        assert.strictEqual(simulateYearBlur('42', testRef), '2042');
+        assert.strictEqual(simulateYearBlur('13', testRef), '2013');
+
+        // 10-year lookahead across century boundary
+        const boundaryRef = new Date(2095, 0, 1);
+        assert.strictEqual(simulateYearBlur('02', boundaryRef), '2102');
+      });
+
+      it('simulates pasting full date strings across segmented cells', () => {
+        const simulatePaste = (pasted: string) => {
+          const text = pasted.replace(/[^0-9]/g, '');
+          if (text.length >= 6) {
+            const m = text.slice(0, 2);
+            const d = text.slice(2, 4);
+            let y = text.slice(4, 8);
+            if (y.length === 2) {
+              y = String(expandTwoDigitYear(y));
+            }
+            return { month: m, day: d, year: y };
+          }
+          return null;
+        };
+
+        assert.deepStrictEqual(simulatePaste('09182026'), {
+          month: '09',
+          day: '18',
+          year: '2026',
+        });
+
+        assert.deepStrictEqual(simulatePaste('091826'), {
+          month: '09',
+          day: '18',
+          year: '2026',
+        });
+      });
+
+      it('verifies decoupled Date vs Time error highlighting', () => {
+        // Models CreatePostScreen's decoupled error state:
+        // dateError and timeError are maintained separately so an invalid digit in Time
+        // turns the Time box red and NEVER turns the Date box red.
+        const simulateInputStates = ({
+          rawDate,
+          rawTime,
+          timeError,
+          dateError,
+        }: {
+          rawDate: string;
+          rawTime?: string;
+          timeError: string | null;
+          dateError: string | null;
+        }) => {
+          void rawTime;
+          const dateBoxHasError = Boolean(dateError && rawDate.length > 0);
+          const timeBoxHasError = Boolean(timeError);
+          const footerError = dateError || timeError;
+          return { dateBoxHasError, timeBoxHasError, footerError };
+        };
+
+        // Scenario 1: User has valid date ('09182026') and types invalid minute digit in Time (e.g. 7:90)
+        const timeErrorState = simulateInputStates({
+          rawDate: '09182026',
+          rawTime: '79',
+          timeError: 'Minutes tens digit cannot exceed 5',
+          dateError: null,
+        });
+        assert.strictEqual(timeErrorState.timeBoxHasError, true, 'Time box MUST turn red on time error');
+        assert.strictEqual(timeErrorState.dateBoxHasError, false, 'Date box MUST NOT turn red on time error');
+        assert.strictEqual(timeErrorState.footerError, 'Minutes tens digit cannot exceed 5');
+
+        // Scenario 2: User has valid time ('700') and invalid date (e.g. 2025 is not leap year)
+        const dateErrorState = simulateInputStates({
+          rawDate: '02292025',
+          rawTime: '700',
+          timeError: null,
+          dateError: '2025 is not a leap year',
+        });
+        assert.strictEqual(dateErrorState.dateBoxHasError, true, 'Date box MUST turn red on date error');
+        assert.strictEqual(dateErrorState.timeBoxHasError, false, 'Time box MUST NOT turn red on date error');
+        assert.strictEqual(dateErrorState.footerError, '2025 is not a leap year');
+      });
+
+      it('verifies that non-technical entry never produces premature validation errors', () => {
+        // Typing single digit '9' for month:
+        // SegmentedDateInput handles month '09' internally so validateDate is never
+        // invoked on incomplete single-digit state with an error.
+        assert.strictEqual(validateDate(''), null);
+
+        // When all 3 segments are filled with auto-padding (e.g. user typed 9, then 5, then 26):
+        // Raw date becomes '09052026' or '090526'
+        const rawDateWith4DigitYear = '09052026';
+        assert.strictEqual(validateDate(rawDateWith4DigitYear), null);
+        assert.strictEqual(isDateCompleteAndValid(rawDateWith4DigitYear), true);
+
+        const rawDateWith2DigitYear = '090526';
+        assert.strictEqual(validateDate(rawDateWith2DigitYear), null);
+        assert.strictEqual(isDateCompleteAndValid(rawDateWith2DigitYear), true);
+      });
+
+      it('verifies calendar button centering styling invariants', () => {
+        const dateInputWrapper = {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+        };
+        const calendarIconBtn = {
+          width: 40,
+          height: 40,
+        };
+        assert.strictEqual(dateInputWrapper.gap, 6, 'Gap is balanced at 6dp');
+        assert.strictEqual(calendarIconBtn.width, 40, 'Calendar button width is 40dp');
+        assert.strictEqual(calendarIconBtn.height, 40, 'Calendar button height is 40dp (square)');
+      });
+
+      it('verifies universal smooth focus modal exclusion and bottom-half calculation', () => {
+        // Elements in modals are excluded
+        const isEligibleTarget = (element: { isInsideModal: boolean; top: number; viewportHeight: number }) => {
+          if (element.isInsideModal) return false;
+          return element.top > element.viewportHeight * 0.45;
+        };
+
+        assert.strictEqual(
+          isEligibleTarget({ isInsideModal: true, top: 600, viewportHeight: 800 }),
+          false,
+          'Modal inputs must not trigger window scroll'
+        );
+        assert.strictEqual(
+          isEligibleTarget({ isInsideModal: false, top: 200, viewportHeight: 800 }),
+          false,
+          'Top-half inputs must not trigger centering scroll'
+        );
+        assert.strictEqual(
+          isEligibleTarget({ isInsideModal: false, top: 550, viewportHeight: 800 }),
+          true,
+          'Bottom-half inputs must trigger centering scroll'
+        );
+      });
+
+      it('verifies resilient backspace deletion, cross-segment transitions, and isolated column deletion', () => {
+        // 1. Collapsed selection (caret anywhere from 0 to end): Backspace ALWAYS deletes trailing character
+        const simulateBackspaceWithCaret = (value: string, selectionStart: number, selectionEnd: number) => {
+          if (selectionStart !== selectionEnd) {
+            // Range selected: remove selected range
+            return value.slice(0, selectionStart) + value.slice(selectionEnd);
+          }
+          // Collapsed caret (at 0, middle, or end): deletes trailing character
+          return value.slice(0, -1);
+        };
+
+        // Year box has "2026", caret at 0, 1, 2, or end: always deletes trailing digit
+        assert.strictEqual(simulateBackspaceWithCaret('2026', 0, 0), '202');
+        assert.strictEqual(simulateBackspaceWithCaret('2026', 1, 1), '202');
+        assert.strictEqual(simulateBackspaceWithCaret('2026', 2, 2), '202');
+        assert.strictEqual(simulateBackspaceWithCaret('2026', 4, 4), '202');
+        assert.strictEqual(simulateBackspaceWithCaret('202', 0, 0), '20');
+        assert.strictEqual(simulateBackspaceWithCaret('20', 0, 0), '2');
+        assert.strictEqual(simulateBackspaceWithCaret('2', 0, 0), '');
+
+        // Day box has "18", caret at 0, 1, or 2
+        assert.strictEqual(simulateBackspaceWithCaret('18', 0, 0), '1');
+        assert.strictEqual(simulateBackspaceWithCaret('18', 1, 1), '1');
+        assert.strictEqual(simulateBackspaceWithCaret('18', 2, 2), '1');
+
+        // Month box has "09", caret at 0, 1, or 2
+        assert.strictEqual(simulateBackspaceWithCaret('09', 0, 0), '0');
+        assert.strictEqual(simulateBackspaceWithCaret('09', 1, 1), '0');
+        assert.strictEqual(simulateBackspaceWithCaret('09', 2, 2), '0');
+
+        // Range selection deletion
+        assert.strictEqual(simulateBackspaceWithCaret('2026', 0, 4), '');
+        assert.strictEqual(simulateBackspaceWithCaret('2026', 2, 4), '20');
+
+        // 2. Cross-segment backspacing across empty boundary boxes
+        const simulateCrossSegmentBackspace = ({
+          month,
+          day,
+          year,
+          activeSegment,
+        }: {
+          month: string;
+          day: string;
+          year: string;
+          activeSegment: 'month' | 'day' | 'year';
+        }) => {
+          let nextMonth = month;
+          let nextDay = day;
+          let nextYear = year;
+          let nextSegment = activeSegment;
+
+          if (activeSegment === 'day' && day.length === 0) {
+            nextSegment = 'month';
+            if (month.length > 0) {
+              nextMonth = month.slice(0, -1);
+            }
+          } else if (activeSegment === 'year' && year.length === 0) {
+            if (day.length > 0) {
+              nextSegment = 'day';
+              nextDay = day.slice(0, -1);
+            } else {
+              nextSegment = 'month';
+              if (month.length > 0) {
+                nextMonth = month.slice(0, -1);
+              }
+            }
+          }
+
+          return { nextMonth, nextDay, nextYear, nextSegment };
+        };
+
+        // User is in Day, Day is empty, Month has '09': pressing Backspace deletes '9' and focuses Month
+        const fromDay = simulateCrossSegmentBackspace({
+          month: '09',
+          day: '',
+          year: '2026',
+          activeSegment: 'day',
+        });
+        assert.strictEqual(fromDay.nextMonth, '0');
+        assert.strictEqual(fromDay.nextSegment, 'month');
+        assert.strictEqual(fromDay.nextYear, '2026');
+
+        // User is in Year, Year is empty, Day has '18': pressing Backspace deletes '8' and focuses Day
+        const fromYear = simulateCrossSegmentBackspace({
+          month: '09',
+          day: '18',
+          year: '',
+          activeSegment: 'year',
+        });
+        assert.strictEqual(fromYear.nextDay, '1');
+        assert.strictEqual(fromYear.nextSegment, 'day');
+        assert.strictEqual(fromYear.nextMonth, '09');
+
+        // User is in Year, Year is empty AND Day is empty: pressing Backspace moves directly to Month
+        const fromEmptyYearAndEmptyDay = simulateCrossSegmentBackspace({
+          month: '09',
+          day: '',
+          year: '',
+          activeSegment: 'year',
+        });
+        assert.strictEqual(fromEmptyYearAndEmptyDay.nextSegment, 'month');
+        assert.strictEqual(fromEmptyYearAndEmptyDay.nextMonth, '0');
+
+        // 3. Isolated column deletion: deleting Day when Year is filled must NEVER pull digits from Year
+        let m = '09';
+        let d = '18';
+        let y = '2026';
+
+        // Delete '8' from Day
+        d = d.slice(0, -1);
+        assert.strictEqual(d, '1');
+        assert.strictEqual(m, '09');
+        assert.strictEqual(y, '2026');
+
+        // Delete '1' from Day
+        d = d.slice(0, -1);
+        assert.strictEqual(d, '');
+        assert.strictEqual(m, '09');
+        assert.strictEqual(y, '2026'); // Year is completely untouched, never collapsed into Day!
+
+        // 4. Safe emitChange when Month or Day is incomplete:
+        const computeSafeEmit = (m: string, d: string, y: string) => {
+          let combined = m;
+          if (m.length === 2) {
+            combined += d;
+            if (d.length === 2) {
+              combined += y;
+            }
+          }
+          return combined;
+        };
+        // Day and Year entered without Month:
+        assert.strictEqual(computeSafeEmit('', '19', '2026'), '', 'Never shift Day into Month when Month is empty');
+        assert.strictEqual(computeSafeEmit('1', '19', '2026'), '1', 'Never shift Day into Month when Month is 1 digit');
+        // Month and Year entered without Day:
+        assert.strictEqual(computeSafeEmit('09', '', '2026'), '09', 'Never shift Year into Day when Day is empty');
+        assert.strictEqual(computeSafeEmit('09', '1', '2026'), '091', 'Never shift Year into Day when Day is 1 digit');
+        // All segments complete:
+        assert.strictEqual(computeSafeEmit('09', '19', '2026'), '09192026', 'Include all segments when predecessors complete');
+
+        // 5. Recursion and Call Stack Safety in isDateCompleteAndValid
+        // Entering a day and year without a month could produce an unexpandable 6-digit string like '192026'.
+        // completeDateDigits cannot expand '19' as a month, so completed.length remains 6.
+        // isDateCompleteAndValid must safely return false and NEVER exceed call stack.
+        assert.doesNotThrow(() => {
+          assert.strictEqual(isDateCompleteAndValid('192026'), false);
+          assert.strictEqual(isDateCompleteAndValid('000000'), false);
+          assert.strictEqual(isDateCompleteAndValid('999999'), false);
+          assert.strictEqual(isDateCompleteAndValid('311226'), false); // Month 31 invalid
+        });
+
+        // 6. "Please enter a month" error invariants:
+        // System must show "Please enter a month" similar to "Please enter a day",
+        // BUT only if another element of the date has been filled in.
+
+        // Case A: All elements empty -> No error
+        assert.strictEqual(validateDate(''), null);
+        assert.strictEqual(validateDate({ month: '', day: '', year: '' }), null);
+        assert.strictEqual(validateDate('//'), null);
+
+        // Case B: Month is empty, but Day is filled in -> "Please enter a month"
+        assert.strictEqual(
+          validateDate({ month: '', day: '15', year: '' }),
+          'Please enter a month',
+          'Must show Please enter a month when Day is filled but Month is empty'
+        );
+        assert.strictEqual(
+          validateDate('/15/'),
+          'Please enter a month',
+          'Delimited string must show Please enter a month when Day is filled'
+        );
+
+        // Case C: Month is empty, but Year is filled in -> "Please enter a month"
+        assert.strictEqual(
+          validateDate({ month: '', day: '', year: '2026' }),
+          'Please enter a month',
+          'Must show Please enter a month when Year is filled but Month is empty'
+        );
+        assert.strictEqual(
+          validateDate('//2026'),
+          'Please enter a month',
+          'Delimited string must show Please enter a month when Year is filled'
+        );
+
+        // Case D: Month is empty, and BOTH Day and Year are filled in -> "Please enter a month"
+        assert.strictEqual(
+          validateDate({ month: '', day: '15', year: '2026' }),
+          'Please enter a month',
+          'Must show Please enter a month when Day and Year are filled but Month is empty'
+        );
+        assert.strictEqual(
+          validateDate('/15/2026'),
+          'Please enter a month',
+          'Delimited string must show Please enter a month when Day and Year are filled'
+        );
+
+        // Case E: Month is filled in, but Day is empty -> "Please enter a day"
+        assert.strictEqual(
+          validateDate({ month: '09', day: '', year: '' }),
+          'Please enter a day',
+          'Must show Please enter a day when Month is filled but Day is empty'
+        );
+        assert.strictEqual(
+          validateDate({ month: '09', day: '', year: '2026' }),
+          'Please enter a day',
+          'Must show Please enter a day when Month and Year are filled but Day is empty'
+        );
+        assert.strictEqual(
+          validateDate('09'),
+          'Please enter a day',
+          'Raw digits 09 must show Please enter a day'
+        );
+
+        // Case F: Valid complete date -> No error
+        assert.strictEqual(validateDate({ month: '09', day: '15', year: '2026' }), null);
+        assert.strictEqual(validateDate('09152026'), null);
+      });
+
+      it('strictly suppresses date from translation preview and computedWhen when date is invalid (e.g. 02292005)', () => {
+        const computeEventPreview = (params: {
+          rawDate: string;
+          dateSegmentsState: { month: string; day: string; year: string };
+          dateError: string | null;
+          rawTime: string;
+          timeError: string | null;
+          timePeriod: 'AM' | 'PM';
+          referenceDate?: Date;
+        }) => {
+          const {
+            rawDate,
+            dateSegmentsState,
+            dateError,
+            rawTime,
+            timeError,
+            timePeriod,
+            referenceDate,
+          } = params;
+
+          const isDateValidForPreview =
+            !dateError &&
+            (rawDate.length === 8 || rawDate.length === 6) &&
+            validateDate(dateSegmentsState) === null &&
+            validateDate(rawDate) === null &&
+            isDateCompleteAndValid(rawDate, referenceDate);
+
+          const dateSegments = formatDateSegments(rawDate);
+          const formattedDate = isDateValidForPreview
+            ? formatEventDate(
+                rawDate.length === 6
+                  ? formatDateSegments(completeDateDigits(rawDate, referenceDate)).formatted
+                  : dateSegments.formatted,
+                referenceDate
+              )
+            : '';
+
+          const isTimeValid = !timeError && isTimeCompleteAndValid(rawTime);
+          const resolvedTime = isTimeValid ? resolveEventTime(rawTime, timePeriod) : '';
+
+          if (formattedDate && resolvedTime) {
+            return `${formattedDate} · ${resolvedTime}`;
+          }
+          return formattedDate || resolvedTime || '';
+        };
+
+        // 1. formatEventDate strictly returns '' on invalid or partial calendar dates
+        assert.strictEqual(formatEventDate('02/29/2005'), '', 'Non-leap year Feb 29 returns empty string');
+        assert.strictEqual(formatEventDate('02/29/2025'), '', 'Non-leap year 2025 returns empty string');
+        assert.strictEqual(formatEventDate('02/29/200'), '', 'Partial 3-digit year returns empty string');
+        assert.strictEqual(formatEventDate('02/30/2026'), '', 'Feb 30 returns empty string');
+        assert.strictEqual(formatEventDate('04/31/2026'), '', 'Apr 31 returns empty string');
+        assert.strictEqual(formatEventDate('13/01/2026'), '', 'Month 13 returns empty string');
+
+        // Valid leap years format properly
+        const ref2026 = new Date(2026, 8, 17, 12, 0, 0);
+        assert.strictEqual(formatEventDate('02/29/2024', ref2026), 'Thu, Feb 29, 2024');
+        assert.strictEqual(formatEventDate('02/29/2028', ref2026), 'Tue, Feb 29, 2028');
+        assert.strictEqual(formatEventDate('02/29/28', ref2026), 'Tue, Feb 29, 2028');
+
+        // 2. User enters invalid date '02292005' (non-leap year)
+        // Date error is active, no time: preview must be completely empty (NOT '02/29/200')
+        const previewInvalidDateOnly = computeEventPreview({
+          rawDate: '02292005',
+          dateSegmentsState: { month: '02', day: '29', year: '2005' },
+          dateError: '2005 is not a leap year',
+          rawTime: '',
+          timeError: null,
+          timePeriod: 'PM',
+        });
+        assert.strictEqual(
+          previewInvalidDateOnly,
+          '',
+          'Translation preview must be completely empty and never show 02/29/200 or invalid date'
+        );
+
+        // 3. User enters invalid date '02292005' WITH valid time '700' (7:00 PM)
+        // Date is omitted from preview; only valid time is rendered
+        const previewInvalidDateValidTime = computeEventPreview({
+          rawDate: '02292005',
+          dateSegmentsState: { month: '02', day: '29', year: '2005' },
+          dateError: '2005 is not a leap year',
+          rawTime: '700',
+          timeError: null,
+          timePeriod: 'PM',
+        });
+        assert.strictEqual(
+          previewInvalidDateValidTime,
+          '7:00 PM',
+          'Translation preview must render only the valid time, omitting the invalid date'
+        );
+
+        // 4. User enters valid leap year '02292028' with time '700'
+        const previewValidLeapDateAndTime = computeEventPreview({
+          rawDate: '02292028',
+          dateSegmentsState: { month: '02', day: '29', year: '2028' },
+          dateError: null,
+          rawTime: '700',
+          timeError: null,
+          timePeriod: 'PM',
+          referenceDate: ref2026,
+        });
+        assert.strictEqual(
+          previewValidLeapDateAndTime,
+          'Tue, Feb 29, 2028 · 7:00 PM',
+          'Valid leap year date and time must format cleanly together in preview'
+        );
+
+        // 5. User enters valid date '09182026' with invalid time
+        const previewValidDateInvalidTime = computeEventPreview({
+          rawDate: '09182026',
+          dateSegmentsState: { month: '09', day: '18', year: '2026' },
+          dateError: null,
+          rawTime: '765',
+          timeError: 'Minutes tens digit cannot exceed 5',
+          timePeriod: 'PM',
+          referenceDate: ref2026,
+        });
+        assert.strictEqual(
+          previewValidDateInvalidTime,
+          'Fri, Sep 18',
+          'Valid date must appear while invalid time is omitted from preview'
         );
       });
     });

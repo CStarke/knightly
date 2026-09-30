@@ -11,7 +11,7 @@
  * THE TOUCH COLLISION PROBLEM:
  * When inner child components also require horizontal interaction—such as:
  * 1. Horizontal category tag filter chips (`ChipRow` in the feed and clubs directories)
- * 2. The 16:9 photo cropping viewfinder (`ImageCropperView` in Slot 5)
+ * 2. The inline 16:9 photo cropping viewfinder (`InlineImageCropper` in Create Post)
  * The outer pager's Pan gesture and the inner child's pan/scroll responder compete
  * for the same touch events. Without arbitration, swiping through category chips
  * or panning an image horizontally accidentally swipes the whole screen to the next tab!

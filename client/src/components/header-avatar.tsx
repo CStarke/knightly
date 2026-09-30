@@ -7,6 +7,8 @@ import {
   View,
 } from 'react-native';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { Icon } from '@/components/ui/icon';
 import { ThemedText } from '@/components/themed-text';
 import { Brand, Radius, Spacing } from '@/constants/theme';
@@ -17,28 +19,20 @@ import { student } from '@/data/student';
 
 export function HeaderAvatar() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { user, signOut } = useAuth();
   const { openClaimModal } = useClubLeadership();
   const [sheetVisible, setSheetVisible] = useState(false);
 
   const firstName = user?.firstName ?? student.firstName;
   const lastName = user?.lastName ?? student.lastName;
-  const fullName = user?.fullName ?? `${student.firstName} ${student.lastName}`;
-  const email = user?.email ?? student.email;
-  const standing = user?.standing ?? student.standing;
-  const major = user?.major ?? student.major;
-  const studentId = user?.id ?? student.id;
-
-  const initials = `${firstName[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase() || 'JD';
-
-  const handleClaimClub = () => {
-    setSheetVisible(false);
-    openClaimModal('profile');
-  };
-
-  const handleSignOut = () => {
-    setSheetVisible(false);
-    signOut();
+  const profile = {
+    fullName: user?.fullName ?? `${firstName} ${lastName}`,
+    email: user?.email ?? student.email,
+    standing: user?.standing ?? student.standing,
+    major: user?.major ?? student.major,
+    studentId: user?.id ?? student.id,
+    initials: `${firstName[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase() || 'JD',
   };
 
   return (
@@ -46,10 +40,10 @@ export function HeaderAvatar() {
       <Pressable
         onPress={() => setSheetVisible(true)}
         accessibilityRole="button"
-        accessibilityLabel={`View profile and account for ${fullName}`}
+        accessibilityLabel={`View profile and account for ${profile.fullName}`}
         style={({ pressed }) => [styles.avatar, pressed && styles.avatarPressed]}>
         <ThemedText type="smallBold" style={styles.avatarText}>
-          {initials}
+          {profile.initials}
         </ThemedText>
       </Pressable>
 
@@ -57,9 +51,17 @@ export function HeaderAvatar() {
         visible={sheetVisible}
         transparent
         animationType="fade"
+        statusBarTranslucent
+        navigationBarTranslucent
         onRequestClose={() => setSheetVisible(false)}>
         <TouchableWithoutFeedback onPress={() => setSheetVisible(false)}>
-          <View style={styles.overlay}>
+          <View
+            style={[
+              styles.overlay,
+              {
+                paddingBottom: Math.max(insets.bottom, Spacing.three),
+              },
+            ]}>
             <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
               <View style={styles.sheet}>
                 {/* Close X Button */}
@@ -80,55 +82,42 @@ export function HeaderAvatar() {
                 <View style={styles.profileHeader}>
                   <View style={styles.largeAvatar}>
                     <ThemedText type="title" style={styles.largeAvatarText}>
-                      {initials}
+                      {profile.initials}
                     </ThemedText>
                   </View>
                   <ThemedText type="subtitle" style={styles.nameText}>
-                    {fullName}
+                    {profile.fullName}
                   </ThemedText>
                   <ThemedText type="small" style={styles.emailText}>
-                    {email}
+                    {profile.email}
                   </ThemedText>
                 </View>
 
                 {/* Profile Details */}
                 <View style={styles.infoCard}>
-                  <View style={styles.infoRow}>
-                    <ThemedText type="caption" style={styles.infoLabel}>
-                      Status
-                    </ThemedText>
-                    <ThemedText type="smallBold" style={styles.infoValue}>
-                      {standing} · {major}
-                    </ThemedText>
-                  </View>
-
-                  <View style={styles.divider} />
-
-                  <View style={styles.infoRow}>
-                    <ThemedText type="caption" style={styles.infoLabel}>
-                      Student ID
-                    </ThemedText>
-                    <ThemedText type="smallBold" style={styles.infoValue}>
-                      {studentId}
-                    </ThemedText>
-                  </View>
-
-                  <View style={styles.divider} />
-
-                  <View style={styles.infoRow}>
-                    <ThemedText type="caption" style={styles.infoLabel}>
-                      Campus
-                    </ThemedText>
-                    <ThemedText type="smallBold" style={styles.infoValue}>
-                      Calvin University
-                    </ThemedText>
-                  </View>
+                  {[
+                    { label: 'Status', value: `${profile.standing} · ${profile.major}` },
+                    { label: 'Student ID', value: String(profile.studentId) },
+                    { label: 'Campus', value: 'Calvin University' },
+                  ].map((field, idx) => (
+                    <View key={field.label}>
+                      {idx > 0 && <View style={styles.divider} />}
+                      <View style={styles.infoRow}>
+                        <ThemedText type="caption" style={styles.infoLabel}>
+                          {field.label}
+                        </ThemedText>
+                        <ThemedText type="smallBold" style={styles.infoValue}>
+                          {field.value}
+                        </ThemedText>
+                      </View>
+                    </View>
+                  ))}
                 </View>
 
                 {/* Actions: Claim Club, Sign Out & Close */}
                 <View style={styles.actions}>
                   <Pressable
-                    onPress={handleClaimClub}
+                    onPress={() => { setSheetVisible(false); openClaimModal('profile'); }}
                     accessibilityRole="button"
                     accessibilityLabel="Claim Club Leadership"
                     style={({ pressed }) => [
@@ -143,7 +132,7 @@ export function HeaderAvatar() {
                   </Pressable>
 
                   <Pressable
-                    onPress={handleSignOut}
+                    onPress={() => { setSheetVisible(false); signOut(); }}
                     accessibilityRole="button"
                     accessibilityLabel="Sign Out"
                     style={({ pressed }) => [
@@ -195,10 +184,13 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
     justifyContent: 'flex-end',
     alignItems: 'center',
-    padding: Spacing.three,
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.three,
   },
   sheet: {
     width: '100%',

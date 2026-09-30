@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
   Keyboard,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -26,8 +25,15 @@ import { ThemedText } from '@/components/themed-text';
 import { getAppHeaderHeight } from '@/components/ui/app-header';
 import { Icon } from '@/components/ui/icon';
 import { Brand, Fonts, MaxContentWidth, Radius, Spacing, WebHeaderInset } from '@/constants/theme';
+import { APP_VERSION } from '@/constants/version';
 import { useAuth } from '@/context/auth-context';
 import { student } from '@/data/student';
+import {
+  PASSWORD_MASK_DELAY_MS,
+  PASSWORD_MASK_DOT,
+  formatPasswordDisplay,
+  processPasswordMaskInput,
+} from '@/utils/masked-password';
 
 export function LoginScreen() {
   const insets = useSafeAreaInsets();
@@ -39,11 +45,22 @@ export function LoginScreen() {
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [displayPassword, setDisplayPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [userFocused, setUserFocused] = useState(false);
   const [passFocused, setPassFocused] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const maskTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Clean up any pending password mask timer on unmount
+  useEffect(() => {
+    return () => {
+      if (maskTimerRef.current) {
+        clearTimeout(maskTimerRef.current);
+      }
+    };
+  }, []);
 
   const [activeInitials, setActiveInitials] = useState(() => {
     const fn = user?.firstName ?? student.firstName;
@@ -69,24 +86,13 @@ export function LoginScreen() {
   const defaultHeaderX =
     (windowWidth > MaxContentWidth ? (windowWidth - MaxContentWidth) / 2 : 0) +
     Spacing.three;
-  const defaultHeaderY = headerPaddingTop;
-
   const defaultHeroWidth = 136;
   const defaultHeroHeight = 42;
-
-  // Form is optically centered in windowHeight
   const formMainTop = Math.max(headerPaddingTop + 30, (windowHeight - 402) / 2);
-  const defaultHeroX = (windowWidth - defaultHeroWidth) / 2;
-  const defaultHeroY = formMainTop + 74; // Below shield (58) + marginBottom (16)
 
-  const defaultHeroCenterX = defaultHeroX + defaultHeroWidth / 2;
-  const defaultHeroCenterY = defaultHeroY + defaultHeroHeight / 2;
-
-  const defaultTargetCenterX = defaultHeaderX + (defaultHeroWidth * targetScale) / 2;
-  const defaultTargetCenterY = defaultHeaderY + (defaultHeroHeight * targetScale) / 2;
-
-  const initialDeltaX = defaultTargetCenterX - defaultHeroCenterX;
-  const initialDeltaY = defaultTargetCenterY - defaultHeroCenterY;
+  const initialDeltaX = defaultHeaderX + (defaultHeroWidth * targetScale) / 2 - windowWidth / 2;
+  const initialDeltaY =
+    headerPaddingTop + (defaultHeroHeight * targetScale) / 2 - (formMainTop + 74 + defaultHeroHeight / 2);
 
   // Shared animation values
   const overlayOpacity = useSharedValue(1);
@@ -98,6 +104,89 @@ export function LoginScreen() {
   // Distance from hero starting center to header destination center
   const deltaX = useSharedValue(initialDeltaX);
   const deltaY = useSharedValue(initialDeltaY);
+
+  // Dedicated shared value for smooth form elevation without mid-curve clipping
+  const formRaise = useSharedValue(0);
+  const isKeyboardOpenRef = useRef(false);
+
+  const raiseForm = useCallback(
+    (duration: number = 280) => {
+      if (isTransitioningRef.current) return;
+      const formTop = (windowHeight - 402) / 2;
+      // Keep at least insets.top + Spacing.four + 12px breathing room so the logo never hits the top
+      const minTopClearance = insets.top + Spacing.four + 12;
+      const maxSafeRaise = Math.max(0, formTop - minTopClearance);
+      // "It should raise just a touch more" -> 105px (up from previous 75px), clamped by maxSafeRaise
+      const targetRaise = Math.min(105, maxSafeRaise);
+
+      formRaise.value = withTiming(targetRaise, {
+        duration,
+        easing: Easing.out(Easing.cubic),
+      });
+    },
+    [windowHeight, insets.top, formRaise]
+  );
+
+  const lowerForm = useCallback(
+    (duration: number = 240) => {
+      if (isTransitioningRef.current) return;
+      formRaise.value = withTiming(0, {
+        duration,
+        easing: Easing.out(Easing.cubic),
+      });
+    },
+    [formRaise]
+  );
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const onShow = (e: any) => {
+      isKeyboardOpenRef.current = true;
+      const duration = e?.duration && e.duration > 0 ? e.duration : 280;
+      raiseForm(duration);
+    };
+
+    const onHide = (e: any) => {
+      isKeyboardOpenRef.current = false;
+      const duration = e?.duration && e.duration > 0 ? e.duration : 240;
+      lowerForm(duration);
+    };
+
+    const showSub = Keyboard.addListener(showEvent, onShow);
+    const hideSub = Keyboard.addListener(hideEvent, onHide);
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [raiseForm, lowerForm]);
+
+  // Mobile Web visualViewport resize listener for on-screen keyboards
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined' || !window.visualViewport) {
+      return;
+    }
+    const handleResize = () => {
+      const vv = window.visualViewport;
+      if (!vv) return;
+      const diff = window.innerHeight - vv.height;
+      if (diff > 120) {
+        isKeyboardOpenRef.current = true;
+        raiseForm(280);
+      } else {
+        isKeyboardOpenRef.current = false;
+        lowerForm(240);
+      }
+    };
+    window.visualViewport.addEventListener('resize', handleResize);
+    window.visualViewport.addEventListener('scroll', handleResize);
+    return () => {
+      window.visualViewport?.removeEventListener('resize', handleResize);
+      window.visualViewport?.removeEventListener('scroll', handleResize);
+    };
+  }, [raiseForm, lowerForm]);
 
   // Measure both untransformed views to get exact travel delta
   const measurePositions = useCallback(() => {
@@ -184,14 +273,11 @@ export function LoginScreen() {
     Keyboard.dismiss();
     setErrorMessage('');
     setIsTransitioning(true);
+    formRaise.value = 0;
 
     // Compute initials immediately for John Doe / demo or custom user
-    const isJohn =
-      submittedUser.toLowerCase() === 'jmd42' ||
-      submittedUser.toLowerCase() === 'jmd42@calvin.edu' ||
-      submittedUser.toLowerCase() === 'john' ||
-      submittedUser.toLowerCase() === 'jmd' ||
-      submittedUser.toLowerCase() === student.email.toLowerCase();
+    const lowerUser = submittedUser.toLowerCase();
+    const isJohn = ['jmd42', 'jmd42@calvin.edu', 'john', 'jmd', student.email.toLowerCase()].includes(lowerUser);
 
     if (isJohn) {
       setActiveInitials('JD');
@@ -293,9 +379,67 @@ export function LoginScreen() {
     );
   };
 
+  const applyPassword = useCallback(
+    (newRealPassword: string) => {
+      setPassword(newRealPassword);
+      if (maskTimerRef.current) {
+        clearTimeout(maskTimerRef.current);
+        maskTimerRef.current = null;
+      }
+      setDisplayPassword(formatPasswordDisplay(newRealPassword, showPassword));
+    },
+    [showPassword]
+  );
+
+  const toggleShowPassword = useCallback(() => {
+    setShowPassword((prev) => {
+      const next = !prev;
+      if (maskTimerRef.current) {
+        clearTimeout(maskTimerRef.current);
+        maskTimerRef.current = null;
+      }
+      setDisplayPassword(formatPasswordDisplay(password, next));
+      return next;
+    });
+  }, [password]);
+
+  const handlePasswordChange = useCallback(
+    (newInputText: string) => {
+      if (errorMessage) setErrorMessage('');
+
+      if (maskTimerRef.current) {
+        clearTimeout(maskTimerRef.current);
+        maskTimerRef.current = null;
+      }
+
+      if (showPassword) {
+        setPassword(newInputText);
+        setDisplayPassword(newInputText);
+        return;
+      }
+
+      const result = processPasswordMaskInput({
+        currentReal: password,
+        currentDisplay: displayPassword,
+        newInputText,
+      });
+
+      setPassword(result.newReal);
+      setDisplayPassword(result.newDisplay);
+
+      if (result.shouldStartTimer) {
+        maskTimerRef.current = setTimeout(() => {
+          setDisplayPassword(PASSWORD_MASK_DOT.repeat(result.newReal.length));
+          maskTimerRef.current = null;
+        }, PASSWORD_MASK_DELAY_MS);
+      }
+    },
+    [errorMessage, showPassword, password, displayPassword]
+  );
+
   const fillDemoCredentials = () => {
     setUsername('jmd42');
-    setPassword('calvin2028');
+    applyPassword('calvin2028');
     setErrorMessage('');
   };
 
@@ -333,6 +477,21 @@ export function LoginScreen() {
         { translateY: dY * p },
         { scale: currentScale },
       ],
+    };
+  });
+
+  // Smoothly raises the login form when the keyboard appears or input is focused.
+  // "Not too much, it's just barely hidden, and you still don't want to be able to scroll,
+  // the logo at the top of the login section shouldn't hit the top of the screen"
+  // "It should raise just a touch more, and give it the same smooth raising that other places in the app do."
+  const formRaiseAnimatedStyle = useAnimatedStyle(() => {
+    if (isTransitioning) {
+      return {
+        transform: [{ translateY: 0 }],
+      };
+    }
+    return {
+      transform: [{ translateY: -formRaise.value }],
     };
   });
 
@@ -385,18 +544,20 @@ export function LoginScreen() {
       {/* 2. Login Form Screen: Sits unclipped on top of maroonContainer */}
       <View style={styles.formContainer}>
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.keyboardView}>
+          <View
+            style={styles.keyboardView}
+            {...(Platform.OS === 'web' ? ({ 'data-no-auto-scroll': 'true' } as any) : {})}>
             <ScrollView
               ref={scrollViewRef}
-              scrollEnabled={!isTransitioning}
+              scrollEnabled={false}
+              bounces={false}
+              overScrollMode="never"
               removeClippedSubviews={false}
               contentContainerStyle={styles.scrollContent}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}>
-              {/* Form Main: Vertically and horizontally centered on ANY screen */}
-              <View style={styles.formMain}>
+              {/* Form Main: Vertically and horizontally centered on ANY screen, raises smoothly when keyboard appears */}
+              <Animated.View style={[styles.formMain, formRaiseAnimatedStyle]}>
                 {/* Branding Header */}
                 <View style={styles.brandHeader}>
                   {/* Shield Icon: Fades out on sign in */}
@@ -434,7 +595,12 @@ export function LoginScreen() {
                         setUsername(text);
                         if (errorMessage) setErrorMessage('');
                       }}
-                      onFocus={() => setUserFocused(true)}
+                      onFocus={() => {
+                        setUserFocused(true);
+                        if (Platform.OS === 'android') {
+                          raiseForm(250);
+                        }
+                      }}
                       onBlur={() => setUserFocused(false)}
                       cursorColor={Brand.gold}
                       selectionColor={Brand.gold}
@@ -454,20 +620,28 @@ export function LoginScreen() {
                   <View style={styles.fieldWrap}>
                     <View style={styles.passwordRow}>
                       <TextInput
-                        value={password}
-                        onChangeText={(text) => {
-                          setPassword(text);
-                          if (errorMessage) setErrorMessage('');
+                        value={displayPassword}
+                        onChangeText={handlePasswordChange}
+                        onFocus={() => {
+                          setPassFocused(true);
+                          if (Platform.OS === 'web' || Platform.OS === 'android') {
+                            raiseForm(250);
+                          }
                         }}
-                        onFocus={() => setPassFocused(true)}
-                        onBlur={() => setPassFocused(false)}
+                        onBlur={() => {
+                          setPassFocused(false);
+                          if (Platform.OS === 'web' && !isKeyboardOpenRef.current) {
+                            lowerForm(250);
+                          }
+                        }}
                         cursorColor={Brand.gold}
                         selectionColor={Brand.gold}
                         placeholder="Password"
                         placeholderTextColor="rgba(255, 255, 255, 0.55)"
-                        secureTextEntry={!showPassword}
+                        secureTextEntry={false}
                         autoCapitalize="none"
                         autoCorrect={false}
+                        spellCheck={false}
                         returnKeyType="go"
                         onSubmitEditing={handleSignIn}
                         style={[
@@ -477,7 +651,7 @@ export function LoginScreen() {
                         ]}
                       />
                       <Pressable
-                        onPress={() => setShowPassword((prev: boolean) => !prev)}
+                        onPress={toggleShowPassword}
                         hitSlop={12}
                         style={styles.eyeButton}
                         accessibilityRole="button"
@@ -527,7 +701,7 @@ export function LoginScreen() {
                     </ThemedText>
                   </Pressable>
                 </Animated.View>
-              </View>
+              </Animated.View>
 
               {/* Footer pinned closer to the bottom without displacing the centered form */}
               <Animated.View
@@ -540,8 +714,22 @@ export function LoginScreen() {
                   Calvin University · Grand Rapids, Michigan
                 </ThemedText>
               </Animated.View>
+
+              {/* Version watermark pinned to bottom right corner */}
+              <Animated.View
+                style={[
+                  styles.versionContainer,
+                  {
+                    bottom: Math.max(insets.bottom + Spacing.two, Spacing.four),
+                    right: Math.max(insets.right + Spacing.three, Spacing.four),
+                  },
+                  formFadeAnimatedStyle,
+                ]}
+                pointerEvents="none">
+                <ThemedText style={styles.versionText}>{APP_VERSION}</ThemedText>
+              </Animated.View>
             </ScrollView>
-          </KeyboardAvoidingView>
+          </View>
         </TouchableWithoutFeedback>
       </View>
     </Animated.View>
@@ -806,5 +994,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(255, 255, 255, 0.45)',
     letterSpacing: 0.3,
+  },
+  versionContainer: {
+    position: 'absolute',
+    zIndex: 10,
+  },
+  versionText: {
+    fontFamily: Fonts.mono,
+    fontSize: 10,
+    color: 'rgba(255, 255, 255, 0.4)',
+    letterSpacing: 0.5,
   },
 });

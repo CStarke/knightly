@@ -7,7 +7,7 @@
  * Knightly transitions into this setup view as an in-pager subpage.
  *
  * WHY IN-PAGER SUBPAGE ARCHITECTURE:
- * 1. Background Continuity: Like the image cropper and club detail views, rendering this
+ * 1. Background Continuity: Like the club detail views, rendering this
  *    as an in-pager subpage maintains the 3D parallax starfield canvas and tab pager layout.
  * 2. Guided Onboarding: Club shells provisioned by Student Life often have bare minimum details.
  *    Prompting the leader to confirm meeting time, location, and description immediately
@@ -18,6 +18,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -27,10 +28,11 @@ import {
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { FieldLabel } from '@/components/ui/field-label';
 import { Icon } from '@/components/ui/icon';
 import { Screen } from '@/components/ui/screen';
+import { SuccessModal } from '@/components/ui/success-modal';
 import { Brand, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
 import { useClubLeadership } from '@/context/club-leadership-context';
@@ -41,6 +43,7 @@ import {
 } from '@/data/club-codes';
 import { feedCategories, type FeedCategory } from '@/data/feed';
 import { distributeIntoRows } from '@/utils/chip-layout';
+import { handleSmoothInputFocus } from '@/utils/smooth-input-focus';
 import { useTheme } from '@/hooks/use-theme';
 
 const MIN_DESC_HEIGHT = 90;
@@ -147,10 +150,25 @@ export function CompleteClubProfileView({
 
     // Only mark as used after a confirmed successful claim
     markClubCodeUsed(code, user?.id);
+    Keyboard.dismiss();
     setStep('success');
   }, [code, record, claimClub, description, meetingSchedule, location, contactEmail, category, user?.id]);
 
   const claimedClubName = record && record !== 'loading' ? record.clubName : '';
+
+  const getInputStyle = (focused: boolean) => [
+    styles.inputBase,
+    {
+      color: theme.text,
+      borderColor: focused ? Brand.gold : theme.border,
+      backgroundColor: theme.backgroundElement,
+    },
+  ];
+
+  const handleDismissSuccess = useCallback(() => {
+    setStep('form');
+    onSuccess();
+  }, [onSuccess]);
 
   if (guardError) {
     return (
@@ -178,30 +196,6 @@ export function CompleteClubProfileView({
     );
   }
 
-  if (step === 'success') {
-    return (
-      <Screen style={styles.screenInner}>
-        <View style={styles.successContainer}>
-          <View style={styles.successIconCircle}>
-            <Icon sf="checkmark" md="check" size={36} color="#FFFFFF" />
-          </View>
-          <ThemedText type="headline" style={styles.successHeadline}>
-            You're Linked to {claimedClubName}!
-          </ThemedText>
-          <ThemedText type="default" themeColor="textMuted" style={styles.successBody}>
-            The club posting portal has been activated. You will now see the new "+" tab at the right end of your bottom navigation bar.
-          </ThemedText>
-          <Button
-            label="Got it"
-            variant="primary"
-            onPress={onSuccess}
-            style={styles.wideButton}
-          />
-        </View>
-      </Screen>
-    );
-  }
-
   return (
     <Screen style={styles.screenInner}>
       <KeyboardAvoidingView
@@ -209,33 +203,35 @@ export function CompleteClubProfileView({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.inner}>
-          {/* Claim verified banner */}
+          {/*
+           * Provisioned Club Claim Header Banner
+           *
+           * ARCHITECTURAL RATIONALE:
+           * The previous in-card "CLAIM VERIFIED" chip was removed because verification is
+           * already celebrated via the micro-interaction on the code entry modal and stated
+           * in the top screen header subtitle. Removing the floating chip places immediate
+           * visual focus on the claimed organization's name, while splitting the guidance
+           * copy onto separate lines provides balanced vertical cadence.
+           */}
           <View style={[styles.claimBanner, { borderColor: 'rgba(243, 205, 0, 0.3)', backgroundColor: 'rgba(243, 205, 0, 0.06)' }]}>
-            <Badge label="CLAIM VERIFIED" tone="success" />
             <ThemedText type="headline" style={styles.claimedClubName}>
               {claimedClubName}
             </ThemedText>
             <ThemedText type="caption" themeColor="textMuted">
-              Student Life has provisioned this shell. Customize initial club details below.
+              Student Life has provisioned this shell.
+            </ThemedText>
+            <ThemedText type="caption" themeColor="textMuted">
+              Customize initial club details below.
             </ThemedText>
           </View>
 
           {/* Description — auto-expanding, matching New Post */}
           <View style={styles.fieldGroup}>
-            <View style={styles.labelRow}>
-              <ThemedText type="caption" themeColor="textMuted" style={styles.fieldLabel}>
-                CLUB DESCRIPTION
-              </ThemedText>
-              <ThemedText
-                type="caption"
-                style={[
-                  styles.charCount,
-                  { color: description.length > MAX_DESCRIPTION_LENGTH ? Brand.brightRed : theme.textMuted },
-                ]}
-              >
-                {description.length}/{MAX_DESCRIPTION_LENGTH}
-              </ThemedText>
-            </View>
+            <FieldLabel
+              label="CLUB DESCRIPTION"
+              currentLength={description.length}
+              maxLength={MAX_DESCRIPTION_LENGTH}
+            />
             <TextInput
               value={description}
               onChangeText={setDescription}
@@ -253,6 +249,7 @@ export function CompleteClubProfileView({
               numberOfLines={4}
               maxLength={MAX_DESCRIPTION_LENGTH}
               style={[
+                styles.inputBase,
                 styles.descInput,
                 {
                   height: Math.max(MIN_DESC_HEIGHT, descHeight),
@@ -270,63 +267,52 @@ export function CompleteClubProfileView({
 
           {/* Meeting Schedule */}
           <View style={styles.fieldGroup}>
-            <ThemedText type="caption" themeColor="textMuted" style={styles.fieldLabel}>
-              MEETING SCHEDULE
-            </ThemedText>
+            <FieldLabel label="MEETING SCHEDULE" />
             <TextInput
               value={meetingSchedule}
               onChangeText={setMeetingSchedule}
-              onFocus={() => setIsScheduleFocused(true)}
+              onFocus={(e) => {
+                setIsScheduleFocused(true);
+                handleSmoothInputFocus(e);
+              }}
               onBlur={() => setIsScheduleFocused(false)}
               cursorColor={Brand.gold}
               selectionColor={Brand.gold}
               placeholder="e.g. Wednesdays · 6:30 PM - 8:30 PM"
               placeholderTextColor={theme.textMuted}
-              style={[
-                styles.singleInput,
-                {
-                  color: theme.text,
-                  borderColor: isScheduleFocused ? Brand.gold : theme.border,
-                  backgroundColor: theme.backgroundElement,
-                },
-              ]}
+              style={getInputStyle(isScheduleFocused)}
             />
           </View>
 
           {/* Location */}
           <View style={styles.fieldGroup}>
-            <ThemedText type="caption" themeColor="textMuted" style={styles.fieldLabel}>
-              LOCATION
-            </ThemedText>
+            <FieldLabel label="LOCATION" />
             <TextInput
               value={location}
               onChangeText={setLocation}
-              onFocus={() => setIsLocFocused(true)}
+              onFocus={(e) => {
+                setIsLocFocused(true);
+                handleSmoothInputFocus(e);
+              }}
               onBlur={() => setIsLocFocused(false)}
               cursorColor={Brand.gold}
               selectionColor={Brand.gold}
               placeholder="e.g. North Hall 276 (CS Lab)"
               placeholderTextColor={theme.textMuted}
-              style={[
-                styles.singleInput,
-                {
-                  color: theme.text,
-                  borderColor: isLocFocused ? Brand.gold : theme.border,
-                  backgroundColor: theme.backgroundElement,
-                },
-              ]}
+              style={getInputStyle(isLocFocused)}
             />
           </View>
 
           {/* Contact Email */}
           <View style={styles.fieldGroup}>
-            <ThemedText type="caption" themeColor="textMuted" style={styles.fieldLabel}>
-              CONTACT EMAIL
-            </ThemedText>
+            <FieldLabel label="CONTACT EMAIL" />
             <TextInput
               value={contactEmail}
               onChangeText={setContactEmail}
-              onFocus={() => setIsEmailFocused(true)}
+              onFocus={(e) => {
+                setIsEmailFocused(true);
+                handleSmoothInputFocus(e);
+              }}
               onBlur={() => setIsEmailFocused(false)}
               cursorColor={Brand.gold}
               selectionColor={Brand.gold}
@@ -334,22 +320,13 @@ export function CompleteClubProfileView({
               placeholderTextColor={theme.textMuted}
               keyboardType="email-address"
               autoCapitalize="none"
-              style={[
-                styles.singleInput,
-                {
-                  color: theme.text,
-                  borderColor: isEmailFocused ? Brand.gold : theme.border,
-                  backgroundColor: theme.backgroundElement,
-                },
-              ]}
+              style={getInputStyle(isEmailFocused)}
             />
           </View>
 
           {/* Category Picker */}
           <View style={styles.fieldGroup}>
-            <ThemedText type="caption" themeColor="textMuted" style={styles.fieldLabel}>
-              CATEGORY
-            </ThemedText>
+            <FieldLabel label="SELECT CATEGORY" />
             <View style={styles.categoryGrid}>
               {categoryRows.map((row, rowIndex) => (
                 <View key={`cat-row-${rowIndex}`} style={styles.categoryRow}>
@@ -407,6 +384,19 @@ export function CompleteClubProfileView({
           />
         </View>
       </KeyboardAvoidingView>
+
+      {/* Standard Success Confirmation Modal Template */}
+      <SuccessModal
+        visible={step === 'success'}
+        title={`You're Linked to ${claimedClubName || 'Your Club'}!`}
+        message='The club posting portal has been activated. You will now see the new "+" tab at the right end of your bottom navigation bar.'
+        primaryButton={{
+          label: 'Got it',
+          variant: 'primary',
+          onPress: handleDismissSuccess,
+        }}
+        onClose={handleDismissSuccess}
+      />
     </Screen>
   );
 }
@@ -435,44 +425,23 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
   },
-  labelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
   fieldGroup: {
     gap: 6,
   },
-  fieldLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-  },
-  charCount: {
-    fontSize: 11,
-  },
-  descInput: {
+  inputBase: {
     borderWidth: 1,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.two + 4,
     paddingVertical: Spacing.two + 2,
     fontSize: 15,
+    // @ts-ignore — web only
+    outlineWidth: 0,
+    outlineColor: 'transparent',
+  },
+  descInput: {
     lineHeight: 22,
     minHeight: MIN_DESC_HEIGHT,
     textAlignVertical: 'top',
-    // @ts-ignore — web only
-    outlineWidth: 0,
-    outlineColor: 'transparent',
-  },
-  singleInput: {
-    borderWidth: 1,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.two + 4,
-    paddingVertical: Spacing.two + 2,
-    fontSize: 15,
-    // @ts-ignore — web only
-    outlineWidth: 0,
-    outlineColor: 'transparent',
   },
   categoryGrid: {
     flexDirection: 'column',
@@ -538,32 +507,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     textAlign: 'center',
-  },
-  // Success state
-  successContainer: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.six,
-    gap: Spacing.three,
-  },
-  successIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#10B981',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  successHeadline: {
-    fontSize: 24,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  successBody: {
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: 'center',
-    maxWidth: 360,
   },
 });
