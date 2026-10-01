@@ -5,6 +5,29 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
+## [0.2.1] - 2026-10-01
+
+### Added
+- **Dynamic Post Timestamps & Future Countdowns**: Converted `postedAt` to an ISO 8601 creation timestamp rather than static display text. Posts now compute their relative display dynamically based on the current viewing time:
+  - `0–5 minutes` (past or minor clock skew): `"Just now"`
+  - `5–60 minutes`: `"${minutes} minutes ago"` (past) or `"In ${minutes} minutes"` (future)
+  - `1–24 hours`: Truncated `# of hours` (`"1 hour ago"`, `"2 hours ago"`, `"In 1 hour"`, `"In 2 hours"`, e.g. 1 hour 50 minutes displays `"1 hour ago"` / `"In 1 hour"`)
+  - `1–30 days`: `"${days} days ago"` (past) or `"In ${days} days"` (future)
+  - `Past 30 days` & distant future: Formatted as exact post date (`"Posted 21 October 2026"`), with full support for international time zones via `Intl.DateTimeFormat`.
+- **Feed Chronological Sorting**: Implemented `sortPostsByDate` across `FeedScreen` (both Following and All Campus explore tabs), `FeedContext`, and `data/feed` query helpers to guarantee posts are strictly ordered by publication timestamp with the newest at the top.
+- **Auto-Commit Photo Crop on Tab Switch**: In the Create Post composer (`post.tsx`), switching away from the Post tab while in active photo cropping mode automatically ends the crop session and commits the adjusted transform matrix (equivalent to clicking the "Done" button), preserving the user's zoom and pan adjustments on the flyer banner.
+- **Randomized Cold Start Photo Upload Stress Test (10,000 Iterations)**: Enhanced `tab-focus-preservation.test.ts` with controlled, realistic entropy across 10,000 iterations modeling OS hardware diversity (8 screen widths: 360–768px), 3 cold launch pathways, 3 user navigation patterns, 10 dev-server resume intent URLs, Android Low Memory Killer (LMK) activity recreations (`initial: true`), photo picker cancellations, 5 photo aspect ratios, and mid-crop tab switches with sub-second execution (~170–250ms).
+- **Server-Authoritative Timestamp Guidelines**: Added architectural specifications in `AGENTS.md`, `client/AGENTS.md`, and `docs/api.md` mandating that post creation timestamps (`postedAt` and `createdAt`) are generated server-side upon backend integration, immunizing the feed against client-side device clock manipulation.
+
+### Changed
+- **Gold Publish Action Button**: Updated the primary post creation action button in the Create Post composer (`post.tsx`) to use the new `variant="gold"` button styling (`Brand.gold` with `#0B0C0E` high-contrast bold typography), highlighting the active publishing organization (e.g. "Publish as Abstraction").
+- **Codebase Commenting & Documentation Standards**: Enriched the codebase with detailed "what" step-by-step pipeline labels, "why" architectural rationale comments, and comprehensive JSDoc blocks across post authoring, feed rendering, club directories, and context providers.
+
+### Fixed
+- **Club Page Live Announcements**: Connected `ClubDetailView` to the live `FeedContext` state, ensuring the "Recent Updates & Announcements" section and post counter dynamically update and immediately replace the "No announcements yet" placeholder whenever a student leader publishes a post on behalf of their organization.
+
+---
+
 ## [0.2.0] - 2026-10-01
 
 ### Added

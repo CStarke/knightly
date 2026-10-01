@@ -14,6 +14,7 @@
  *    students a complete activity archive alongside logistics and contact details.
  */
 
+import { useMemo } from 'react';
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -27,16 +28,36 @@ import { Screen } from '@/components/ui/screen';
 import { Brand, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useClubFollow } from '@/context/club-follow-context';
 import { useClubsNavigation } from '@/context/clubs-navigation-context';
+import { useOptionalFeed } from '@/context/feed-context';
 import { getClubById } from '@/data/clubs';
 import { getPostsByClubId } from '@/data/feed';
 
+/**
+ * Renders the in-pager subpage showing a single club's profile, logistics, and activity feed.
+ *
+ * @param props.clubId - The unique slug identifier of the club to display (e.g. 'acm', 'abstraction')
+ */
 export function ClubDetailView({ clubId }: { clubId: string }) {
+  // Step 1: Hook Subscriptions
   const { isFollowing, toggleFollow } = useClubFollow();
   const { closeClubDetail } = useClubsNavigation();
+  const feed = useOptionalFeed();
 
+  // Step 2: Club Data Resolution & Posts Memoization
   const club = clubId ? getClubById(clubId) : undefined;
-  const clubPosts = club ? getPostsByClubId(club.id) : [];
 
+  // WHY REACTIVE FEED POSTS MEMOIZATION:
+  // When a student officer creates a new post via the Create Post composer, it is appended to
+  // `feed.posts` in FeedContext. Including `feed?.posts` in this dependency array guarantees that
+  // `clubPosts` recalculates immediately, making newly published announcements show up in real-time
+  // without requiring a screen remount or manual reload.
+  const clubPosts = useMemo(
+    () => (club ? getPostsByClubId(club.id, feed?.posts) : []),
+    [club, feed?.posts]
+  );
+
+  // Step 3: Club Not Found Fallback Guard
+  // Displays a helpful recovery card if an invalid or stale club ID is provided.
   if (!club) {
     return (
       <Screen style={styles.screenInner}>
@@ -58,7 +79,11 @@ export function ClubDetailView({ clubId }: { clubId: string }) {
 
   return (
     <Screen style={styles.screenInner}>
-      {/* Hero Card */}
+      {/*
+        Step 4: Hero Header Card
+        Renders either a photo banner or a solid brand-color fallback, an overlapping avatar
+        squircle with the club's official icon, category badge, title, tagline, and prominent Follow button.
+      */}
       <Card flush style={styles.heroCard}>
         {club.image ? (
           <View style={styles.heroImageContainer}>
@@ -81,6 +106,7 @@ export function ClubDetailView({ clubId }: { clubId: string }) {
 
         <View style={styles.heroBody}>
           <View style={styles.avatarRow}>
+            {/* Overlapping Club Icon Squircle */}
             <View
               style={[
                 styles.avatarLarge,
@@ -110,7 +136,11 @@ export function ClubDetailView({ clubId }: { clubId: string }) {
         </View>
       </Card>
 
-      {/* About & Logistics Card */}
+      {/*
+        Step 5: About & Logistics Card
+        Presents the organization's mission statement alongside verified meeting schedule,
+        meeting location, officer leadership, and official contact email.
+      */}
       <Card style={styles.aboutCard}>
         <ThemedText type="smallBold" style={styles.sectionHeader}>
           About
@@ -160,7 +190,11 @@ export function ClubDetailView({ clubId }: { clubId: string }) {
         </View>
       </Card>
 
-      {/* Club Posts & Activity */}
+      {/*
+        Step 6: Club Posts & Activity Stream
+        Renders all historical and newly posted announcements for this club.
+        If no announcements exist yet, renders an encouraging empty state card.
+      */}
       <View style={styles.postsSection}>
         <View style={styles.postsHeaderRow}>
           <ThemedText type="smallBold" style={styles.sectionHeader}>
@@ -335,6 +369,16 @@ const styles = StyleSheet.create({
   },
 });
 
+/**
+ * Renders a row in the organization's logistics list with a circular icon and label/value pair.
+ *
+ * @param props.sf - iOS SF Symbol name
+ * @param props.md - Android/Web Material Symbol name
+ * @param props.color - Accent color for the icon glyph
+ * @param props.bgColor - Optional circular background tint (defaults to 14% alpha tint of `color`)
+ * @param props.label - Small uppercase/muted field description (e.g. 'Meeting Schedule', 'Location')
+ * @param props.value - The substantive logistics information or email address
+ */
 function MetaItem({
   sf,
   md,

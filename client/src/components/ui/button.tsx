@@ -2,21 +2,37 @@ import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'rea
 
 import { ThemedText } from '@/components/themed-text';
 import { Icon, type MaterialSymbolName, type SfSymbolName } from '@/components/ui/icon';
-import { Radius, Spacing } from '@/constants/theme';
+import { Brand, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
+/**
+ * Standard button component props supporting Calvin brand variants.
+ */
 type ButtonProps = {
   label: string;
   caption?: string;
   onPress?: () => void;
   disabled?: boolean;
-  variant?: 'primary' | 'secondary' | 'danger';
+  variant?: 'primary' | 'secondary' | 'danger' | 'gold';
   sf?: SfSymbolName;
   md?: MaterialSymbolName;
   size?: 'regular' | 'large';
   style?: StyleProp<ViewStyle>;
 };
 
+/**
+ * Reusable pressable button component styled with semantic theme and brand colors.
+ *
+ * @param props.label - Primary button text
+ * @param props.caption - Optional secondary caption displayed beneath the label
+ * @param props.onPress - Click/touch event handler
+ * @param props.disabled - Whether button is non-interactive with 50% opacity
+ * @param props.variant - Visual style: 'primary' (Maroon), 'gold' (Calvin Gold with dark text), 'secondary' (Neutral), or 'danger' (Red)
+ * @param props.sf - Optional SF Symbol icon
+ * @param props.md - Optional Material Symbol icon
+ * @param props.size - Button size scale ('regular' or 'large')
+ * @param props.style - Additional custom container style overrides
+ */
 export function Button({
   label,
   caption,
@@ -30,9 +46,24 @@ export function Button({
 }: ButtonProps) {
   const theme = useTheme();
 
+  // Step 1: Resolve semantic background color by variant
   const background =
-    variant === 'primary' ? theme.tint : variant === 'danger' ? theme.danger : theme.backgroundSelected;
-  const foreground = variant === 'secondary' ? theme.text : theme.onTint;
+    variant === 'gold'
+      ? Brand.gold
+      : variant === 'primary'
+      ? theme.tint
+      : variant === 'danger'
+      ? theme.danger
+      : theme.backgroundSelected;
+
+  // Step 2: Resolve high-contrast foreground color
+  // Gold buttons use dark neutral #0B0C0E for maximal legibility on radiant gold
+  const foreground =
+    variant === 'gold'
+      ? '#0B0C0E'
+      : variant === 'secondary'
+      ? theme.text
+      : theme.onTint;
 
   return (
     <Pressable

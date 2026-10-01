@@ -112,3 +112,44 @@ This document specifies the REST API endpoints and data contracts provided by th
       "healthServices": "616-526-6187"
     }
     ```
+
+---
+
+### 6. Campus Feed & Announcements
+- **`POST /api/posts`**
+  - **Description**: Publishes a new announcement or flyer on behalf of a student organization.
+  - **Server-Authoritative Timestamp Requirement**:
+    > **CRITICAL ARCHITECTURAL DIRECTIVE (TAMPER-RESISTANT POST TIMESTAMPS):**
+    > The creation timestamp (`postedAt` ISO 8601 string and `createdAt` UTC epoch timestamp) MUST be generated server-side using the server's authoritative system clock (e.g. `NOW()` in PostgreSQL or `new Date().toISOString()` on the server).
+    > Never accept client-provided creation timestamps in the request body. Generating the post creation time on the server guarantees chronological feed integrity and completely prevents students from manipulating feed ordering or bypassing scheduling windows by rolling their personal device clocks forward or backward.
+  - **Request Body**:
+    ```json
+    {
+      "clubId": "abstraction",
+      "title": "Spring Coding Night",
+      "description": "Building apps together tonight in NH 276!",
+      "image": "https://...",
+      "when": "Fri, Sep 18 · 7:00 PM",
+      "where": "North Hall 276"
+    }
+    ```
+  - **Response `201 Created`**:
+    ```json
+    {
+      "id": "p-1790888940000",
+      "clubId": "abstraction",
+      "org": "Abstraction",
+      "mark": "AB",
+      "category": "Academics",
+      "postedAt": "2026-10-01T21:09:00.000Z",
+      "createdAt": 1790888940000,
+      "headline": "Spring Coding Night",
+      "body": "Building apps together tonight in NH 276!",
+      "when": "Fri, Sep 18 · 7:00 PM",
+      "where": "North Hall 276",
+      "image": "https://...",
+      "followed": true,
+      "campusWide": false
+    }
+    ```
+

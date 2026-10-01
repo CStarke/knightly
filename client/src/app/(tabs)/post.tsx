@@ -15,7 +15,7 @@
  *   (e.g. "Every Tues at Sunset").
  */
 
-import { router } from 'expo-router';
+import { router, usePathname } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -87,6 +87,12 @@ export default function CreatePostScreen() {
   const { createPost } = useFeed();
   const insets = useSafeAreaInsets();
   const tabNav = useTabNavigation();
+  let pathname = '';
+  try {
+    pathname = usePathname();
+  } catch {
+    // Graceful fallback when outside Router context in tests
+  }
   const scrollViewRef = useRef<ScrollView>(null);
   const keyboardHeight = useSharedValue(0);
 
@@ -157,11 +163,17 @@ export default function CreatePostScreen() {
   const cropperRef = useRef<InlineImageCropperRef>(null);
 
   // Pick an image from the user's device photo library
+  // WHAT IT DOES:
+  // Step 1: Requests OS media library permissions (iOS / Android).
+  // Step 2: Launches system image picker with standard unconstrained editing (`allowsEditing: false`).
+  // Step 3: Probes image pixel dimensions via `manipulateAsync` or `RNImage.getSize` to feed into cropper.
+  // Step 4: Enters interactive 16:9 crop mode so student can position/zoom their post banner.
   const handlePickImage = async () => {
     setIsCroppingInteracting(false);
     setIsCropping(false);
     tabNav?.setActiveTabIndex(4);
     try {
+      // Step 1: Request media library permissions on native devices
       if (Platform.OS !== 'web') {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
@@ -173,9 +185,14 @@ export default function CreatePostScreen() {
         }
       }
 
+      // Step 2: Launch device photo picker
+      // WHY allowsEditing: false:
+      // Native OS crop tools enforce platform-specific aspect ratios (e.g. square on iOS).
+      // Disabling native editing lets our unified InlineImageCropper enforce an exact 16:9 banner
+      // crop consistently across iOS, Android, and Web browsers.
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: false, // Standardize 16:9 interactive crop across iOS, Android, and Web
+        allowsEditing: false,
         quality: 1,
       });
 
@@ -191,6 +208,9 @@ export default function CreatePostScreen() {
       let height = asset.height ?? 0;
       let finalUri = asset.uri;
 
+      // Step 3: Probe actual pixel dimensions
+      // Some Android gallery providers return 0 for width/height in asset metadata.
+      // Probing via manipulateAsync or RNImage.getSize guarantees accurate dimensions for the cropper.
       try {
         const probe = await manipulateAsync(asset.uri, [], { compress: 1 });
         if (probe.width > 0 && probe.height > 0) {
@@ -220,6 +240,7 @@ export default function CreatePostScreen() {
         });
       }
 
+      // Step 4: Initialize raw image state and enter interactive crop mode
       tabNav?.setActiveTabIndex(4);
       setRawImage({ uri: finalUri, width, height });
       setImageUrl(finalUri);
@@ -234,9 +255,11 @@ export default function CreatePostScreen() {
     }
   };
 
-  const handleSaveCrop = async () => {
+  // Saves the active crop transform matrix and generates the 16:9 cropped banner artifact
+  const handleSaveCrop = useCallback(async () => {
     if (isCropping) return;
     setIsCropping(true);
+    setIsCroppingInteracting(false);
     try {
       const cropRes = await cropperRef.current?.applyCrop();
       if (cropRes) {
@@ -249,13 +272,53 @@ export default function CreatePostScreen() {
       setIsEditing(false);
     } finally {
       setIsCropping(false);
+      setIsCroppingInteracting(false);
     }
-  };
+  }, [isCropping]);
 
+  const handleSaveCropRef = useRef(handleSaveCrop);
+  handleSaveCropRef.current = handleSaveCrop;
+
+  // Determine if the Post composer tab is currently the active foreground tab
+  // WHY TAB AWARENESS:
+  // All 4 (or 5) tab screens stay mounted in the horizontal pager track.
+  // Tracking whether the Post tab is active allows auto-committing active crops on tab switch.
+  const postTabIndex = useMemo(() => {
+    if (!tabNav?.tabs) return 4;
+    const idx = tabNav.tabs.findIndex((t) => t.name === 'post' || t.href === '/post');
+    return idx >= 0 ? idx : 4;
+  }, [tabNav?.tabs]);
+
+  const isPostTabActive = useMemo(() => {
+    // Check master tabNav activeTabIndex if tab navigation context is present
+    if (tabNav && typeof tabNav.activeTabIndex === 'number') {
+      if (tabNav.activeTabIndex !== postTabIndex) return false;
+    }
+    // Check Expo Router pathname if available
+    if (pathname && pathname !== '/post') {
+      const otherTabHrefs = ['/', '/dining', '/safety', '/directory'];
+      if (otherTabHrefs.includes(pathname)) return false;
+    }
+    return true;
+  }, [tabNav, postTabIndex, pathname]);
+
+  // AUTO-COMMIT ON TAB SWITCH:
+  // When cropping a photo in the Post tab, switching tabs (via bottom bar tap, horizontal
+  // swipe gesture, or programmatic navigation) automatically ends the cropping mode and
+  // commits the crop (identical to tapping the "Done" button).
+  useEffect(() => {
+    if (!isPostTabActive && isEditing) {
+      setIsCroppingInteracting(false);
+      handleSaveCropRef.current();
+    }
+  }, [isPostTabActive, isEditing]);
+
+  // Re-opens interactive cropping mode for the currently selected raw image
   const handleStartEdit = () => {
     setIsEditing(true);
   };
 
+  // Clears any attached photo or preset banner, resetting back to text-only mode
   const handleRemovePhoto = () => {
     setIsCropping(false);
     setIsCroppingInteracting(false);
@@ -265,6 +328,8 @@ export default function CreatePostScreen() {
     setIsEditing(false);
   };
 
+  // Selects one of the curated Calvin university preset vector banners
+  // Clears custom uploaded photos since preset banners are self-contained bundled SVGs
   const handleSelectPresetBanner = (presetUri: string) => {
     setIsCropping(false);
     setIsCroppingInteracting(false);
@@ -325,7 +390,13 @@ export default function CreatePostScreen() {
   const dateSegments = useMemo(() => formatDateSegments(rawDate), [rawDate]);
 
   // Translated human-friendly date and time preview
+  // WHAT IT DOES:
+  // Step 1: Validates that the entered date digits form a genuine calendar date.
+  // Step 2: Formats the date using formatEventDate (e.g. "Tuesday, Oct 24, 2026").
+  // Step 3: Validates and formats time digits with AM/PM period (e.g. "7:00 PM").
+  // Step 4: Combines into a live formatted preview string displayed beneath the input cells.
   const eventPreview = useMemo(() => {
+    // Step 1: Check date validity for preview
     const isDateValidForPreview =
       !dateError &&
       (rawDate.length === 8 || rawDate.length === 6) &&
@@ -333,6 +404,7 @@ export default function CreatePostScreen() {
       validateDate(rawDate) === null &&
       isDateCompleteAndValid(rawDate);
 
+    // Step 2: Format calendar date
     const formattedDate = isDateValidForPreview
       ? formatEventDate(
           rawDate.length === 6
@@ -341,9 +413,11 @@ export default function CreatePostScreen() {
         )
       : '';
 
+    // Step 3: Resolve event time with AM/PM period
     const isTimeValid = !timeError && isTimeCompleteAndValid(rawTime);
     const resolvedTime = isTimeValid ? resolveEventTime(rawTime, timePeriod) : '';
 
+    // Step 4: Concatenate with dot separator
     if (formattedDate && resolvedTime) {
       return `${formattedDate} · ${resolvedTime}`;
     }
@@ -358,7 +432,8 @@ export default function CreatePostScreen() {
     timePeriod,
   ]);
 
-  // Validation
+  // Form Validation Pipeline
+  // Evaluates every field against length bounds, required status, and semantic validity
   const trimmedTitle = title.trim();
   const trimmedDescription = description.trim();
   const isTitleValid =
@@ -378,6 +453,9 @@ export default function CreatePostScreen() {
   const isTimeValid = isTimeCompleteAndValid(rawTime);
   const isWhereValid = whereText.length <= MAX_LOCATION_LENGTH;
   const isCustomWhenValid = !isCustomWhen || customWhenText.length <= MAX_CUSTOM_WHEN_LENGTH;
+
+  // Master publish gate: User must be a leader, club selected, title & description valid,
+  // location valid, and time/date fields either valid or in valid freeform mode.
   const canPublish =
     Boolean(isLeader) &&
     Boolean(activeClub) &&
@@ -388,6 +466,10 @@ export default function CreatePostScreen() {
     (isCustomWhen || (isDateValid && isTimeValid && !whenError));
 
   // Resolve Final "When" Text
+  // WHAT IT DOES:
+  // - In freeform mode: Returns the custom description (e.g. "Every Tuesday at sunset").
+  // - In structured mode: Formats the validated calendar date and clock time into a single string.
+  // - If omitted: Returns undefined so the post card simply hides the calendar badge.
   const computedWhen = useMemo(() => {
     if (isCustomWhen) return customWhenText.trim() || undefined;
     if (dateError) return undefined;
@@ -511,13 +593,26 @@ export default function CreatePostScreen() {
     }
   };
 
-  // Handle Publish
+  // Handle Publish Lifecycle
+  // WHAT IT DOES:
+  // Step 1: Validates form completeness against `canPublish` and ensures an active club is selected.
+  // Step 2: Auto-commits any active banner crop so student crop adjustments aren't lost if they hit publish directly.
+  // Step 3: Finalizes any partially typed date digits (e.g. completes 2-digit year to 4-digit).
+  // Step 4: Dispatches post creation payload to FeedContext.
+  // Step 5: Resets all form fields and validation errors to clean state.
+  // Step 6: Dismisses keyboard, scrolls composer back to top, and displays PostSuccessModal.
   const handlePublish = async () => {
+    // Step 1: Guard against invalid submission
     if (!canPublish || !activeClub) return;
 
     const clubName = activeClub.name;
     let finalImageUrl = imageUrl;
 
+    // Step 2: Auto-commit any active crop in the inline cropper before publishing
+    // WHY AUTO-COMMIT:
+    // If the student zoomed/panned their photo and immediately pressed "Publish Flyer"
+    // without tapping "Done" first, we automatically capture their latest transform so their
+    // crop adjustments are preserved on the feed card.
     if (isEditing && cropperRef.current) {
       try {
         const cropRes = await cropperRef.current.applyCrop();
@@ -532,6 +627,7 @@ export default function CreatePostScreen() {
       setIsEditing(false);
     }
 
+    // Step 3: Auto-complete 2-digit years to 4-digit if needed
     const completedDate = completeDateDigits(rawDate);
     if (completedDate !== rawDate) {
       setRawDate(completedDate);
@@ -544,6 +640,10 @@ export default function CreatePostScreen() {
       }
     }
 
+    // Step 4: Publish post to feed context.
+    // NOTE FOR BACKEND INTEGRATION: Currently, createPost generates client-side timestamps (Date.now()).
+    // In production with a live backend API, the server must assign the post creation timestamp
+    // to safeguard feed chronology against client device clock modifications.
     createPost({
       club: activeClub,
       title: trimmedTitle,
@@ -553,6 +653,7 @@ export default function CreatePostScreen() {
       where: computedWhere,
     });
 
+    // Step 5: Reset all form fields to pristine initial state
     setTitle('');
     setDescription('');
     setImageUrl(null);
@@ -569,6 +670,7 @@ export default function CreatePostScreen() {
     setDateError(null);
     setTimeError(null);
 
+    // Step 6: Dismiss keyboard, scroll to top, and show celebration modal
     Keyboard.dismiss();
     scrollViewRef.current?.scrollTo({ y: 0, animated: false });
 
@@ -856,7 +958,7 @@ export default function CreatePostScreen() {
             {/* 7. PUBLISH ACTION BUTTON */}
             <Button
               label={`Publish as ${activeClub.name}`}
-              variant="primary"
+              variant="gold"
               onPress={handlePublish}
               disabled={!canPublish}
               style={styles.publishBtn}

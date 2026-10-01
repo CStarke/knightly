@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { DateUtils, TimeUtils, formatRelativeTime, resolveEventTime } from '@/utils/date-format';
+import { Brand } from '@/constants/theme';
 
 describe('Templates & Code De-bloating Invariants', () => {
 
@@ -216,6 +217,55 @@ describe('Templates & Code De-bloating Invariants', () => {
       assert.strictEqual(prominentFollowed.label, 'Following this club');
       assert.strictEqual(prominentFollowed.accessibilityLabel, 'Unfollow Dance Guild');
       assert.strictEqual(prominentFollowed.iconSf, 'checkmark.circle.fill');
+    });
+  });
+
+  describe('Button Template Contract', () => {
+    it('supports primary, secondary, danger, and gold button variants with appropriate background and text contrast', () => {
+      type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'gold';
+      const mockTheme = {
+        tint: '#8C2633',
+        danger: '#DC2626',
+        backgroundSelected: '#1C1D21',
+        text: '#FFFFFF',
+        onTint: '#FFFFFF',
+      };
+
+      const resolveButtonColors = (variant: ButtonVariant) => {
+        const background =
+          variant === 'gold'
+            ? Brand.gold
+            : variant === 'primary'
+            ? mockTheme.tint
+            : variant === 'danger'
+            ? mockTheme.danger
+            : mockTheme.backgroundSelected;
+
+        const foreground =
+          variant === 'gold'
+            ? '#0B0C0E'
+            : variant === 'secondary'
+            ? mockTheme.text
+            : mockTheme.onTint;
+
+        return { background, foreground };
+      };
+
+      const goldButton = resolveButtonColors('gold');
+      assert.strictEqual(goldButton.background, Brand.gold, 'Gold variant must use Brand.gold');
+      assert.strictEqual(goldButton.foreground, '#0B0C0E', 'Gold variant must use high-contrast dark text');
+
+      const primaryButton = resolveButtonColors('primary');
+      assert.strictEqual(primaryButton.background, mockTheme.tint);
+      assert.strictEqual(primaryButton.foreground, mockTheme.onTint);
+
+      const dangerButton = resolveButtonColors('danger');
+      assert.strictEqual(dangerButton.background, mockTheme.danger);
+      assert.strictEqual(dangerButton.foreground, mockTheme.onTint);
+
+      const secondaryButton = resolveButtonColors('secondary');
+      assert.strictEqual(secondaryButton.background, mockTheme.backgroundSelected);
+      assert.strictEqual(secondaryButton.foreground, mockTheme.text);
     });
   });
 

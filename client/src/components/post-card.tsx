@@ -13,6 +13,16 @@ import type { Post } from '@/data/feed';
 import { useTheme } from '@/hooks/use-theme';
 import { formatRelativeTime } from '@/utils/date-format';
 
+/**
+ * Determines the visual tone/color for a post's category badge.
+ *
+ * WHY CATEGORY TONES:
+ * Color-coding categories provides instant peripheral visual recognition as students scroll
+ * rapidly through the feed, letting them distinguish athletic games from academic colloquia at a glance.
+ *
+ * @param category - The post category name (e.g. 'Academics', 'Outdoors', 'Athletics', 'Faith')
+ * @returns The semantic BadgeTone matching the category
+ */
 function categoryBadgeTone(category: string): BadgeTone {
   switch (category) {
     case 'Academics':
@@ -28,6 +38,20 @@ function categoryBadgeTone(category: string): BadgeTone {
   }
 }
 
+/**
+ * Organization affiliation badge component.
+ *
+ * WHAT IT DOES:
+ * - When `isOverlay` is true (post has a banner image), renders a translucent frosted glass pill
+ *   floating in the top-left of the image with a subtle border.
+ * - When `isOverlay` is false (post has no image), renders an inline horizontal header strip.
+ * - If the student follows this organization (`followed: true`), renders a verified checkmark seal.
+ * - Clicking the badge triggers `onPress` to navigate to that organization's detail subpage.
+ *
+ * WHY VERIFIED SEAL:
+ * Instead of displaying verbose text like "Following", a gold checkmark seal icon provides
+ * an elegant, high-status visual confirmation of the student's personal subscriptions.
+ */
 function OrgBadge({
   org,
   followed,
@@ -49,6 +73,7 @@ function OrgBadge({
         pressed && styles.pressedPill,
       ]}
     >
+      {/* Verified seal indicator when the student is following this club */}
       {followed ? (
         <Icon
           sf="checkmark.seal.fill"
@@ -69,21 +94,31 @@ function OrgBadge({
 }
 
 /**
- * Modern post card featuring:
+ * Modern post card component for announcements, flyers, and campus updates.
+ *
+ * FEATURES & ARCHITECTURE:
  * - Edge-to-edge stock imagery with overlaid organization pill tag
  * - Sleek follow checkmark icon replacing verbose "Following" text
  * - Prominent display headline as the largest text on the card
  * - Graceful layout for non-image posts with an editorial header strip
  * - High-contrast event metadata & readable body copy
  * - Tap on club name navigates directly to that club's short page
+ * - Dynamic relative timestamp footer with past/future handling and timezone support
+ *
+ * @param props.post - The post model to render
  */
 export function PostCard({ post }: { post: Post }) {
   const theme = useTheme();
   const { isFollowing } = useClubFollow();
 
+  // Step 1: Derive canonical club ID (fallback slugification for legacy posts without clubId)
+  // WHY SLUGIFY FALLBACK:
+  // Older demo seed posts or mock feeds might not specify post.clubId explicitly. Slugifying
+  // post.org ensures navigation to `/clubs/[id]` and follow state lookups work seamlessly.
   const clubId = post.clubId ?? post.org.toLowerCase().replace(/[^a-z0-9]+/g, '-');
   const followed = isFollowing(clubId);
 
+  // Step 2: Club page navigation handler
   const handlePressOrg = () => {
     router.push({
       pathname: '/clubs/[id]',
@@ -93,15 +128,21 @@ export function PostCard({ post }: { post: Post }) {
 
   return (
     <Card flush style={styles.card}>
+      {/* Step 3: Top Banner Image Container (when image is present) */}
       {post.image ? (
         <View style={styles.imageContainer}>
+          {/*
+            WHY PRESET VS URI SOURCE:
+            Preset banners are bundled local assets resolved via getPresetBannerSource(key),
+            avoiding remote network requests. User-uploaded images provide remote or local URIs.
+          */}
           <Image
             source={isPresetBanner(post.image) ? getPresetBannerSource(post.image) : { uri: post.image }}
             style={styles.image}
             contentFit="cover"
             transition={250}
           />
-          {/* Subtle top scrim ensuring overlay badges contrast cleanly */}
+          {/* Subtle top scrim ensuring overlay badges contrast cleanly against bright photos */}
           <View style={styles.scrim} />
 
           <View style={styles.overlayBar}>
@@ -115,7 +156,7 @@ export function PostCard({ post }: { post: Post }) {
       ) : null}
 
       <View style={styles.content}>
-        {/* Editorial header strip for posts without an image */}
+        {/* Step 4: Editorial header strip for posts without an image */}
         {!post.image ? (
           <View style={styles.noImageHeader}>
             <OrgBadge org={post.org} followed={followed} isOverlay={false} onPress={handlePressOrg} />
@@ -123,9 +164,10 @@ export function PostCard({ post }: { post: Post }) {
           </View>
         ) : null}
 
-        {/* The title is the biggest and most commanding text */}
+        {/* Step 5: Headline typography (largest, most commanding text in serif font) */}
         <ThemedText style={styles.title}>{post.headline}</ThemedText>
 
+        {/* Step 6: Event logistics metadata (When & Where badges) */}
         {post.when || post.where ? (
           <View style={styles.metaSection}>
             {post.when ? (
@@ -147,10 +189,17 @@ export function PostCard({ post }: { post: Post }) {
           </View>
         ) : null}
 
+        {/* Step 7: Body copy */}
         <ThemedText type="small" themeColor="textSecondary" style={styles.body}>
           {post.body}
         </ThemedText>
 
+        {/*
+          Step 8: Card footer with dynamic relative timestamp & campus-wide badge
+          WHY DYNAMIC RELATIVE TIME:
+          Computes human-friendly relative age ("Just now", "45 minutes ago", "3 hours ago",
+          "In 2 days", or exact date) dynamically based on current client clock and server timestamp.
+        */}
         <View style={styles.footer}>
           <ThemedText type="caption" themeColor="textMuted">
             {formatRelativeTime(post.postedAt, post.createdAt, post.monotonicCreatedAt)}
@@ -286,6 +335,18 @@ const styles = StyleSheet.create({
   },
 });
 
+/**
+ * Event logistics metadata badge (date or location).
+ *
+ * WHAT IT DOES:
+ * Renders a small tinted circular icon with accompanying text for event timing (calendar icon)
+ * or physical location (map pin icon).
+ *
+ * @param props.icon - Platform-specific icon names (SF Symbols for iOS, Material Symbols for Android/Web)
+ * @param props.text - The formatted date/time string or location name
+ * @param props.bold - When true, applies smallBold weight (typically used for event dates to emphasize timing)
+ * @param props.tintSoft - The soft brand background color for the circular icon container
+ */
 function MetaBadge({
   icon,
   text,
@@ -312,4 +373,5 @@ function MetaBadge({
     </View>
   );
 }
+
 

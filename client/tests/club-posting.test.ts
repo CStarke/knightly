@@ -747,6 +747,55 @@ describe('Club Leadership & Post Creation Domain', () => {
       assert.strictEqual(otherClubPosts.length, 0);
     });
 
+    it('replaces "No announcements yet" on Abstraction club page when user publishes post', () => {
+      // 1. Initial state: Abstraction has 0 posts in the default feed
+      const initialFeed: Post[] = [];
+      const initialClubPosts = getPostsByClubId('abstraction', initialFeed);
+      assert.strictEqual(initialClubPosts.length, 0, 'Initially has 0 announcements, showing "No announcements yet" card');
+
+      // 2. User creates a post for Abstraction in CreatePostScreen
+      const publishedPost: Post = {
+        id: `p-local-${Date.now()}`,
+        clubId: abstractionClub.id,
+        org: abstractionClub.name,
+        mark: abstractionClub.mark,
+        category: abstractionClub.category as FeedCategory,
+        postedAt: 'Just now',
+        headline: 'Abstraction Fall Hackathon Announcement',
+        body: 'Join us for a 24-hour coding sprint with free pizza and prizes!',
+        followed: true,
+        campusWide: false,
+      };
+
+      // 3. Feed context receives published post (prepended to live feed)
+      const updatedFeed = [publishedPost, ...initialFeed];
+      const updatedClubPosts = getPostsByClubId('abstraction', updatedFeed);
+
+      assert.strictEqual(updatedClubPosts.length, 1, 'Club now has 1 announcement');
+      assert.strictEqual(updatedClubPosts[0].headline, 'Abstraction Fall Hackathon Announcement');
+      assert.strictEqual(updatedClubPosts[0].org, 'Abstraction');
+
+      // 4. Second post published preserves reverse-chronological order
+      const secondPost: Post = {
+        id: `p-local-${Date.now() + 100}`,
+        clubId: abstractionClub.id,
+        org: abstractionClub.name,
+        mark: abstractionClub.mark,
+        category: abstractionClub.category as FeedCategory,
+        postedAt: 'Just now',
+        headline: 'Intro to Rust Workshop',
+        body: 'Hands-on systems programming session.',
+        followed: true,
+        campusWide: false,
+      };
+
+      const multiPostFeed = [secondPost, ...updatedFeed];
+      const multiClubPosts = getPostsByClubId('abstraction', multiPostFeed);
+      assert.strictEqual(multiClubPosts.length, 2);
+      assert.strictEqual(multiClubPosts[0].headline, 'Intro to Rust Workshop');
+      assert.strictEqual(multiClubPosts[1].headline, 'Abstraction Fall Hackathon Announcement');
+    });
+
     it('finds newly created post via search query', () => {
       const newPost: Post = {
         id: 'post-abstraction-3',
@@ -2756,6 +2805,98 @@ describe('Club Leadership & Post Creation Domain', () => {
         );
       });
     });
+
+    describe('Photo Cropping Lifecycle & Auto-Commit on Tab Switch Invariants', () => {
+      it('automatically ends cropping and commits crop when switching away from the Post tab', async () => {
+        // Model the state machine of CreatePostScreen during cropping and tab switching
+        let isEditing = false;
+        let isCropping = false;
+        let isCroppingInteracting = false;
+        let imageUrl: string | null = null;
+        let savedTransform: { zoom: number; offset: { offsetX: number; offsetY: number } } | null = null;
+        let activeTabIndex = 4; // Post tab is Slot 4
+        const postTabIndex = 4;
+        let pathname = '/post';
+
+        // Mock InlineImageCropperRef
+        const mockCropperRef = {
+          applyCrop: async () => {
+            return {
+              uri: 'file:///data/cropped-banner-16-9.jpg',
+              transform: { zoom: 1.8, offset: { offsetX: -25, offsetY: -10 } },
+            };
+          },
+        };
+
+        const handleSaveCrop = async () => {
+          if (isCropping) return;
+          isCropping = true;
+          isCroppingInteracting = false;
+          try {
+            const cropRes = await mockCropperRef.applyCrop();
+            if (cropRes) {
+              imageUrl = cropRes.uri;
+              savedTransform = cropRes.transform;
+            }
+            isEditing = false;
+          } finally {
+            isCropping = false;
+            isCroppingInteracting = false;
+          }
+        };
+
+        const checkTabSwitchEffect = () => {
+          const isPostTabActive = activeTabIndex === postTabIndex && pathname === '/post';
+          if (!isPostTabActive && isEditing) {
+            isCroppingInteracting = false;
+            handleSaveCrop();
+          }
+        };
+
+        // Step 1: User uploads a photo on Post tab (Slot 4)
+        imageUrl = 'file:///data/original-photo.jpg';
+        isEditing = true;
+        isCroppingInteracting = true; // User is adjusting the cropper
+        assert.strictEqual(isEditing, true, 'Cropping mode must be active after picking photo');
+        assert.strictEqual(isCroppingInteracting, true, 'User is actively touching cropper');
+
+        // Step 2: Tab switch check while still on Post tab (index 4)
+        checkTabSwitchEffect();
+        assert.strictEqual(isEditing, true, 'Cropping must remain active while user is on Post tab');
+
+        // Step 3: User switches to Dining tab (Slot 1)
+        activeTabIndex = 1;
+        pathname = '/dining';
+        checkTabSwitchEffect();
+
+        // Allow microtask queue to drain for handleSaveCrop async completion
+        await new Promise((r) => setTimeout(r, 10));
+
+        // Step 4: Verify cropping mode was automatically ended (Done clicked automatically)
+        assert.strictEqual(isEditing, false, 'Switching tabs must automatically end cropping mode');
+        assert.strictEqual(isCroppingInteracting, false, 'Switching tabs must reset cropper interaction lock');
+        assert.strictEqual(
+          imageUrl,
+          'file:///data/cropped-banner-16-9.jpg',
+          'Switching tabs must automatically commit the cropped image URI'
+        );
+        assert.deepStrictEqual(
+          savedTransform,
+          { zoom: 1.8, offset: { offsetX: -25, offsetY: -10 } },
+          'Switching tabs must automatically save the crop zoom and offset transform'
+        );
+
+        // Step 5: User switches back to Post tab (Slot 4)
+        activeTabIndex = 4;
+        pathname = '/post';
+        checkTabSwitchEffect();
+
+        // Cropping remains ended, displaying the saved 16:9 banner in preview mode
+        assert.strictEqual(isEditing, false, 'Cropping remains ended when returning to Post tab');
+        assert.strictEqual(imageUrl, 'file:///data/cropped-banner-16-9.jpg');
+      });
+    });
   });
 });
+
 

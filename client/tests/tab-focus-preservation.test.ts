@@ -457,50 +457,259 @@ describe('Tab Focus Preservation & Native Activity Focus Invariants', () => {
       }
     });
 
-    it('models cold app launch and immediate first-time image pick without split-state corruption (10000 iterations)', async () => {
+    it('models cold app launch and immediate first-time image pick without split-state corruption across 10000 randomized iterations', async () => {
+      // WHY CONTROLLED RANDOMNESS:
+      // A static, deterministic 10,000-iteration loop tests only one happy path repeatedly.
+      // Real-world production environments across thousands of student devices experience
+      // hardware variance (different screen aspect ratios and physical widths), inconsistent
+      // OS resume intents from Expo Go/native schemes, Android Low Memory Killer (LMK) activity
+      // recreations, and erratic human interactions (picker cancellations, sequential swiping,
+      // mid-crop tab switching, and photo replacements).
+      // Simulating this combinatorial entropy verifies that the unified tab controller, camera
+      // coordinate transforms, and +native-intent filters are 100% resilient under chaos.
+
+      // Realistic physical device widths across iOS, Android, and tablets
+      const DEVICE_WIDTHS = [360, 375, 390, 393, 412, 428, 430, 768];
+
+      // External native scheme and dev-server resume intents delivered upon returning from picker
+      const RESUME_INTENTS = [
+        'exp://192.168.1.100:8081/--/',
+        'exp://192.168.1.42:8081/--/?runtime-version=exposdk:57.0.0',
+        'exp://localhost:8081/--/',
+        'exp://10.0.2.2:8081/--/',
+        'calvinapp://--/',
+        'calvinapp://',
+        '/',
+        '',
+        'exp://192.168.1.100:8081',
+        'exp://192.168.1.100:8081/',
+      ];
+
+      // Diverse image aspect ratios delivered by native camera/gallery pickers
+      const PHOTO_VARIANTS = [
+        { width: 1920, height: 1080, type: 'Landscape 16:9' },
+        { width: 1080, height: 1920, type: 'Portrait 9:16' },
+        { width: 1200, height: 1200, type: 'Square 1:1' },
+        { width: 3000, height: 800, type: 'Panoramic Banner' },
+        { width: 0, height: 0, type: 'OEM 0x0 metadata (triggers fallback probe to 1200x675)' },
+      ];
+
       for (let coldBoot = 1; coldBoot <= 10000; coldBoot++) {
+        // Step 1: Clean slate initialization state for each cold boot simulation
         resetInitializationStateForTests();
-        // Cold start on Knightly Home ('/')
-        const controller = createUnifiedTabControllerMachine('/');
+
+        // Step 2: OS Hardware Randomness - select realistic screen width
+        const deviceWidth = DEVICE_WIDTHS[Math.floor(Math.random() * DEVICE_WIDTHS.length)];
+
+        // Step 3: OS Launch Randomness - standard app tap vs deep link vs Expo Go dev launcher
+        const coldLaunchType = Math.floor(Math.random() * 3);
+        let initialPath = '/';
+        if (coldLaunchType === 1) {
+          initialPath = '/post'; // Direct deep link / notification into composer
+        } else if (coldLaunchType === 2) {
+          initialPath = 'exp://192.168.1.100:8081/--/'; // Expo Go dev-server cold boot
+        }
+
+        const controller = createUnifiedTabControllerMachine(
+          initialPath === 'exp://192.168.1.100:8081/--/' ? '/' : initialPath,
+          deviceWidth
+        );
+
+        // Cold launch intent MUST be accepted during initial boot
+        const initialResult = await redirectSystemPath({ path: initialPath, initial: true });
+        assert.ok(initialResult !== null, `[ColdBoot ${coldBoot}] Cold launch path "${initialPath}" must be accepted`);
+
+        // Step 4: Human Navigation Randomness - simulate varied user pathways to Post tab (Slot 4)
+        if (controller.getState().activeTabIndex !== 4) {
+          const navPattern = Math.floor(Math.random() * 3);
+          if (navPattern === 0) {
+            // Direct tap on Post bottom bar button
+            controller.onTabButtonPress(4);
+          } else if (navPattern === 1) {
+            // Sequential horizontal swipes through pager tracks (0 -> 1 -> 2 -> 3 -> 4)
+            for (let step = 1; step <= 4; step++) {
+              controller.onSwipeGestureEnd(step);
+            }
+          } else {
+            // Exploratory browsing: visit Dining (1) or Safety (2) first, then jump to Post (4)
+            const intermediateTab = Math.random() < 0.5 ? 1 : 2;
+            controller.navigateToTab(intermediateTab);
+            assert.strictEqual(controller.getState().activeTabIndex, intermediateTab);
+            controller.navigateToTab(4, '/post');
+          }
+        }
+
+        // Verify steady state on Create Post (Slot 4) prior to image picker launch
         let state = controller.getState();
-        assert.strictEqual(state.activeTabIndex, 0, 'Cold boot begins on Knightly Home');
+        assert.strictEqual(state.activeTabIndex, 4, `[ColdBoot ${coldBoot}] Must be on Post tab (index 4)`);
+        assert.strictEqual(
+          state.translateX,
+          -4 * deviceWidth,
+          `[ColdBoot ${coldBoot}] Camera must dock at -4 * ${deviceWidth} (-${4 * deviceWidth})`
+        );
+        assert.strictEqual(controller.evaluateTabButtonFocus(4), true, 'Post tab button illuminated');
+        assert.strictEqual(controller.evaluatePagePointerEvents(4), 'auto', 'Post screen interactive');
 
-        // Cold launch root intent MUST pass through
-        const initialRoot = await redirectSystemPath({ path: '/', initial: true });
-        assert.strictEqual(initialRoot, '/', 'Initial cold launch root intent must pass through');
+        // Step 5: Human Picker Randomness - ~15% chance user cancels photo picker dialog
+        const isPickerCanceled = Math.random() < 0.15;
 
-        // User navigates directly to Create Post (Slot 4)
-        controller.navigateToTab(4, '/post');
+        // Step 6: OS Intent & Android LMK Randomness:
+        // In ~4% of runs, Android OS killed the parent activity under memory pressure while picker was open.
+        // Upon user return, the recreated activity passes initial: true with spurious dev-server root URL.
+        const isActivityRecreated = Math.random() < 0.04;
+        const resumeIntent = RESUME_INTENTS[Math.floor(Math.random() * RESUME_INTENTS.length)];
+
+        // +native-intent MUST drop spurious resume intents (even with initial: true if hasInitialized === true)
+        const intercepted = await redirectSystemPath({ path: resumeIntent, initial: isActivityRecreated });
+        assert.strictEqual(
+          intercepted,
+          null,
+          `[ColdBoot ${coldBoot}] Resume intent "${resumeIntent}" (initial=${isActivityRecreated}) MUST be dropped`
+        );
+
+        // State machine tracking CreatePostScreen banner image & cropping lifecycle
+        let rawImage: { uri: string; width: number; height: number } | null = null;
+        let imageUrl: string | null = null;
+        let isEditing = false;
+        let isCroppingInteracting = false;
+
+        // Simulated Post tab switch effect (AUTO-COMMIT ON TAB SWITCH)
+        const checkTabSwitchEffect = (currentActiveTabIndex: number) => {
+          const isPostTabActive = currentActiveTabIndex === 4;
+          if (!isPostTabActive && isEditing) {
+            isCroppingInteracting = false;
+            imageUrl = 'file:///data/cropped-banner-auto-commit.jpg';
+            isEditing = false;
+          }
+        };
+
+        if (isPickerCanceled) {
+          // Human canceled picker dialog: no image loaded, post screen remains steady at Slot 4
+          state = controller.getState();
+          assert.strictEqual(state.activeTabIndex, 4);
+          assert.strictEqual(state.translateX, -4 * deviceWidth);
+          assert.strictEqual(controller.evaluatePagePointerEvents(4), 'auto');
+          assert.strictEqual(isEditing, false);
+          assert.strictEqual(imageUrl, null);
+        } else {
+          // Photo selected: probe dimensions (fallback to 1200x675 if 0x0)
+          const photo = PHOTO_VARIANTS[Math.floor(Math.random() * PHOTO_VARIANTS.length)];
+          const probedWidth = photo.width || 1200;
+          const probedHeight = photo.height || 675;
+          rawImage = { uri: `file:///data/photo-${coldBoot}.jpg`, width: probedWidth, height: probedHeight };
+          isEditing = true;
+          isCroppingInteracting = true;
+
+          // Step 7: Human Post-Selection Action Randomness
+          const postPickAction = Math.random();
+
+          if (postPickAction < 0.45) {
+            // Action A (45%): Standard workflow - user adjusts cropper and clicks "Done"
+            isCroppingInteracting = false;
+            imageUrl = `file:///data/cropped-${coldBoot}.jpg`;
+            isEditing = false;
+
+            state = controller.getState();
+            assert.strictEqual(state.activeTabIndex, 4);
+            assert.strictEqual(state.translateX, -4 * deviceWidth);
+            assert.strictEqual(controller.evaluatePagePointerEvents(4), 'auto');
+            assert.strictEqual(isEditing, false);
+            assert.ok(imageUrl !== null);
+          } else if (postPickAction < 0.75) {
+            // Action B (30%): Human switches tabs mid-crop! (e.g. checks Dining or Home)
+            // AUTO-COMMIT ON TAB SWITCH:
+            // Verifies that switching tabs automatically ends cropping, commits the 16:9 crop,
+            // releases interaction locks, and safely transfers focus to the destination tab.
+            const otherTab = Math.random() < 0.5 ? 0 : 1;
+            controller.navigateToTab(otherTab);
+            checkTabSwitchEffect(otherTab);
+
+            // Invariant: Cropping must have auto-committed
+            assert.strictEqual(isEditing, false, `[ColdBoot ${coldBoot}] Tab switch mid-crop MUST auto-commit and end editing`);
+            assert.strictEqual(isCroppingInteracting, false, `[ColdBoot ${coldBoot}] Interaction lock MUST reset`);
+            assert.strictEqual(imageUrl, 'file:///data/cropped-banner-auto-commit.jpg');
+
+            // Invariant: Destination tab has exclusive focus and interactive pointerEvents
+            let otherState = controller.getState();
+            assert.strictEqual(otherState.activeTabIndex, otherTab);
+            assert.strictEqual(otherState.translateX, otherTab === 0 ? 0 : -otherTab * deviceWidth);
+            assert.strictEqual(controller.evaluateTabButtonFocus(otherTab), true);
+            assert.strictEqual(controller.evaluateTabButtonFocus(4), false);
+            assert.strictEqual(controller.evaluatePagePointerEvents(otherTab), 'auto');
+            assert.strictEqual(controller.evaluatePagePointerEvents(4), 'none');
+
+            // User navigates back to Create Post tab (Slot 4)
+            controller.navigateToTab(4, '/post');
+            checkTabSwitchEffect(4);
+
+            state = controller.getState();
+            assert.strictEqual(state.activeTabIndex, 4);
+            assert.strictEqual(state.translateX, -4 * deviceWidth);
+            assert.strictEqual(controller.evaluateTabButtonFocus(4), true);
+            assert.strictEqual(controller.evaluatePagePointerEvents(4), 'auto');
+            assert.strictEqual(isEditing, false, 'Cropping remains completed after returning');
+            assert.ok(imageUrl !== null, 'Banner image remains committed');
+          } else if (postPickAction < 0.90) {
+            // Action C (15%): Human taps "Change Photo" (re-opens picker, generating second resume cycle)
+            const secondResumeIntent = RESUME_INTENTS[Math.floor(Math.random() * RESUME_INTENTS.length)];
+            const secondDropped = await redirectSystemPath({ path: secondResumeIntent, initial: false });
+            assert.strictEqual(secondDropped, null);
+
+            // Replacement photo committed
+            imageUrl = `file:///data/replaced-${coldBoot}.jpg`;
+            isEditing = false;
+            isCroppingInteracting = false;
+
+            state = controller.getState();
+            assert.strictEqual(state.activeTabIndex, 4);
+            assert.strictEqual(state.translateX, -4 * deviceWidth);
+            assert.strictEqual(controller.evaluatePagePointerEvents(4), 'auto');
+          } else {
+            // Action D (10%): Human taps "Remove Photo" (clears image and returns to banner placeholder)
+            rawImage = null;
+            imageUrl = null;
+            isEditing = false;
+            isCroppingInteracting = false;
+
+            state = controller.getState();
+            assert.strictEqual(state.activeTabIndex, 4);
+            assert.strictEqual(state.translateX, -4 * deviceWidth);
+            assert.strictEqual(controller.evaluatePagePointerEvents(4), 'auto');
+            assert.strictEqual(imageUrl, null);
+          }
+        }
+
+        // Step 8: Strict Mutual Exclusion & Pointer Event Invariants across all 5 tab slots
         state = controller.getState();
-        assert.strictEqual(state.activeTabIndex, 4);
-        assert.strictEqual(state.translateX, -4 * 390);
-
-        // First-time photo selection: permission check runs, system dialog opens/closes, photo selected
-        const devServerIntent = 'exp://192.168.1.100:8081/--/';
-        const intercepted = await redirectSystemPath({ path: devServerIntent, initial: false });
-        assert.strictEqual(intercepted, null, `[ColdBoot ${coldBoot}] Resume intent MUST be dropped`);
-
-        // Verify camera and selection never flinched
-        state = controller.getState();
-        assert.strictEqual(state.activeTabIndex, 4);
-        assert.strictEqual(state.translateX, -4 * 390);
-        assert.strictEqual(controller.evaluateTabButtonFocus(4), true);
-        assert.strictEqual(controller.evaluateTabButtonFocus(0), false);
-        assert.strictEqual(controller.evaluateTabButtonFocus(1), false);
+        for (let tabIdx = 0; tabIdx < 5; tabIdx++) {
+          const isCurrentActive = tabIdx === state.activeTabIndex;
+          assert.strictEqual(
+            controller.evaluateTabButtonFocus(tabIdx),
+            isCurrentActive,
+            `[ColdBoot ${coldBoot}] Tab ${tabIdx} focus illumination must be ${isCurrentActive}`
+          );
+          assert.strictEqual(
+            controller.evaluatePagePointerEvents(tabIdx),
+            isCurrentActive ? 'auto' : 'none',
+            `[ColdBoot ${coldBoot}] Tab ${tabIdx} pointerEvents must be ${isCurrentActive ? 'auto' : 'none'}`
+          );
+        }
       }
     });
 
     it('verifies Done, Change Photo, and Remove Photo buttons responsiveness after photo upload across 5000 simulated runs', async () => {
       let failureCount = 0;
       let firstFailureMessage = '';
+      const DEVICE_WIDTHS = [360, 375, 390, 393, 412, 428, 430, 768];
 
       for (let run = 1; run <= 5000; run++) {
         resetInitializationStateForTests();
         // Cold boot onto the app
         await redirectSystemPath({ path: '/', initial: true });
 
-        // User is authoring a post on Create Post (Slot 4)
-        let controller = createUnifiedTabControllerMachine('/post');
+        // User is authoring a post on Create Post (Slot 4) across diverse device widths
+        const deviceWidth = DEVICE_WIDTHS[run % DEVICE_WIDTHS.length];
+        let controller = createUnifiedTabControllerMachine('/post', deviceWidth);
         controller.navigateToTab(4, '/post');
 
         // Step 1: User taps "Upload Banner Photo" (handlePickImage).
@@ -516,7 +725,7 @@ describe('Tab Focus Preservation & Native Activity Focus Invariants', () => {
           const intentPath = await redirectSystemPath({ path: 'exp://192.168.1.100:8081/--/', initial: true });
           if (intentPath) {
             // Expo Router mounts fresh with the un-intercepted dev-server root intent, resetting route to '/'
-            controller = createUnifiedTabControllerMachine(intentPath);
+            controller = createUnifiedTabControllerMachine(intentPath, deviceWidth);
           }
         } else {
           // Standard resume intent

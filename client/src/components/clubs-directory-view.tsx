@@ -35,14 +35,27 @@ import { feedCategories, type FeedCategory } from '@/data/feed';
 
 const filterCategories: ('All' | FeedCategory)[] = ['All', ...feedCategories];
 
+/**
+ * Campus Clubs Directory View component.
+ *
+ * WHAT IT DOES:
+ * - Renders the central searchable list of all 50+ Calvin University student organizations.
+ * - Supports instant real-time search across club name, tagline, description, category, and location.
+ * - Allows quick filtering by category pills (Academics, Arts & Media, Sports, Faith, etc.).
+ * - Displays a Club Leader Action Strip allowing officers to claim their organization with a Student Life code.
+ * - Lets students view details or toggle follow status directly from the card.
+ */
 export function ClubsDirectoryView() {
+  // Step 1: Context & Navigation Hooks
   const { isFollowing, toggleFollow } = useClubFollow();
   const { openClubDetail } = useClubsNavigation();
+  const { openClaimModal, linkedClubs, isLeader, isClaimBannerDismissed } = useClubLeadership();
 
+  // Step 2: Filter States
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<'All' | FeedCategory>('All');
 
-  // Multi-field search matching
+  // Step 3: Multi-field fuzzy search pipeline
   // WHY COMBINED PREDICATE:
   // Students often remember where a club meets ("North Hall CS Lab") or general mission keywords
   // ("coding", "robotics") rather than the exact club name ("Abstraction").
@@ -50,8 +63,11 @@ export function ClubsDirectoryView() {
     const needle = query.trim().toLowerCase();
 
     return CALVIN_CLUBS.filter((club) => {
+      // Sub-step A: Category filter check
       if (category !== 'All' && club.category !== category) return false;
+      // Sub-step B: If no search query, match all within the category
       if (!needle) return true;
+      // Sub-step C: Match against name, tagline, description, category, or location
       return (
         club.name.toLowerCase().includes(needle) ||
         club.tagline.toLowerCase().includes(needle) ||
@@ -62,11 +78,13 @@ export function ClubsDirectoryView() {
     });
   }, [query, category]);
 
-  const { openClaimModal, linkedClubs, isLeader, isClaimBannerDismissed } = useClubLeadership();
-
   return (
     <Screen style={styles.screenInner}>
-      {/* Club Leader Action Strip */}
+      {/*
+        Step 4: Club Leader Action Strip
+        Visible unless permanently dismissed. Prompts student leaders to claim their club
+        or shows their verified leadership status if already claimed.
+      */}
       {!isClaimBannerDismissed && (
         <Pressable
           onPress={() => openClaimModal('banner')}
@@ -110,6 +128,7 @@ export function ClubsDirectoryView() {
         </Pressable>
       )}
 
+      {/* Step 5: Search & Category Filter Controls */}
       <View style={styles.filterControls}>
         <SearchField
           value={query}
@@ -123,12 +142,14 @@ export function ClubsDirectoryView() {
         />
       </View>
 
+      {/* Step 6: Filtered Result Count Indicator */}
       <View style={styles.countRow}>
         <ThemedText type="caption" themeColor="textMuted">
           Showing {filteredClubs.length} {filteredClubs.length === 1 ? 'organization' : 'organizations'}
         </ThemedText>
       </View>
 
+      {/* Step 7: Organization Cards List & Empty Search State */}
       <View style={styles.clubsList}>
         {filteredClubs.map((club) => (
           <ClubCard
@@ -167,6 +188,14 @@ export function ClubsDirectoryView() {
   );
 }
 
+/**
+ * Individual club listing card within the directory.
+ *
+ * @param props.club - The Club model to render
+ * @param props.following - Whether the active user follows this club
+ * @param props.onToggleFollow - Callback triggered when tapping the follow button
+ * @param props.onPress - Callback triggered when tapping the card body to open deep details
+ */
 function ClubCard({
   club,
   following,
@@ -186,8 +215,8 @@ function ClubCard({
         accessibilityLabel={`View ${club.name} details`}
         style={({ pressed }) => [styles.cardPressable, pressed && styles.pressed]}
       >
+        {/* Step A: Header with Club Squircle Icon & Name/Tagline */}
         <View style={styles.cardHeader}>
-          {/* Centered Icon Squircle */}
           <View
             style={[
               styles.avatarBox,
@@ -199,7 +228,6 @@ function ClubCard({
             <Icon sf={club.sf} md={club.md} size={25} color="#FFFFFF" />
           </View>
 
-          {/* Title & Tagline */}
           <View style={styles.cardInfo}>
             <ThemedText style={styles.clubName} numberOfLines={1}>
               {club.name}
@@ -215,7 +243,7 @@ function ClubCard({
           </View>
         </View>
 
-        {/* Meeting & Location Metadata Badges */}
+        {/* Step B: Meeting Schedule & Location Metadata Badges */}
         {club.meetingSchedule || club.location ? (
           <View style={styles.metaRow}>
             {club.meetingSchedule ? (
@@ -237,11 +265,15 @@ function ClubCard({
           </View>
         ) : null}
 
-        {/* Footer: Category Badge & Follow Button */}
+        {/*
+          Step C: Footer with Category Badge & Follow Button
+          WHY STOP PROPAGATION:
+          Tapping the Follow button should only toggle the follow subscription; stopping event
+          bubbling prevents accidentally triggering card navigation to the club detail subpage.
+        */}
         <View style={styles.cardFooter}>
           <Badge label={club.category} tone="gold" />
 
-          {/* Follow / Following Toggle Button */}
           <FollowButton
             following={following}
             onPress={(e) => {
