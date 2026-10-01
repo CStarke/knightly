@@ -28,6 +28,7 @@ export type ClubClaimRecord = {
 
 /** Pre-created club claim code for session prototype. */
 export const DEMO_CLAIM_CODE_ABSTRACTION = '2A6Q-MTK3-R9';
+export const DEMO_CLAIM_CODE_KNIGHTS_ROBOTICS = '9F2L-8P4X-6W';
 
 /**
  * Normalizes input: removes non-alphanumeric characters and converts to uppercase.
@@ -60,6 +61,18 @@ export function formatClubCode(raw: string): string {
 }
 
 /**
+ * Generates a 100% random 10-character claim code using [0-9, A-Z] formatted as XXXX-XXXX-XX.
+ */
+export function generateRandomClaimCode(): string {
+  const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  let raw = '';
+  for (let i = 0; i < 10; i++) {
+    raw += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return formatClubCode(raw);
+}
+
+/**
  * Validates whether a string matches the required 10-character alphanumeric format.
  */
 export function isValidClubCode(raw: string): boolean {
@@ -77,6 +90,12 @@ export const CLUB_CLAIM_REGISTRY: Record<string, ClubClaimRecord> = {
     clubName: 'Abstraction',
     normalizedCode: '2A6QMTK3R9',
     formattedCode: '2A6Q-MTK3-R9',
+  },
+  '9F2L8P4X6W': {
+    clubId: 'knights-robotics',
+    clubName: 'Knights Robotics',
+    normalizedCode: '9F2L8P4X6W',
+    formattedCode: '9F2L-8P4X-6W',
   },
 };
 

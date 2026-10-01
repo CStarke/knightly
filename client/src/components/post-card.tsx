@@ -7,6 +7,7 @@ import { Badge, type BadgeTone } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { Brand, Fonts, Radius, Spacing } from '@/constants/theme';
+import { getPresetBannerSource, isPresetBanner } from '@/constants/preset-banners';
 import { useClubFollow } from '@/context/club-follow-context';
 import type { Post } from '@/data/feed';
 import { useTheme } from '@/hooks/use-theme';
@@ -95,7 +96,7 @@ export function PostCard({ post }: { post: Post }) {
       {post.image ? (
         <View style={styles.imageContainer}>
           <Image
-            source={{ uri: post.image }}
+            source={isPresetBanner(post.image) ? getPresetBannerSource(post.image) : { uri: post.image }}
             style={styles.image}
             contentFit="cover"
             transition={250}

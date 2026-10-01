@@ -87,7 +87,7 @@ export const ParallaxStarfield = memo(function ParallaxStarfield({
   );
 
   const lightColors = useMemo(
-    () => ["#8C2131", "#C9A900", "#545F68", Brand.gold, "#8A6FC4"],
+    () => ["#8C2131", Brand.goldDark, "#545F68", Brand.gold, "#8A6FC4"],
     [],
   );
 

@@ -1,5 +1,6 @@
 import { Image } from 'expo-image';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Brand } from '@/constants/theme';
 
 const WAYFINDER_ASPECT_RATIO = 264.7 / 350.62; // ~0.755 (width / height)
 
@@ -17,7 +18,7 @@ export type WayfinderProps = {
    * Official brand variants:
    * - 'full': Official 4-color Wayfinder (Maroon, Red, Gold, White) for light/white backgrounds.
    * - 'inverse': Official inverse (White chevron, Gold & White loop) for Maroon/dark backgrounds.
-   * - 'gold': Single-color Classic Gold (#F3CD00).
+   * - 'gold': Single-color Classic Gold (Brand.gold).
    * - 'white': Single-color White (#FFFFFF).
    */
   variant?: 'full' | 'inverse' | 'gold' | 'white';
@@ -42,7 +43,7 @@ export function Wayfinder({
   style,
 }: WayfinderProps) {
   let resolvedVariant = variant ?? 'full';
-  if (!variant && (primaryColor === '#F3CD00' || accentColor === '#FFFFFF')) {
+  if (!variant && (primaryColor === Brand.gold || primaryColor === '#F3CD00' || accentColor === '#FFFFFF')) {
     resolvedVariant = 'inverse';
   }
 

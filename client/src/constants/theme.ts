@@ -12,6 +12,12 @@
  * which looks like a critical error alert rather than collegiate maroon.
  * Tuning `Brand.maroon` to `#5E1A24` restores the rich, stately visual depth on digital screens.
  *
+ * WHY GOLD COLOR TUNING (CALVIN GOLD #E8B019 VS #F3CD00 & #D4A017):
+ * Pure canary yellow (#F3CD00) emits high green light on backlit mobile screens, appearing
+ * harsh and highlighter-like, while darker golds can lose their vibrant punch on dark surfaces.
+ * Tuning `Brand.gold` to `#E8B019` maintains genuine collegiate gold warmth and luster while
+ * preserving radiant luminosity and high contrast alongside Calvin Maroon (#5E1A24).
+ *
  * WHY DUAL-MODE SEMANTIC TOKENS (Colors.light & Colors.dark):
  * Every UI element references semantic tokens (`text`, `textSecondary`, `background`, `border`)
  * rather than hardcoded hex values, enabling seamless system appearance switching and WCAG AA
@@ -28,8 +34,8 @@ export const Brand = {
   maroonClassic: '#8C2131',
   maroonDark: '#450F18',
   maroonLight: '#8C2131',
-  gold: '#F3CD00',
-  goldDark: '#C9A900',
+  gold: '#E8B019',
+  goldDark: '#B38410',
   goldSoft: '#FFFBEA',
 
   // Secondary Palette (Pantone 200 U, 7458 U, 359 U)

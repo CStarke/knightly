@@ -265,6 +265,15 @@ export default function CreatePostScreen() {
     setIsEditing(false);
   };
 
+  const handleSelectPresetBanner = (presetUri: string) => {
+    setIsCropping(false);
+    setIsCroppingInteracting(false);
+    setImageUrl(presetUri);
+    setRawImage(null);
+    setSavedTransform(null);
+    setIsEditing(false);
+  };
+
   // Date State
   const dateInputRef = useRef<TextInput>(null);
   const [rawDate, setRawDate] = useState('');
@@ -666,7 +675,7 @@ export default function CreatePostScreen() {
                 onBlur={() => setIsTitleFocused(false)}
                 cursorColor={Brand.gold}
                 selectionColor={Brand.gold}
-                placeholder="e.g. Hack Night & Lightning Talks"
+                placeholder="e.g. Welcome Night & Info Session"
                 placeholderTextColor={theme.textMuted}
                 maxLength={MAX_TITLE_LENGTH}
                 style={[
@@ -745,6 +754,7 @@ export default function CreatePostScreen() {
               cropperRef={cropperRef}
               onPickImage={handlePickImage}
               onRemovePhoto={handleRemovePhoto}
+              onSelectPresetBanner={handleSelectPresetBanner}
               onStartEdit={handleStartEdit}
               onSaveCrop={handleSaveCrop}
               onCroppingInteractionChange={setIsCroppingInteracting}
