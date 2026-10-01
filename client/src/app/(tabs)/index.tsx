@@ -33,6 +33,7 @@ import { useFeed } from "@/context/feed-context";
 import {
   feedCategories,
   searchPosts,
+  sortPostsByDate,
   type FeedCategory,
 } from "@/data/feed";
 
@@ -50,23 +51,30 @@ export default function FeedScreen() {
   const { openClubsDirectory } = useClubsNavigation();
 
   // Filtered posts for the Following feed.
+  // WHAT IT DOES: Filters dynamic posts to campus-wide announcements and followed clubs,
+  // then sorts the results in descending chronological order (newest at the top).
   // WHY CAMPUS-WIDE INCLUSION:
   // Administrative and student government announcements affect the entire student body
   // and must never be silenced by club follow preferences.
   const forYou = useMemo(() => {
-    return dynamicPosts.filter((post) => {
-      // Campus-wide announcements always show in Following
+    const filtered = dynamicPosts.filter((post) => {
+      // Always include campus-wide announcements regardless of following list
       if (post.campusWide) return true;
-      // Otherwise only show if user follows this club
+      // Resolve club ID from post metadata or fallback slug, checking if the student follows it
       const clubId = post.clubId ?? post.org.toLowerCase().replace(/[^a-z0-9]+/g, "-");
       return isFollowing(clubId);
     });
+    // Return posts sorted with the newest at the top
+    return sortPostsByDate(filtered);
   }, [dynamicPosts, isFollowing]);
 
+  // WHAT IT DOES: Filters all campus posts by search query and category chip,
+  // then ensures the explore results are sorted newest-first.
   const explore = useMemo(
-    () => searchPosts(query, category, dynamicPosts),
+    () => sortPostsByDate(searchPosts(query, category, dynamicPosts)),
     [query, category, dynamicPosts],
   );
+  // Select which filtered post list to display based on the active tab
   const visible = tab === "Following" ? forYou : explore;
 
   return (

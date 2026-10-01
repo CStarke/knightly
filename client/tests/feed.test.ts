@@ -190,16 +190,26 @@ describe('Knightly Feed Domain', () => {
       );
     });
 
-    it('handles clock rolled back into past (user sets phone back or clock skew)', () => {
+    it('handles future dates and clock skew resilience', () => {
       const created = 1_700_000_000_000;
-      // Phone clock was manually moved back 2 hours or 10 days
+      // Minor clock skew within 5 minutes renders as "Just now"
       assert.strictEqual(
-        formatRelativeTime(undefined, created, undefined, { now: created - 7_200_000 }),
+        formatRelativeTime(undefined, created, undefined, { now: created - 2 * 60_000 }),
         'Just now'
       );
+      // Relative future times within 30 days
       assert.strictEqual(
-        formatRelativeTime(undefined, created, undefined, { now: created - 864_000_000 }),
-        'Just now'
+        formatRelativeTime(undefined, created, undefined, { now: created - 7_200_000, timeZone: 'UTC' }),
+        'In 2 hours'
+      );
+      assert.strictEqual(
+        formatRelativeTime(undefined, created, undefined, { now: created - 864_000_000, timeZone: 'UTC' }),
+        'In 10 days'
+      );
+      // Far future dates (> 30 days) render exact posted date
+      assert.strictEqual(
+        formatRelativeTime(undefined, created, undefined, { now: created - 35 * 86_400_000, timeZone: 'UTC' }),
+        'Posted 14 November 2023'
       );
     });
 
@@ -223,15 +233,15 @@ describe('Knightly Feed Domain', () => {
       const monotonicStart = 10_000;
       assert.strictEqual(
         formatRelativeTime('Just now', undefined, monotonicStart, { monotonicNow: monotonicStart + 5 * 60_000 }),
-        '5m ago'
+        '5 minutes ago'
       );
       assert.strictEqual(
         formatRelativeTime('Just now', undefined, monotonicStart, { monotonicNow: monotonicStart + 3 * 3_600_000 }),
-        '3h ago'
+        '3 hours ago'
       );
       assert.strictEqual(
         formatRelativeTime('Just now', undefined, monotonicStart, { monotonicNow: monotonicStart + 2 * 86_400_000 }),
-        '2d ago'
+        '2 days ago'
       );
     });
 
@@ -241,10 +251,10 @@ describe('Knightly Feed Domain', () => {
       const nowUtc = createdUtc + 2 * 3_600_000;
 
       // Both EDT (UTC-4) and JST (UTC+9) share the same epoch millisecond delta
-      const resultTimezoneA = formatRelativeTime(undefined, createdUtc, undefined, { now: nowUtc });
-      const resultTimezoneB = formatRelativeTime(undefined, createdUtc, undefined, { now: nowUtc });
+      const resultTimezoneA = formatRelativeTime(undefined, createdUtc, undefined, { now: nowUtc, timeZone: 'America/New_York' });
+      const resultTimezoneB = formatRelativeTime(undefined, createdUtc, undefined, { now: nowUtc, timeZone: 'Asia/Tokyo' });
 
-      assert.strictEqual(resultTimezoneA, '2h ago');
+      assert.strictEqual(resultTimezoneA, '2 hours ago');
       assert.strictEqual(resultTimezoneA, resultTimezoneB);
     });
 
@@ -261,6 +271,235 @@ describe('Knightly Feed Domain', () => {
         const formatted = formatRelativeTime(p.postedAt, p.createdAt, p.monotonicCreatedAt);
         assert.ok(!formatted.includes('Just now ago'), `Post ${p.id} rendered "Just now ago"`);
         assert.ok(!formatted.endsWith('ago ago'), `Post ${p.id} rendered double "ago"`);
+      }
+    });
+  });
+
+  describe('Dynamic postedAt Specification & Timezone Invariants', () => {
+    const fixedNow = new Date('2026-10-21T15:00:00.000Z').getTime();
+
+    it('renders "Just now" for 0 to 5 minutes ago and minor future clock skew', () => {
+      // 0 ms
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow).toISOString(), undefined, undefined, { now: fixedNow }),
+        'Just now'
+      );
+      // 2.5 minutes ago
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow - 150_000).toISOString(), undefined, undefined, { now: fixedNow }),
+        'Just now'
+      );
+      // 4 minutes 59 seconds ago
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow - 299_000).toISOString(), undefined, undefined, { now: fixedNow }),
+        'Just now'
+      );
+      // Minor clock skew: 2 minutes in future
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow + 120_000).toISOString(), undefined, undefined, { now: fixedNow }),
+        'Just now'
+      );
+      // Minor clock skew: 4 minutes 59 seconds in future
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow + 299_000).toISOString(), undefined, undefined, { now: fixedNow }),
+        'Just now'
+      );
+    });
+
+    it('renders minutes ago for 5 to 60 minutes range', () => {
+      // Exactly 5 minutes
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow - 5 * 60_000).toISOString(), undefined, undefined, { now: fixedNow }),
+        '5 minutes ago'
+      );
+      // 25 minutes
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow - 25 * 60_000).toISOString(), undefined, undefined, { now: fixedNow }),
+        '25 minutes ago'
+      );
+      // 45 minutes
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow - 45 * 60_000).toISOString(), undefined, undefined, { now: fixedNow }),
+        '45 minutes ago'
+      );
+      // 59 minutes 59 seconds
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow - (59 * 60_000 + 59_000)).toISOString(), undefined, undefined, { now: fixedNow }),
+        '59 minutes ago'
+      );
+    });
+
+    it('renders truncated number of hours ago for 1 to 24 hours (e.g. 1h 50m displays "1 hour ago")', () => {
+      // Exactly 1 hour
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow - 3_600_000).toISOString(), undefined, undefined, { now: fixedNow }),
+        '1 hour ago'
+      );
+      // 1 hour 50 minutes (user explicit requirement)
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow - 110 * 60_000).toISOString(), undefined, undefined, { now: fixedNow }),
+        '1 hour ago'
+      );
+      // 1 hour 59 minutes
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow - 119 * 60_000).toISOString(), undefined, undefined, { now: fixedNow }),
+        '1 hour ago'
+      );
+      // 2 hours
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow - 2 * 3_600_000).toISOString(), undefined, undefined, { now: fixedNow }),
+        '2 hours ago'
+      );
+      // 5 hours 30 minutes
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow - (5 * 3_600_000 + 1_800_000)).toISOString(), undefined, undefined, { now: fixedNow }),
+        '5 hours ago'
+      );
+      // 23 hours 59 minutes
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow - (23 * 3_600_000 + 3_540_000)).toISOString(), undefined, undefined, { now: fixedNow }),
+        '23 hours ago'
+      );
+    });
+
+    it('renders days ago for 1 to 30 days', () => {
+      // Exactly 1 day (24 hours)
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow - 86_400_000).toISOString(), undefined, undefined, { now: fixedNow }),
+        '1 day ago'
+      );
+      // 1 day 18 hours
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow - (86_400_000 + 18 * 3_600_000)).toISOString(), undefined, undefined, { now: fixedNow }),
+        '1 day ago'
+      );
+      // 2 days
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow - 2 * 86_400_000).toISOString(), undefined, undefined, { now: fixedNow }),
+        '2 days ago'
+      );
+      // 15 days
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow - 15 * 86_400_000).toISOString(), undefined, undefined, { now: fixedNow }),
+        '15 days ago'
+      );
+      // Exactly 30 days
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow - 30 * 86_400_000).toISOString(), undefined, undefined, { now: fixedNow }),
+        '30 days ago'
+      );
+      // 30 days 23 hours
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow - (30 * 86_400_000 + 23 * 3_600_000)).toISOString(), undefined, undefined, { now: fixedNow }),
+        '30 days ago'
+      );
+    });
+
+    it('renders exact posted date past 30 days ago (e.g. "Posted 21 October 2026")', () => {
+      // 31 days ago
+      const thirtyOneDaysAgo = fixedNow - 31 * 86_400_000;
+      const formatted31 = formatRelativeTime(new Date(thirtyOneDaysAgo).toISOString(), undefined, undefined, {
+        now: fixedNow,
+        timeZone: 'UTC',
+      });
+      assert.strictEqual(formatted31, 'Posted 20 September 2026');
+
+      // 60 days ago
+      const sixtyDaysAgo = fixedNow - 60 * 86_400_000;
+      const formatted60 = formatRelativeTime(new Date(sixtyDaysAgo).toISOString(), undefined, undefined, {
+        now: fixedNow,
+        timeZone: 'UTC',
+      });
+      assert.strictEqual(formatted60, 'Posted 22 August 2026');
+    });
+
+    it('renders future relative countdowns before 30 days and switches to exact date past 30 days', () => {
+      // 5 minutes in the future
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow + 5 * 60_000).toISOString(), undefined, undefined, { now: fixedNow }),
+        'In 5 minutes'
+      );
+      // 25 minutes in the future
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow + 25 * 60_000).toISOString(), undefined, undefined, { now: fixedNow }),
+        'In 25 minutes'
+      );
+      // 1 hour in the future
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow + 3_600_000).toISOString(), undefined, undefined, { now: fixedNow }),
+        'In 1 hour'
+      );
+      // 1 hour 50 minutes in the future (truncated)
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow + 110 * 60_000).toISOString(), undefined, undefined, { now: fixedNow }),
+        'In 1 hour'
+      );
+      // 2 hours in the future
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow + 2 * 3_600_000).toISOString(), undefined, undefined, { now: fixedNow }),
+        'In 2 hours'
+      );
+      // 8 days in the future
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow + 8 * 86_400_000).toISOString(), undefined, undefined, { now: fixedNow }),
+        'In 8 days'
+      );
+      // 30 days in the future
+      assert.strictEqual(
+        formatRelativeTime(new Date(fixedNow + 30 * 86_400_000).toISOString(), undefined, undefined, { now: fixedNow }),
+        'In 30 days'
+      );
+      // 35 days in the future (> 30 days switches to direct date)
+      const farFuture = fixedNow + 35 * 86_400_000;
+      assert.strictEqual(
+        formatRelativeTime(new Date(farFuture).toISOString(), undefined, undefined, { now: fixedNow, timeZone: 'UTC' }),
+        'Posted 25 November 2026'
+      );
+    });
+
+    it('correctly adapts date boundary across different time zones', () => {
+      // 2026-10-21T01:30:00.000Z (1:30 AM UTC on Oct 21 = 9:30 PM EDT on Oct 20)
+      const dateIso = '2026-10-21T01:30:00.000Z';
+      const farFuture = new Date('2026-12-01T00:00:00.000Z').getTime();
+
+      const utcResult = formatRelativeTime(dateIso, undefined, undefined, { now: farFuture, timeZone: 'UTC' });
+      const nyResult = formatRelativeTime(dateIso, undefined, undefined, { now: farFuture, timeZone: 'America/New_York' });
+      const tokyoResult = formatRelativeTime(dateIso, undefined, undefined, { now: farFuture, timeZone: 'Asia/Tokyo' });
+
+      assert.strictEqual(utcResult, 'Posted 21 October 2026');
+      assert.strictEqual(nyResult, 'Posted 20 October 2026');
+      assert.strictEqual(tokyoResult, 'Posted 21 October 2026');
+    });
+
+    it('accepts Date instances, epoch numbers, and ISO strings identically', () => {
+      const targetTime = fixedNow - 15 * 60_000; // 15 mins ago
+      const fromIso = formatRelativeTime(new Date(targetTime).toISOString(), undefined, undefined, { now: fixedNow });
+      const fromNum = formatRelativeTime(targetTime, undefined, undefined, { now: fixedNow });
+      const fromDate = formatRelativeTime(new Date(targetTime), undefined, undefined, { now: fixedNow });
+
+      assert.strictEqual(fromIso, '15 minutes ago');
+      assert.strictEqual(fromNum, '15 minutes ago');
+      assert.strictEqual(fromDate, '15 minutes ago');
+    });
+
+    it('sorts posts by date posted with newest at the top', () => {
+      const { sortPostsByDate } = require('@/data/feed');
+      const postsUnsorted = [
+        { ...posts[0], id: 'older-1', postedAt: '2026-09-10T12:00:00.000Z' },
+        { ...posts[0], id: 'newest', postedAt: '2026-10-01T10:00:00.000Z' },
+        { ...posts[0], id: 'older-2', postedAt: '2026-09-15T12:00:00.000Z' },
+        { ...posts[0], id: 'middle', postedAt: '2026-09-25T12:00:00.000Z' },
+      ];
+      const sorted = sortPostsByDate(postsUnsorted);
+      assert.strictEqual(sorted[0].id, 'newest');
+      assert.strictEqual(sorted[1].id, 'middle');
+      assert.strictEqual(sorted[2].id, 'older-2');
+      assert.strictEqual(sorted[3].id, 'older-1');
+
+      for (let i = 0; i < sorted.length - 1; i++) {
+        const timeA = new Date(sorted[i].postedAt).getTime();
+        const timeB = new Date(sorted[i + 1].postedAt).getTime();
+        assert.ok(timeA >= timeB, 'Posts must be in descending order of creation time');
       }
     });
   });

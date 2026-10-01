@@ -66,7 +66,7 @@ export const posts: Post[] = [
     org: 'Student Activities',
     mark: 'SA',
     category: 'Social',
-    postedAt: '2h',
+    postedAt: '2026-09-18T16:00:00.000Z',
     headline: 'Airband is back',
     body: 'Lip sync, choreography, and far too much fog machine. Sign your floor up by Thursday at midnight, eight spots left.',
     when: 'Fri, Sep 18 · 8:00 PM',
@@ -84,7 +84,7 @@ export const posts: Post[] = [
     org: 'Calvin Theatre Company',
     mark: 'CT',
     category: 'The Arts',
-    postedAt: '5h',
+    postedAt: '2026-09-18T13:00:00.000Z',
     headline: 'Auditions: Much Ado About Nothing',
     body: 'No experience needed, no monologue to prepare. Walk in, read a side, leave in twenty minutes. Crew sign-ups happen at the same table.',
     when: 'Mon, Sep 21 · 6:00-9:00 PM',
@@ -102,7 +102,7 @@ export const posts: Post[] = [
     org: 'Knights Athletics',
     mark: 'KA',
     category: 'Athletics',
-    postedAt: '8h',
+    postedAt: '2026-09-18T10:00:00.000Z',
     headline: 'Soccer vs. Hope, under the lights',
     body: 'Student section gets in free with a Knight Card. Gold out, so wear the shirt they handed you at orientation.',
     when: 'Sat, Sep 19 · 7:00 PM',
@@ -120,7 +120,7 @@ export const posts: Post[] = [
     org: 'Campus Ministries',
     mark: 'CM',
     category: 'Faith',
-    postedAt: '11h',
+    postedAt: '2026-09-18T07:00:00.000Z',
     headline: 'LOFT starts Sunday',
     body: 'Twenty-four student musicians rotating week to week. Doors at 7:30, service at 8, cider on the patio after.',
     when: 'Sun, Sep 20 · 8:00 PM',
@@ -138,7 +138,7 @@ export const posts: Post[] = [
     org: 'ACM Student Chapter',
     mark: 'AC',
     category: 'Academics',
-    postedAt: '1d',
+    postedAt: '2026-09-17T17:00:00.000Z',
     headline: 'Hack night: build something dumb',
     body: 'Pizza, whiteboards, and zero expectations. Bring a laptop or borrow one of ours. Last time someone made a Commons line predictor.',
     when: 'Thu, Sep 17 · 7:00-11:00 PM',
@@ -156,7 +156,7 @@ export const posts: Post[] = [
     org: 'Dining Services',
     mark: 'DS',
     category: 'Social',
-    postedAt: '1d',
+    postedAt: '2026-09-17T15:00:00.000Z',
     headline: 'Commons reopens with the loft seating',
     body: 'New allergen-free station, 120 more seats upstairs, and the grab-and-go case is restocked at 7 every night now.',
     when: 'Open today until 9:00 PM',
@@ -174,7 +174,7 @@ export const posts: Post[] = [
     org: 'Calvin Orchestra',
     mark: 'CO',
     category: 'Music',
-    postedAt: '1d',
+    postedAt: '2026-09-17T12:00:00.000Z',
     headline: 'Open rehearsal, no ticket needed',
     body: 'Sit in the balcony and listen to Dvorak fall apart and come back together. Stay for as long or as little as you want.',
     when: 'Tue, Sep 22 · 7:30 PM',
@@ -192,7 +192,7 @@ export const posts: Post[] = [
     org: 'Outdoor Recreation',
     mark: 'OR',
     category: 'Outdoors',
-    postedAt: '2d',
+    postedAt: '2026-09-16T14:45:00.000Z',
     headline: 'Sunrise hike at the Preserve',
     body: 'Meet at the trailhead, walk the loop, be back before your 9 a.m. Coffee is on us. Fourteen spots, first come.',
     when: 'Sat, Sep 19 · 6:45 AM',
@@ -210,7 +210,7 @@ export const posts: Post[] = [
     org: 'Service Learning Center',
     mark: 'SL',
     category: 'Service',
-    postedAt: '2d',
+    postedAt: '2026-09-16T12:30:00.000Z',
     headline: 'Saturday mornings at the food bank',
     body: 'Vans leave from Commons Lawn at 8:30 and are back by noon. No ongoing commitment, come once or come every week.',
     when: 'Saturdays · 8:30 AM',
@@ -228,7 +228,7 @@ export const posts: Post[] = [
     org: 'Art Department',
     mark: 'AD',
     category: 'The Arts',
-    postedAt: '3d',
+    postedAt: '2026-09-15T15:00:00.000Z',
     headline: 'Senior show opening reception',
     body: 'Eleven seniors, one gallery, a lot of nervous energy. Snacks are genuinely good this year.',
     when: 'Fri, Sep 25 · 5:00-8:00 PM',
@@ -246,7 +246,7 @@ export const posts: Post[] = [
     org: 'Knights Athletics',
     mark: 'KA',
     category: 'Athletics',
-    postedAt: '3d',
+    postedAt: '2026-09-15T10:00:00.000Z',
     headline: 'Volleyball hosts Olivet',
     body: 'Ana Oyelaran had 31 kills last weekend. Come watch her do it again in a much louder room.',
     when: 'Wed, Sep 23 · 6:30 PM',
@@ -264,7 +264,7 @@ export const posts: Post[] = [
     org: 'Chemistry Department',
     mark: 'CD',
     category: 'Academics',
-    postedAt: '4d',
+    postedAt: '2026-09-14T09:00:00.000Z',
     headline: 'New NMR is coming in January',
     body: 'Undergrads will run it themselves after a short certification. Sign up for the first training cohort now.',
     when: 'Training starts Jan 12',
@@ -281,7 +281,7 @@ export const posts: Post[] = [
     org: 'Student Senate',
     mark: 'SS',
     category: 'Social',
-    postedAt: '5d',
+    postedAt: '2026-09-13T14:00:00.000Z',
     headline: 'Late-night shuttle adds a Woodlawn loop',
     body: 'Friday and Saturday, every 20 minutes until 2 a.m. You asked for this in the spring survey.',
     when: 'Starts this weekend',
@@ -298,7 +298,7 @@ export const posts: Post[] = [
     org: 'Jazz Collective',
     mark: 'JC',
     category: 'Music',
-    postedAt: '6d',
+    postedAt: '2026-09-12T16:00:00.000Z',
     headline: 'Basement session, bring an instrument',
     body: 'Open jam every other Thursday. Horns especially welcome, we have been carrying the melody on one trumpet.',
     when: 'Thu, Sep 24 · 9:00 PM',
@@ -316,7 +316,7 @@ export const posts: Post[] = [
     org: 'Knights Robotics',
     mark: 'KR',
     category: 'Academics',
-    postedAt: '2d',
+    postedAt: '2026-09-12T12:00:00.000Z',
     headline: 'Autonomous rover trials in the MakerLab',
     body: 'Testing navigation sensors and chassis suspension ahead of the fall rover challenge. Open shop hours for new team members.',
     when: 'Wed, Sep 23 · 6:30 PM',
@@ -334,7 +334,7 @@ export const posts: Post[] = [
     org: 'Dance Guild',
     mark: 'DG',
     category: 'The Arts',
-    postedAt: '3d',
+    postedAt: '2026-09-11T15:00:00.000Z',
     headline: 'Choreography submissions open for Fall showcase',
     body: 'Got a piece you want to choreograph? Submissions are open to all genres and experience levels. Thirty choreographers selected.',
     when: 'Submissions due Sep 25',
@@ -352,7 +352,7 @@ export const posts: Post[] = [
     org: 'Environmental Club',
     mark: 'EC',
     category: 'Outdoors',
-    postedAt: '4d',
+    postedAt: '2026-09-10T10:00:00.000Z',
     headline: 'Native tree planting at Plaster Creek',
     body: 'Grab work gloves and boots. We are planting sixty native saplings along the watershed buffer zone to combat stormwater runoff.',
     when: 'Sat, Sep 26 · 10:00 AM - 1:00 PM',
@@ -366,29 +366,70 @@ export const posts: Post[] = [
   },
 ];
 
+/**
+ * Resolves a reliable numeric timestamp (UTC ms) for sorting posts.
+ * Checks the numeric createdAt epoch first, falling back to parsing the postedAt ISO string.
+ * Returns 0 if unparseable to safely place invalid records at the bottom of the feed.
+ */
+export function getPostTimestamp(post: Post): number {
+  // Use numeric epoch ms if already stored on the post object
+  if (typeof post.createdAt === 'number' && !isNaN(post.createdAt) && post.createdAt > 0) {
+    return post.createdAt;
+  }
+  // Otherwise parse the ISO 8601 date string to epoch milliseconds
+  const parsed = new Date(post.postedAt).getTime();
+  return isNaN(parsed) ? 0 : parsed;
+}
+
+/**
+ * Sorts posts in descending chronological order (newest at the top).
+ * Copies the array with spread syntax to avoid in-place mutation of the input list.
+ */
+export function sortPostsByDate(postList: Post[]): Post[] {
+  // Higher timestamp means more recent date, placed earlier in the array (b - a)
+  return [...postList].sort((a, b) => getPostTimestamp(b) - getPostTimestamp(a));
+}
+
+/**
+ * Filters the feed for the "Following" view, always including campus-wide announcements.
+ * Returns the filtered posts sorted in descending chronological order (newest at the top).
+ */
 export function forYouPosts(
   isFollowing?: (clubId: string) => boolean,
   postList: Post[] = posts
 ) {
+  let list: Post[];
   if (!isFollowing) {
-    return postList.filter((post) => post.followed || post.campusWide);
+    // If no follower state callback is provided, show followed posts and campus-wide alerts
+    list = postList.filter((post) => post.followed || post.campusWide);
+  } else {
+    // Check if post is campus-wide or belongs to a club followed by the student
+    list = postList.filter((post) => {
+      if (post.campusWide) return true;
+      const clubId = post.clubId ?? post.org.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      return isFollowing(clubId);
+    });
   }
-  return postList.filter((post) => {
-    if (post.campusWide) return true;
-    const clubId = post.clubId ?? post.org.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    return isFollowing(clubId);
-  });
+  // Ensure the filtered following feed is sorted newest-first
+  return sortPostsByDate(list);
 }
 
+/**
+ * Filters posts by search query text across title, body, organization, and location,
+ * optionally constrained to a specific category. Returns matching posts sorted newest-first.
+ */
 export function searchPosts(
   query: string,
   category: FeedCategory | 'All',
   postList: Post[] = posts
 ) {
+  // Normalize search needle to lowercase for case-insensitive matching
   const needle = query.trim().toLowerCase();
 
-  return postList.filter((post) => {
+  const filtered = postList.filter((post) => {
+    // Check category match (or pass everything if "All" is selected)
     const matchesCategory = category === 'All' || post.category === category;
+    // Check if query matches headline, body text, organization, category, or location
     const matchesQuery =
       needle.length === 0 ||
       post.headline.toLowerCase().includes(needle) ||
@@ -399,15 +440,25 @@ export function searchPosts(
 
     return matchesCategory && matchesQuery;
   });
+
+  // Ensure matching search results are presented newest-first
+  return sortPostsByDate(filtered);
 }
 
+/**
+ * Retrieves all announcements published by a specific student organization or club.
+ * Matches by explicit clubId or fallback org slug, sorted newest-first.
+ */
 export function getPostsByClubId(clubId: string, postList: Post[] = posts): Post[] {
   const cleanId = clubId.trim().toLowerCase();
-  return postList.filter(
+  // Filter for posts whose clubId or slugified org name matches the requested club ID
+  const filtered = postList.filter(
     (post) =>
       (post.clubId && post.clubId.toLowerCase() === cleanId) ||
       post.org.toLowerCase().replace(/[^a-z0-9]+/g, '-') === cleanId
   );
+  // Guarantee reverse-chronological order on the club's profile announcement feed
+  return sortPostsByDate(filtered);
 }
 
 export const followedOrgs = Array.from(

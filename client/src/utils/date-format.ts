@@ -43,6 +43,7 @@ export interface TimeSegmentsResult {
 export type FormatPostTimeOptions = {
   now?: number;
   monotonicNow?: number;
+  timeZone?: string;
 };
 
 export const QUICK_TIMES = ['11:00 AM', '12:00 PM', '4:00 PM', '6:00 PM', '7:00 PM', '8:00 PM'];
@@ -65,17 +66,46 @@ function splitTimeDigits(digits: string): [string, string] {
   return [digits.slice(0, 2), digits.slice(2)];
 }
 
-function formatElapsed(elapsedMs: number, allowWeeksMonths: boolean = false): string {
-  if (elapsedMs < 60_000) return 'Just now';
-  if (elapsedMs < 3_600_000) return `${Math.floor(elapsedMs / 60_000)}m ago`;
-  if (elapsedMs < 86_400_000) return `${Math.floor(elapsedMs / 3_600_000)}h ago`;
-  if (!allowWeeksMonths || elapsedMs < 604_800_000) {
-    return `${Math.floor(elapsedMs / 86_400_000)}d ago`;
+export const FULL_MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+export function formatPostedDate(date: Date, timeZone?: string): string {
+  // Format date using Intl.DateTimeFormat if a custom timeZone is specified (e.g. "America/New_York", "UTC")
+  if (timeZone) {
+    try {
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        timeZone,
+      });
+      // Extract formatted date parts (day, month, year) from the localized result
+      const parts = formatter.formatToParts(date);
+      const day = parts.find((p) => p.type === 'day')?.value ?? String(date.getDate());
+      const month = parts.find((p) => p.type === 'month')?.value ?? FULL_MONTH_NAMES[date.getMonth()];
+      const year = parts.find((p) => p.type === 'year')?.value ?? String(date.getFullYear());
+      return `Posted ${day} ${month} ${year}`;
+    } catch {
+      // Fall through to system local getters if the timezone string is invalid
+    }
   }
-  if (elapsedMs < 2_592_000_000) {
-    return `${Math.floor(elapsedMs / 604_800_000)}w ago`;
-  }
-  return `${Math.floor(elapsedMs / 2_592_000_000)}mo ago`;
+  // Default to local system date getters when no timeZone override is provided
+  const day = date.getDate();
+  const month = FULL_MONTH_NAMES[date.getMonth()];
+  const year = date.getFullYear();
+  return `Posted ${day} ${month} ${year}`;
 }
 
 // ============================================================================
@@ -152,43 +182,150 @@ export function formatEventDate(
 }
 
 /**
- * 2. Formats a post's timestamp or relative time string for the campus feed card footer.
+ * 2. Formats a post's timestamp or date representation for the campus feed card footer.
+ *
+ * SPECIFICATION & RULES:
+ * - 0 - 5 minutes (past or future clock skew): "Just now"
+ * - 5 - 60 minutes ago: "X minutes ago"
+ * - 5 - 60 minutes in future: "In X minutes"
+ * - 1 - 24 hours ago: truncated # of hours ago ("1 hour ago", "X hours ago")
+ *   e.g. 1 hour 50 minutes ago displays "1 hour ago"
+ * - 1 - 24 hours in future: truncated # of hours ("In 1 hour", "In X hours")
+ * - 1 - 30 days ago: "1 day ago", "X days ago"
+ * - 1 - 30 days in future: "In 1 day", "In X days"
+ * - Past 30 days ago & Distant Future: "Posted 21 October 2026"
+ * - Timezone-aware: parses ISO strings across time zones and supports optional timeZone override
  */
 export function formatRelativeTime(
-  postedAt?: string,
+  postedAt?: string | number | Date,
   createdAt?: number,
   monotonicCreatedAt?: number,
   options?: FormatPostTimeOptions
 ): string {
+  // Current reference timestamp (overridable via options for deterministic testing)
+  const now = options?.now ?? Date.now();
+
+  let postDate: Date | null = null;
+  let timestamp: number | null = null;
+
+  // Step 1: Normalize input (Date instance, epoch number, or ISO string) into a Date and timestamp
+  if (postedAt instanceof Date && !isNaN(postedAt.getTime())) {
+    postDate = postedAt;
+    timestamp = postedAt.getTime();
+  } else if (typeof postedAt === 'number' && !isNaN(postedAt) && postedAt > 0) {
+    postDate = new Date(postedAt);
+    timestamp = postedAt;
+  } else if (typeof postedAt === 'string') {
+    const trimmed = postedAt.trim();
+    if (/^\d{10,15}$/.test(trimmed)) {
+      // Parse numeric epoch string (e.g. "1790888940000")
+      const num = parseInt(trimmed, 10);
+      if (!isNaN(num)) {
+        postDate = new Date(num);
+        timestamp = num;
+      }
+    } else {
+      // Parse ISO 8601 date string (e.g. "2026-10-01T21:09:00.000Z")
+      const parsed = new Date(trimmed);
+      if (!isNaN(parsed.getTime())) {
+        postDate = parsed;
+        timestamp = parsed.getTime();
+      }
+    }
+  }
+
+  // Fall back to createdAt numeric epoch if postedAt was not directly parseable
+  if (timestamp === null && typeof createdAt === 'number' && !isNaN(createdAt) && createdAt > 0) {
+    postDate = new Date(createdAt);
+    timestamp = createdAt;
+  }
+
+  // Step 2: Calculate elapsed delta, using monotonic clock when available to guard against device clock shifts
+  let diffMs: number | null = null;
   if (monotonicCreatedAt !== undefined && monotonicCreatedAt !== null) {
     const currentMonotonic =
       options?.monotonicNow ?? (typeof performance !== 'undefined' ? performance.now() : undefined);
     if (currentMonotonic !== undefined) {
-      return formatElapsed(currentMonotonic - monotonicCreatedAt, false);
+      diffMs = currentMonotonic - monotonicCreatedAt;
+      if (timestamp === null) {
+        timestamp = now - diffMs;
+        postDate = new Date(timestamp);
+      }
     }
   }
 
-  if (typeof createdAt === 'number' && !isNaN(createdAt)) {
-    const now = options?.now ?? Date.now();
-    return formatElapsed(now - createdAt, true);
+  // If monotonic clock was not used, compute standard wall-clock difference
+  if (diffMs === null && timestamp !== null) {
+    diffMs = now - timestamp;
   }
 
-  if (!postedAt || typeof postedAt !== 'string') {
+  // Step 3: Graceful fallback for non-parseable legacy string tokens (e.g. "Just now", "2h")
+  if (diffMs === null || timestamp === null || !postDate) {
+    if (typeof postedAt === 'string' && postedAt.trim()) {
+      const trimmed = postedAt.trim();
+      const lower = trimmed.toLowerCase();
+      if (lower === 'just now' || lower === 'now' || lower === 'just now ago') {
+        return 'Just now';
+      }
+      if (lower.endsWith('ago')) {
+        return trimmed;
+      }
+      return `${trimmed} ago`;
+    }
     return 'Just now';
   }
 
-  const trimmed = postedAt.trim();
-  const lower = trimmed.toLowerCase();
+  // 1. Future dates (and clock skew)
+  if (diffMs < 0) {
+    const futureMs = -diffMs;
+    // 0 to 5 minutes in future (minor clock skew): "Just now"
+    if (futureMs < 5 * 60_000) {
+      return 'Just now';
+    }
+    // 5 to 60 minutes in future: "In X minutes"
+    if (futureMs < 60 * 60_000) {
+      const minutes = Math.floor(futureMs / 60_000);
+      return `In ${minutes} minute${minutes === 1 ? '' : 's'}`;
+    }
+    // 1 to 24 hours in future: truncated # of hours ("In 1 hour", "In X hours")
+    if (futureMs < 24 * 3_600_000) {
+      const hours = Math.floor(futureMs / 3_600_000);
+      return `In ${hours} hour${hours === 1 ? '' : 's'}`;
+    }
+    // 1 to 30 days in future: "In 1 day", "In X days"
+    const days = Math.floor(futureMs / 86_400_000);
+    if (days <= 30) {
+      return `In ${days} day${days === 1 ? '' : 's'}`;
+    }
+    // Past 30 days in future: exact date
+    return formatPostedDate(postDate, options?.timeZone);
+  }
 
-  if (lower === 'just now' || lower === 'just now ago' || lower === 'now') {
+  // 2. 0 to 5 minutes ago: "Just now"
+  if (diffMs < 5 * 60_000) {
     return 'Just now';
   }
 
-  if (lower.endsWith('ago')) {
-    return lower.includes('just now') ? 'Just now' : trimmed;
+  // 3. 5 to 60 minutes ago: "X minutes ago"
+  if (diffMs < 60 * 60_000) {
+    const minutes = Math.floor(diffMs / 60_000);
+    return `${minutes} minutes ago`;
   }
 
-  return `${trimmed} ago`;
+  // 4. 1 to 24 hours ago: truncated # of hours ago ("1 hour ago", "X hours ago")
+  if (diffMs < 24 * 3_600_000) {
+    const hours = Math.floor(diffMs / 3_600_000);
+    return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  }
+
+  // 5. 1 to 30 days ago: "1 day ago", "X days ago"
+  const days = Math.floor(diffMs / 86_400_000);
+  if (days <= 30) {
+    return `${days} day${days === 1 ? '' : 's'} ago`;
+  }
+
+  // 6. Past 30 days ago: "Posted 21 October 2026"
+  return formatPostedDate(postDate, options?.timeZone);
 }
 
 /**
