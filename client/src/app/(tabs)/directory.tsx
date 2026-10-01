@@ -32,7 +32,7 @@ import { Fonts, Radius, Spacing } from '@/constants/theme';
 import { initials, people, personName } from '@/data/directory';
 import { useTheme } from '@/hooks/use-theme';
 
-const filters = ['Everyone', 'Students', 'Faculty', 'Staff'] as const;
+const filters = ['Everyone', 'Faculty', 'Staff'] as const;
 type Filter = (typeof filters)[number];
 
 function roleBadgeTone(role: string): BadgeTone {
@@ -40,21 +40,12 @@ function roleBadgeTone(role: string): BadgeTone {
     case 'Faculty':
       return 'brand';
     case 'Staff':
-      return 'info';
-    case 'Student':
     default:
-      return 'gold';
+      return 'info';
   }
 }
 
 function formatPersonSubtitle(person: (typeof people)[number]): string {
-  if (person.role === 'Student') {
-    if (person.classYear) {
-      return `${person.title} · Class of ${person.classYear}`;
-    }
-    return person.title;
-  }
-
   // Avoid repeating department if title already includes it (e.g. "Professor of Computer Science")
   if (
     person.department &&
@@ -81,7 +72,6 @@ export default function DirectoryScreen() {
     return people.filter((person) => {
       const matchesFilter =
         filter === 'Everyone' ||
-        (filter === 'Students' && person.role === 'Student') ||
         (filter === 'Faculty' && person.role === 'Faculty') ||
         (filter === 'Staff' && person.role === 'Staff');
 
@@ -98,7 +88,7 @@ export default function DirectoryScreen() {
   return (
     <Screen>
       <View style={styles.filters}>
-        <SearchField value={query} onChangeText={setQuery} placeholder="Search by name or major" />
+        <SearchField value={query} onChangeText={setQuery} placeholder="Search by name, title, or department" />
         <ChipRow options={filters} value={filter} onChange={setFilter} />
       </View>
 

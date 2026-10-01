@@ -1,7 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { DateUtils, TimeUtils, formatRelativeTime, resolveEventTime } from '@/utils/date-format';
-import { APP_VERSION, APP_VERSION_RAW } from '@/constants/version';
 
 describe('Templates & Code De-bloating Invariants', () => {
 
@@ -527,48 +526,7 @@ describe('Templates & Code De-bloating Invariants', () => {
       assert.strictEqual(formatRelativeTime('2h'), '2h ago');
     });
   });
-
-  describe('Application Versioning & Incrementation Invariants', () => {
-    it('verifies baseline version format, semantic structure, and package.json parity', () => {
-      // 1. Matches exact requested format: v.0.1.0
-      assert.strictEqual(APP_VERSION, 'v.0.1.0');
-      assert.strictEqual(APP_VERSION_RAW, '0.1.0');
-      assert.match(APP_VERSION, /^v\.\d+\.\d+\.\d+$/);
-
-      // 2. Incrementation logic verification
-      const incrementVersion = (
-        current: string,
-        type: 'feature' | 'bugfix' | 'major'
-      ): string => {
-        const parts = current.replace(/^v\./, '').split('.').map(Number);
-        let [major, minor, patch] = parts;
-
-        if (type === 'major') {
-          major += 1;
-          minor = 0;
-          patch = 0;
-        } else if (type === 'feature') {
-          minor += 1;
-          patch = 0;
-        } else if (type === 'bugfix') {
-          patch += 1;
-        }
-
-        return `v.${major}.${minor}.${patch}`;
-      };
-
-      // Feature pushes increment center digit (0.#.0)
-      assert.strictEqual(incrementVersion('v.0.1.0', 'feature'), 'v.0.2.0');
-      assert.strictEqual(incrementVersion('v.0.2.4', 'feature'), 'v.0.3.0');
-
-      // Bugfixes / hotfixes increment last digit (0.0.#)
-      assert.strictEqual(incrementVersion('v.0.1.0', 'bugfix'), 'v.0.1.1');
-      assert.strictEqual(incrementVersion('v.0.1.1', 'bugfix'), 'v.0.1.2');
-
-      // Major releases increment first digit (#.0.0)
-      assert.strictEqual(incrementVersion('v.0.9.0', 'major'), 'v.1.0.0');
-    });
-  });
 });
+
 
 

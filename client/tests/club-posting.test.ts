@@ -5,7 +5,9 @@ import {
   formatClubCode,
   isValidClubCode,
   verifyClubCode,
+  generateRandomClaimCode,
   DEMO_CLAIM_CODE_ABSTRACTION,
+  DEMO_CLAIM_CODE_KNIGHTS_ROBOTICS,
   STUDENT_LIFE_CLUB_REGISTRY,
 } from '@/data/club-codes';
 import {
@@ -80,6 +82,26 @@ describe('Club Leadership & Post Creation Domain', () => {
       assert.ok(verified, 'Verification should succeed for official demo code');
       assert.strictEqual(verified?.clubId, 'abstraction');
       assert.strictEqual(verified?.clubName, 'Abstraction');
+    });
+
+    it('verifies the demo code matches Knights Robotics club shell', () => {
+      assert.strictEqual(DEMO_CLAIM_CODE_KNIGHTS_ROBOTICS, '9F2L-8P4X-6W');
+      const verified = verifyClubCode('9F2L-8P4X-6W');
+      assert.ok(verified, 'Verification should succeed for Knights Robotics demo code');
+      assert.strictEqual(verified?.clubId, 'knights-robotics');
+      assert.strictEqual(verified?.clubName, 'Knights Robotics');
+    });
+
+    it('generates 100% random 10-char claim codes with strictly (0-9, A-Z) without lowercase', () => {
+      for (let i = 0; i < 50; i++) {
+        const code = generateRandomClaimCode();
+        assert.match(code, /^[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{2}$/);
+        assert.strictEqual(code.length, 12);
+        const normalized = normalizeClubCode(code);
+        assert.strictEqual(normalized.length, 10);
+        assert.strictEqual(isValidClubCode(code), true);
+        assert.strictEqual(/[a-z]/.test(code), false, 'Must not contain lowercase letters');
+      }
     });
 
     it('verifies case-insensitive and unhyphenated code submission', () => {

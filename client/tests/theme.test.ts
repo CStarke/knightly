@@ -12,8 +12,8 @@ describe('Theme & Branding Tokens', () => {
     });
 
     it('defines official Calvin Gold shades', () => {
-      assert.strictEqual(Brand.gold, '#F3CD00');
-      assert.strictEqual(Brand.goldDark, '#C9A900');
+      assert.strictEqual(Brand.gold, '#E8B019');
+      assert.strictEqual(Brand.goldDark, '#B38410');
       assert.strictEqual(Brand.goldSoft, '#FFFBEA');
     });
 

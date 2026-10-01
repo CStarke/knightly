@@ -1,0 +1,152 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675">
+  <rect width="100%" height="100%" fill="#4A2E68"/>
+
+  <!-- Grand Edge-Anchored Prismatic Crystalline Formations -->
+
+  <!-- ======================================================== -->
+  <!-- CLUSTER 1: Bottom Edge, Left Side (cx=280, cy=675)       -->
+  <!-- ======================================================== -->
+  <g transform="translate(280, 675)">
+    <!-- Concentric Faceted Crystal Halos (bleeding off bottom) -->
+    <polygon points="0,-390 280,-100 0,190 -280,-100" stroke="#FFFFFF" opacity="0.14" stroke-width="1.8" stroke-dasharray="10 8" fill="none" />
+    <polygon points="0,-300 190,-100 0,100 -190,-100" stroke="#FFFFFF" opacity="0.18" stroke-width="1.5" fill="none" />
+
+    <!-- Crystalline Prism Shafts & Cleavage Lines -->
+    <g stroke="#FFFFFF" opacity="0.24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+      <!-- Main Central Crystal Point (Reaches 340px up into canvas) -->
+      <!-- Termination pyramid cap -->
+      <polygon points="0,-340 -70,-260 0,-220" stroke-width="2.6" />
+      <polygon points="0,-340 70,-260 0,-220" stroke-width="2.6" />
+      <!-- Shaft pillars extending down past bottom edge -->
+      <line x1="-70" y1="-260" x2="-70" y2="80" stroke-width="2.4" />
+      <line x1="70" y1="-260" x2="70" y2="80" stroke-width="2.4" />
+      <line x1="0" y1="-220" x2="0" y2="80" stroke-width="1.8" />
+      <!-- Horizontal facet cleavage belts -->
+      <polygon points="0,-160 70,-180 0,-200 -70,-180" stroke-dasharray="6 4" stroke-width="1.6" />
+      <polygon points="0,-80 70,-100 0,-120 -70,-100" stroke-width="1.6" />
+
+      <!-- Left Satellite Crystal (Tilted outward ~20°) -->
+      <polygon points="-150,-240 -200,-180 -145,-150" stroke-width="2.2" />
+      <polygon points="-150,-240 -100,-190 -145,-150" stroke-width="2.2" />
+      <line x1="-200" y1="-180" x2="-220" y2="80" stroke-width="2" />
+      <line x1="-100" y1="-190" x2="-90" y2="80" stroke-width="2" />
+      <line x1="-145" y1="-150" x2="-155" y2="80" stroke-width="1.6" />
+      <polygon points="-145,-150 -100,-190 -115,-100 -160,-70" stroke-dasharray="5 5" stroke-width="1.5" />
+
+      <!-- Right Satellite Crystal (Tilted outward ~18°) -->
+      <polygon points="140,-220 90,-170 135,-135" stroke-width="2.2" />
+      <polygon points="140,-220 190,-160 135,-135" stroke-width="2.2" />
+      <line x1="90" y1="-170" x2="80" y2="80" stroke-width="2" />
+      <line x1="190" y1="-160" x2="210" y2="80" stroke-width="2" />
+      <line x1="135" y1="-135" x2="145" y2="80" stroke-width="1.6" />
+
+      <!-- Outer Crystal Shards -->
+      <polygon points="-240,-120 -270,-70 -220,-80" stroke-dasharray="4 4" stroke-width="1.5" />
+      <polygon points="230,-110 260,-60 210,-70" stroke-dasharray="4 4" stroke-width="1.5" />
+    </g>
+
+    <!-- Celestial Starlight Crossbeams & Apex Glints -->
+    <g stroke="#E8B019" opacity="0.32" stroke-width="1.8" stroke-linecap="round">
+      <!-- Main Apex Star -->
+      <line x1="0" y1="-380" x2="0" y2="-300" />
+      <line x1="-35" y1="-340" x2="35" y2="-340" />
+      <!-- Left Apex Star -->
+      <line x1="-150" y1="-270" x2="-150" y2="-210" />
+      <line x1="-175" y1="-240" x2="-125" y2="-240" />
+      <!-- Right Apex Star -->
+      <line x1="140" y1="-250" x2="140" y2="-190" />
+      <line x1="115" y1="-220" x2="165" y2="-220" />
+    </g>
+
+    <!-- Luminous Gemstone Apex Nodes -->
+    <circle cx="0" cy="-340" r="5" fill="#E8B019" opacity="0.4" />
+    <circle cx="-150" cy="-240" r="4" fill="#E8B019" opacity="0.38" />
+    <circle cx="140" cy="-220" r="4" fill="#E8B019" opacity="0.38" />
+    <circle cx="-70" cy="-260" r="3" fill="#FFFFFF" opacity="0.3" />
+    <circle cx="70" cy="-260" r="3" fill="#FFFFFF" opacity="0.3" />
+  </g>
+
+  <!-- ======================================================== -->
+  <!-- CLUSTER 2: Top Edge, Right Side (cx=920, cy=0)           -->
+  <!-- ======================================================== -->
+  <g transform="translate(920, 0)">
+    <!-- Concentric Faceted Crystal Halos (bleeding off top) -->
+    <polygon points="0,360 260,100 0,-160 -260,100" stroke="#FFFFFF" opacity="0.14" stroke-width="1.8" stroke-dasharray="10 8" fill="none" />
+    <polygon points="0,270 180,100 0,-70 -180,100" stroke="#FFFFFF" opacity="0.18" stroke-width="1.5" fill="none" />
+
+    <!-- Crystalline Prism Shafts & Cleavage Lines -->
+    <g stroke="#FFFFFF" opacity="0.24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+      <!-- Main Central Crystal Point (Reaches 310px down into canvas) -->
+      <polygon points="0,310 -65,235 0,195" stroke-width="2.6" />
+      <polygon points="0,310 65,235 0,195" stroke-width="2.6" />
+      <line x1="-65" y1="235" x2="-65" y2="-70" stroke-width="2.4" />
+      <line x1="65" y1="235" x2="65" y2="-70" stroke-width="2.4" />
+      <line x1="0" y1="195" x2="0" y2="-70" stroke-width="1.8" />
+      <polygon points="0,140 65,160 0,180 -65,160" stroke-dasharray="6 4" stroke-width="1.6" />
+      <polygon points="0,70 65,90 0,110 -65,90" stroke-width="1.6" />
+
+      <!-- Left Satellite Crystal (Tilted toward canvas center) -->
+      <polygon points="-135,220 -180,165 -130,140" stroke-width="2.2" />
+      <polygon points="-135,220 -90,175 -130,140" stroke-width="2.2" />
+      <line x1="-180" y1="165" x2="-195" y2="-70" stroke-width="2" />
+      <line x1="-90" y1="175" x2="-80" y2="-70" stroke-width="2" />
+      <line x1="-130" y1="140" x2="-138" y2="-70" stroke-width="1.6" />
+
+      <!-- Right Satellite Crystal (Tilted toward right margin) -->
+      <polygon points="130,200 85,150 125,120" stroke-width="2.2" />
+      <polygon points="130,200 175,145 125,120" stroke-width="2.2" />
+      <line x1="85" y1="150" x2="75" y2="-70" stroke-width="2" />
+      <line x1="175" y1="145" x2="190" y2="-70" stroke-width="2" />
+      <line x1="125" y1="120" x2="132" y2="-70" stroke-width="1.6" />
+
+      <!-- Outer Crystal Shards -->
+      <polygon points="-215,110 -245,65 -195,75" stroke-dasharray="4 4" stroke-width="1.5" />
+      <polygon points="210,100 240,55 190,65" stroke-dasharray="4 4" stroke-width="1.5" />
+    </g>
+
+    <!-- Celestial Starlight Crossbeams & Apex Glints -->
+    <g stroke="#E8B019" opacity="0.32" stroke-width="1.8" stroke-linecap="round">
+      <!-- Main Apex Star -->
+      <line x1="0" y1="270" x2="0" y2="350" />
+      <line x1="-35" y1="310" x2="35" y2="310" />
+      <!-- Left Apex Star -->
+      <line x1="-135" y1="190" x2="-135" y2="250" />
+      <line x1="-160" y1="220" x2="-110" y2="220" />
+      <!-- Right Apex Star -->
+      <line x1="130" y1="170" x2="130" y2="230" />
+      <line x1="105" y1="200" x2="155" y2="200" />
+    </g>
+
+    <!-- Luminous Gemstone Apex Nodes -->
+    <circle cx="0" cy="310" r="5" fill="#E8B019" opacity="0.4" />
+    <circle cx="-135" cy="220" r="4" fill="#E8B019" opacity="0.38" />
+    <circle cx="130" cy="200" r="4" fill="#E8B019" opacity="0.38" />
+    <circle cx="-65" cy="235" r="3" fill="#FFFFFF" opacity="0.3" />
+    <circle cx="65" cy="235" r="3" fill="#FFFFFF" opacity="0.3" />
+  </g>
+
+  <!-- ======================================================== -->
+  <!-- CONNECTIVE CELESTIAL RAY & FOCAL CENTER JEWEL            -->
+  <!-- ======================================================== -->
+  <!-- Subtle diagonal connection rays across the field -->
+  <g stroke="#FFFFFF" opacity="0.14" stroke-width="1.6" stroke-dasharray="8 8" fill="none">
+    <line x1="280" y1="335" x2="920" y2="310" />
+    <line x1="130" y1="435" x2="1050" y2="200" stroke-dasharray="10 8" opacity="0.10" />
+  </g>
+
+  <!-- Floating Focal Gemstone in Center Field -->
+  <g transform="translate(600, 320)">
+    <polygon points="0,-40 38,0 0,40 -38,0" stroke="#FFFFFF" opacity="0.25" stroke-width="2" fill="none" />
+    <polygon points="0,-22 20,0 0,22 -20,0" stroke="#FFFFFF" opacity="0.20" stroke-dasharray="3 3" stroke-width="1.5" fill="none" />
+    <!-- Starlight Glint -->
+    <line x1="0" y1="-30" x2="0" y2="30" stroke="#E8B019" opacity="0.32" stroke-width="1.6" stroke-linecap="round" />
+    <line x1="-30" y1="0" x2="30" y2="0" stroke="#E8B019" opacity="0.32" stroke-width="1.6" stroke-linecap="round" />
+    <circle cx="0" cy="0" r="3.5" fill="#E8B019" opacity="0.38" />
+  </g>
+
+  <!-- Subtle Constellation Accent Nodes -->
+  <g fill="#FFFFFF" opacity="0.25">
+    <circle cx="440" cy="330" r="3" />
+    <circle cx="760" cy="315" r="3" />
+  </g>
+</svg>

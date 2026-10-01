@@ -104,7 +104,7 @@ The application features a custom bottom tab bar with fluid horizontal follow-my
   - Live campus alerts banner and essential campus contact directory.
 
 - **Campus Directory (`client/src/app/(tabs)/directory.tsx`)**:
-  - Searchable, filterable directory of Calvin students, faculty, and staff with one-tap email composition.
+  - Searchable, filterable directory of Calvin faculty and staff with one-tap email composition.
 
 ---
 

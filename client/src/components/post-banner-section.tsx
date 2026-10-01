@@ -10,6 +10,13 @@ import {
 import { ThemedText } from '@/components/themed-text';
 import { FieldLabel } from '@/components/ui/field-label';
 import { Icon } from '@/components/ui/icon';
+import {
+  PRESET_BANNER_LIST,
+  createPresetBannerUri,
+  getPresetBannerId,
+  getPresetBannerSource,
+  isPresetBanner,
+} from '@/constants/preset-banners';
 import { Brand, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -22,6 +29,7 @@ export interface PostBannerSectionProps {
   cropperRef: React.RefObject<InlineImageCropperRef | null>;
   onPickImage: () => void;
   onRemovePhoto: () => void;
+  onSelectPresetBanner?: (uri: string) => void;
   onStartEdit: () => void;
   onSaveCrop: () => void;
   onCroppingInteractionChange: (interacting: boolean) => void;
@@ -36,11 +44,14 @@ export function PostBannerSection({
   cropperRef,
   onPickImage,
   onRemovePhoto,
+  onSelectPresetBanner,
   onStartEdit,
   onSaveCrop,
   onCroppingInteractionChange,
 }: PostBannerSectionProps) {
   const theme = useTheme();
+  const isPreset = isPresetBanner(imageUrl);
+  const activePresetId = getPresetBannerId(imageUrl);
 
   return (
     <View style={styles.section}>
@@ -52,17 +63,67 @@ export function PostBannerSection({
               onPress={onRemovePhoto}
               hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel="Remove banner photo"
+              accessibilityLabel="Remove banner"
             >
               <ThemedText type="caption" style={{ color: Brand.brightRed, fontWeight: '600' }}>
-                Remove Photo
+                Remove Banner
               </ThemedText>
             </Pressable>
           ) : null
         }
       />
 
-      {imageUrl || rawImage ? (
+      {isPreset ? (
+        <View style={{ gap: Spacing.two }}>
+          <View style={styles.forceCroppedContainer}>
+            <Image
+              source={getPresetBannerSource(imageUrl)}
+              contentFit="cover"
+              style={styles.forceCroppedImage}
+            />
+            <View style={styles.cropBadge}>
+              <ThemedText type="caption" style={styles.cropBadgeText}>
+                16:9 CARD BANNER
+              </ThemedText>
+            </View>
+          </View>
+
+          {/* 8 Circular Color Palette Buttons (No extra action buttons) */}
+          <View style={styles.presetPaletteRow}>
+            {PRESET_BANNER_LIST.map((preset) => {
+              const isSelected = activePresetId === preset.id;
+              return (
+                <Pressable
+                  key={preset.id}
+                  onPress={() => onSelectPresetBanner?.(createPresetBannerUri(preset.id))}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Select ${preset.name} banner`}
+                  accessibilityState={{ selected: isSelected }}
+                  style={[
+                    styles.presetCircleButton,
+                    { backgroundColor: preset.color },
+                    isSelected
+                      ? {
+                          borderWidth: 3.5,
+                          borderColor: Brand.gold,
+                          transform: [{ scale: 1.08 }],
+                        }
+                      : {
+                          borderWidth: 1.5,
+                          borderColor: theme.border,
+                        },
+                  ]}
+                >
+                  {isSelected && preset.id === 'gold' ? (
+                    <View style={styles.goldCircleInnerContrast} />
+                  ) : null}
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      ) : imageUrl || rawImage ? (
         <View style={{ gap: Spacing.two }}>
           <View style={styles.forceCroppedContainer}>
             {isEditing && rawImage ? (
@@ -154,30 +215,49 @@ export function PostBannerSection({
           </View>
         </View>
       ) : (
-        <Pressable
-          onPress={onPickImage}
-          accessibilityRole="button"
-          accessibilityLabel="Upload custom banner photo"
-          style={[
-            styles.photoUploadBox,
-            {
-              borderColor: theme.border,
-              backgroundColor: theme.backgroundElement,
-            },
-          ]}
-        >
-          <View style={styles.uploadIconCircle}>
-            <Icon sf="photo.badge.plus" md="add_photo_alternate" size={24} color={Brand.gold} />
-          </View>
-          <View style={{ alignItems: 'center', gap: 3 }}>
-            <ThemedText style={{ fontSize: 14, fontWeight: '700', color: theme.text }}>
-              Upload Banner Photo
+        <View style={styles.splitUploadRow}>
+          {/* 1. Upload Photo */}
+          <Pressable
+            onPress={onPickImage}
+            accessibilityRole="button"
+            accessibilityLabel="Upload photo"
+            style={[
+              styles.splitUploadBox,
+              {
+                borderColor: theme.border,
+                backgroundColor: theme.backgroundElement,
+              },
+            ]}
+          >
+            <View style={styles.uploadIconCircle}>
+              <Icon sf="photo.badge.plus" md="add_photo_alternate" size={22} color={Brand.gold} />
+            </View>
+            <ThemedText style={[styles.splitUploadTitle, { color: theme.text }]}>
+              Upload Photo
             </ThemedText>
-            <ThemedText type="caption" themeColor="textMuted">
-              Select image from device · Drag & zoom to 16:9 crop
+          </Pressable>
+
+          {/* 2. Simple Banners */}
+          <Pressable
+            onPress={() => onSelectPresetBanner?.(createPresetBannerUri('maroon'))}
+            accessibilityRole="button"
+            accessibilityLabel="Select simple banner"
+            style={[
+              styles.splitUploadBox,
+              {
+                borderColor: theme.border,
+                backgroundColor: theme.backgroundElement,
+              },
+            ]}
+          >
+            <View style={styles.uploadIconCircle}>
+              <Icon sf="paintpalette" md="palette" size={22} color={Brand.gold} />
+            </View>
+            <ThemedText style={[styles.splitUploadTitle, { color: theme.text }]}>
+              Simple Banners
             </ThemedText>
-          </View>
-        </Pressable>
+          </Pressable>
+        </View>
       )}
     </View>
   );
@@ -214,9 +294,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
   },
-  photoUploadBox: {
-    paddingVertical: Spacing.four,
-    paddingHorizontal: Spacing.three,
+  splitUploadRow: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+    width: '100%',
+  },
+  splitUploadBox: {
+    flex: 1,
+    minHeight: 110,
+    paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.two,
     borderRadius: Radius.lg,
     borderWidth: 1.5,
     borderStyle: 'dashed',
@@ -224,10 +311,38 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.one + 4,
   },
+  splitUploadTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  presetPaletteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingVertical: Spacing.one,
+    paddingHorizontal: 2,
+  },
+  presetCircleButton: {
+    width: 35,
+    height: 35,
+    borderRadius: 17.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  goldCircleInnerContrast: {
+    width: 23,
+    height: 23,
+    borderRadius: 11.5,
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 0, 0, 0.45)',
+  },
   uploadIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(243, 195, 0, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',

@@ -14,5 +14,9 @@ Knightly uses strict semantic application versioning defined in `client/src/cons
 - **Major Release:** Increment the **first digit** (`#.0.0`) when major application overhauls occur.
   - *Example:* `v.0.9.0` -> `v.1.0.0`
 
-**Rule for all AI Agents & Contributors:**
-Whenever you implement and prepare to push a new feature or bugfix/hotfix, you **MUST** update `APP_VERSION` in `client/src/constants/version.ts` (and `client/package.json`) according to these rules before concluding your work.
+**Cadence & Rules for AI Agents & Contributors:**
+- You do **NOT** have to increment the version on every single prompt or minor tweak.
+- AI agents only have to change the version number **once between commits**.
+- Each commit corresponds to a new version, and each commit should only have **1 number go up** (increment either feature center digit `0.#.0` or bugfix last digit `0.0.#`).
+- If the current uncommitted batch of changes has already incremented the version since the last git commit, do **not** increment it again for subsequent tweaks within the same commit.
+- Keep `APP_VERSION` in `client/src/constants/version.ts` and `version` in `client/package.json` in parity.

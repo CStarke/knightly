@@ -50,6 +50,7 @@ import { Brand, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useClubLeadership } from '@/context/club-leadership-context';
 import {
   DEMO_CLAIM_CODE_ABSTRACTION,
+  DEMO_CLAIM_CODE_KNIGHTS_ROBOTICS,
   checkClubCode,
   isValidClubCode,
 } from '@/data/club-codes';
@@ -162,13 +163,13 @@ export function ClaimClubModal() {
 
   // WHY DEMO QUICK-FILL:
   // Enables instant one-tap evaluation during testing and presentations without manual typing.
-  const handleUseDemoCode = () => {
+  const handleUseDemoCode = (code: string) => {
     if (isSuccess) {
       setIsSuccess(false);
       successProgress.value = 0;
     }
     setError(null);
-    const clean = DEMO_CLAIM_CODE_ABSTRACTION.replace(/[^0-9a-zA-Z]/g, '').toUpperCase();
+    const clean = code.replace(/[^0-9a-zA-Z]/g, '').toUpperCase();
     setRawCode(clean);
   };
 
@@ -379,19 +380,38 @@ export function ClaimClubModal() {
                 ) : null}
               </View>
 
-              {/* Demo Helper Pill */}
-              <Pressable
-                onPress={handleUseDemoCode}
-                style={({ pressed }) => [
-                  styles.demoPill,
-                  { opacity: pressed ? 0.75 : 1, borderColor: Brand.gold },
-                ]}
-              >
-                <Icon sf="sparkles" md="auto_awesome" size={14} color={Brand.gold} />
-                <ThemedText type="caption" style={{ color: Brand.gold, fontWeight: '600' }}>
-                  Quick Fill Demo Code: {DEMO_CLAIM_CODE_ABSTRACTION}
-                </ThemedText>
-              </Pressable>
+              {/* Demo Helper Pills — Split Left & Right */}
+              <View style={styles.demoButtonsRow}>
+                <Pressable
+                  onPress={() => handleUseDemoCode(DEMO_CLAIM_CODE_ABSTRACTION)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Quick Fill Demo Code for Abstraction"
+                  style={({ pressed }) => [
+                    styles.demoPill,
+                    { opacity: pressed ? 0.75 : 1, borderColor: Brand.gold },
+                  ]}
+                >
+                  <Icon sf="sparkles" md="auto_awesome" size={13} color={Brand.gold} />
+                  <ThemedText type="caption" numberOfLines={1} style={styles.demoPillText}>
+                    Fill Abstraction
+                  </ThemedText>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => handleUseDemoCode(DEMO_CLAIM_CODE_KNIGHTS_ROBOTICS)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Quick Fill Demo Code for Knights Robotics"
+                  style={({ pressed }) => [
+                    styles.demoPill,
+                    { opacity: pressed ? 0.75 : 1, borderColor: Brand.gold },
+                  ]}
+                >
+                  <Icon sf="sparkles" md="auto_awesome" size={13} color={Brand.gold} />
+                  <ThemedText type="caption" numberOfLines={1} style={styles.demoPillText}>
+                    Fill Knights Robotics
+                  </ThemedText>
+                </Pressable>
+              </View>
 
               <View style={styles.actionButtonGroup}>
                 {/*
@@ -572,16 +592,28 @@ const styles = StyleSheet.create({
     color: Brand.brightRed,
     fontSize: 12,
   },
-  demoPill: {
+  demoButtonsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
+    gap: Spacing.two,
+    width: '100%',
+  },
+  demoPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingHorizontal: 6,
     paddingVertical: 8,
     borderRadius: Radius.pill,
     borderWidth: 1,
     backgroundColor: 'rgba(243, 195, 0, 0.08)',
-    alignSelf: 'center',
+  },
+  demoPillText: {
+    color: Brand.gold,
+    fontWeight: '600',
+    fontSize: 11.5,
   },
   actionButtonGroup: {
     width: '100%',

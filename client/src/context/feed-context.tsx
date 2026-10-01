@@ -34,8 +34,19 @@ type FeedContextType = {
 
 const FeedContext = createContext<FeedContextType | null>(null);
 
+function getInitialPosts(): Post[] {
+  // Staggered realistic relative timestamps for the demo feed
+  const times = ['25m', '45m', '1h', '2h', '3h', '5h', '7h', '10h', '14h', '1d', '2d'];
+  // Shuffle posts randomly each time the app loads
+  const shuffled = [...defaultPosts].sort(() => Math.random() - 0.5);
+  return shuffled.map((post, idx) => ({
+    ...post,
+    postedAt: times[idx % times.length] ?? `${idx + 1}h`,
+  }));
+}
+
 export function FeedProvider({ children }: { children: React.ReactNode }) {
-  const [feedPosts, setFeedPosts] = useState<Post[]>(defaultPosts);
+  const [feedPosts, setFeedPosts] = useState<Post[]>(getInitialPosts);
   const { isFollowing, toggleFollow } = useClubFollow();
 
   /**

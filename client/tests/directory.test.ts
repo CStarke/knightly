@@ -20,31 +20,26 @@ describe('Directory Domain', () => {
 
   describe('People Records', () => {
     it('validates every person has required directory fields', () => {
-      const validRoles: PersonRole[] = ['Student', 'Faculty', 'Staff'];
+      const validRoles: PersonRole[] = ['Faculty', 'Staff'];
 
       for (const p of people) {
         assert.ok(p.id.length > 0, 'Person must have an ID');
         assert.ok(p.firstName.length > 0, 'Person must have first name');
         assert.ok(p.lastName.length > 0, 'Person must have last name');
         assert.ok(validRoles.includes(p.role), `Person role ${p.role} is invalid`);
-        assert.ok(p.title.length > 0, 'Person must have title or major');
+        assert.ok(p.title.length > 0, 'Person must have title');
         assert.ok(p.department.length > 0, 'Person must belong to a department');
         assert.match(p.email, /@calvin\.edu$/, `Email ${p.email} must end with @calvin.edu`);
-        assert.ok(p.location.length > 0, 'Person must have an office or dorm location');
-
-        if (p.role === 'Student') {
-          assert.ok(typeof p.classYear === 'number', 'Student should have class year');
-          assert.ok(p.classYear! >= 2020 && p.classYear! <= 2035, 'Class year should be plausible');
-        }
+        assert.ok(p.location.length > 0, 'Person must have an office location');
       }
     });
 
-    it('contains representations of students, faculty, and staff', () => {
-      const students = people.filter((p) => p.role === 'Student');
+    it('contains representations of faculty and staff, with students strictly excluded for privacy', () => {
+      const students = people.filter((p) => (p.role as string) === 'Student');
       const faculty = people.filter((p) => p.role === 'Faculty');
       const staff = people.filter((p) => p.role === 'Staff');
 
-      assert.ok(students.length > 0, 'Must have students');
+      assert.strictEqual(students.length, 0, 'Must have zero students for privacy compliance');
       assert.ok(faculty.length > 0, 'Must have faculty');
       assert.ok(staff.length > 0, 'Must have staff');
     });
@@ -96,7 +91,7 @@ describe('Directory Domain', () => {
       assert.strictEqual(partialEmail[0].lastName, 'Vermeer');
     });
 
-    it('filters records by role correctly', () => {
+    it('filters records by role correctly (Faculty and Staff only)', () => {
       const faculty = people.filter((p) => p.role === 'Faculty');
       assert.ok(faculty.length >= 3);
       for (const f of faculty) {
@@ -104,12 +99,14 @@ describe('Directory Domain', () => {
         assert.ok(f.title.includes('Professor') || f.title.includes('Instructor') || f.title.includes('Dean'));
       }
 
-      const students = people.filter((p) => p.role === 'Student');
-      assert.ok(students.length >= 3);
-      for (const s of students) {
-        assert.strictEqual(s.role, 'Student');
-        assert.ok(typeof s.classYear === 'number');
+      const staff = people.filter((p) => p.role === 'Staff');
+      assert.ok(staff.length >= 3);
+      for (const s of staff) {
+        assert.strictEqual(s.role, 'Staff');
       }
+
+      const students = people.filter((p) => (p.role as string) === 'Student');
+      assert.strictEqual(students.length, 0, 'Students must be completely omitted from directory');
     });
 
     it('searches across multiple tokens such as name and department', () => {
