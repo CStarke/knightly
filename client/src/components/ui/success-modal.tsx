@@ -138,7 +138,7 @@ export function SuccessModal({
             style,
           ]}
         >
-          {/* Animated Spring Halo Ring & Icon */}
+          {/* Animated Spring Halo Ring & Centered Icon */}
           <Animated.View style={[styles.checkContainer, animatedCheckStyle]}>
             <View
               style={[
@@ -158,6 +158,7 @@ export function SuccessModal({
                 size={52}
                 color={accentColor}
                 weight="bold"
+                style={styles.iconCentering}
               />
             </View>
           </Animated.View>
@@ -224,12 +225,14 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 380,
+    alignSelf: 'center',
     borderRadius: Radius.xl,
     borderWidth: 2,
     paddingHorizontal: Spacing.three + 4,
     paddingTop: Spacing.four,
     paddingBottom: Spacing.three + 4,
     alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.35,
@@ -237,8 +240,10 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   checkContainer: {
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+    alignSelf: 'center',
     marginBottom: Spacing.two,
   },
   checkRing: {
@@ -248,6 +253,12 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     alignItems: 'center',
     justifyContent: 'center',
+    alignSelf: 'center',
+  },
+  iconCentering: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
   },
   title: {
     marginTop: Spacing.two,

@@ -114,11 +114,7 @@ export function PostBannerSection({
                           borderColor: theme.border,
                         },
                   ]}
-                >
-                  {isSelected && preset.id === 'gold' ? (
-                    <View style={styles.goldCircleInnerContrast} />
-                  ) : null}
-                </Pressable>
+                />
               );
             })}
           </View>
@@ -331,13 +327,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-  },
-  goldCircleInnerContrast: {
-    width: 23,
-    height: 23,
-    borderRadius: 11.5,
-    borderWidth: 1.5,
-    borderColor: 'rgba(0, 0, 0, 0.45)',
   },
   uploadIconCircle: {
     width: 44,

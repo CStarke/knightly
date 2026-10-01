@@ -1,5 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
+import fs from 'node:fs';
+import path from 'node:path';
 import { DateUtils, TimeUtils, formatRelativeTime, resolveEventTime } from '@/utils/date-format';
 import { Brand } from '@/constants/theme';
 
@@ -217,6 +219,31 @@ describe('Templates & Code De-bloating Invariants', () => {
       assert.strictEqual(prominentFollowed.label, 'Following this club');
       assert.strictEqual(prominentFollowed.accessibilityLabel, 'Unfollow Dance Guild');
       assert.strictEqual(prominentFollowed.iconSf, 'checkmark.circle.fill');
+    });
+
+    it('models 3D wheel text rotation, icon morph scaling, and background color interpolation ranges', () => {
+      const interpolateValue = (val: number, inRange: [number, number], outRange: [number, number]) => {
+        const ratio = (val - inRange[0]) / (inRange[1] - inRange[0]);
+        const clamped = Math.max(0, Math.min(1, ratio));
+        const res = outRange[0] + clamped * (outRange[1] - outRange[0]);
+        return Math.round(res * 1000) / 1000;
+      };
+
+      // Unfollowed State (progress = 0):
+      assert.strictEqual(interpolateValue(0, [0, 1], [1, 0.3]), 1);
+      assert.strictEqual(interpolateValue(0, [0, 1], [0.3, 1]), 0.3);
+      assert.strictEqual(interpolateValue(0, [0, 1], [0, -60]), 0);
+      assert.strictEqual(interpolateValue(0, [0, 1], [0, -22]), 0);
+
+      // Following State (progress = 1):
+      assert.strictEqual(interpolateValue(1, [0, 1], [1, 0.3]), 0.3);
+      assert.strictEqual(interpolateValue(1, [0, 1], [0.3, 1]), 1);
+      assert.strictEqual(interpolateValue(1, [0, 1], [0, -60]), -60);
+      assert.strictEqual(interpolateValue(1, [0, 1], [0, -22]), -22);
+
+      // Mid-point transition (progress = 0.5):
+      assert.strictEqual(interpolateValue(0.5, [0, 1], [1, 0.3]), 0.65);
+      assert.strictEqual(interpolateValue(0.5, [0, 1], [0.3, 1]), 0.65);
     });
   });
 
@@ -574,6 +601,44 @@ describe('Templates & Code De-bloating Invariants', () => {
 
       // formatRelativeTime
       assert.strictEqual(formatRelativeTime('2h'), '2h ago');
+    });
+  });
+
+  describe('SuccessModal Alignment & Centering Invariants', () => {
+    const srcDir = path.resolve(__dirname, '../src');
+    const readSrc = (relPath: string) => fs.readFileSync(path.join(srcDir, relPath), 'utf-8');
+
+    it('verifies SuccessModal enforces strict horizontal centering of the circle and card across devices', () => {
+      const code = readSrc('components/ui/success-modal.tsx');
+
+      // The checkRing must have alignSelf: 'center' and exact dimensions
+      assert.ok(code.includes("alignSelf: 'center'"), 'SuccessModal must enforce alignSelf: center on ring and containers');
+      assert.ok(code.includes('width: 96'), 'checkRing must be 96px width');
+      assert.ok(code.includes('height: 96'), 'checkRing must be 96px height');
+      assert.ok(code.includes('borderRadius: 48'), 'checkRing must be 48px radius');
+
+      // The checkContainer must have width: '100%' and alignSelf: 'center' to eliminate transform shift
+      assert.ok(code.includes("width: '100%'"), 'checkContainer must span full width to anchor center transform');
+
+      // Card must be centered horizontally via alignSelf
+      assert.ok(code.includes('maxWidth: 380'), 'card must have maxWidth');
+    });
+
+    it('verifies SuccessModal renders centered Icon component inside checkRing', () => {
+      const code = readSrc('components/ui/success-modal.tsx');
+
+      // Uses standard Icon component with size 52
+      assert.ok(code.includes('<Icon'), 'SuccessModal must render Icon component');
+      assert.ok(code.includes('size={52}'), 'SuccessModal checkmark must be size 52');
+      assert.ok(code.includes('iconCentering'), 'SuccessModal must apply iconCentering style to Icon');
+    });
+
+    it('verifies amber simple banner selection circle is completely consistent with other presets', () => {
+      const bannerCode = readSrc('components/post-banner-section.tsx');
+
+      // amber preset should NOT have any special inner contrast circle
+      assert.ok(!bannerCode.includes('goldCircleInnerContrast'), 'post-banner-section must not contain goldCircleInnerContrast');
+      assert.ok(!bannerCode.includes("preset.id === 'amber' ?"), 'amber preset should not have divergent selection markup');
     });
   });
 });

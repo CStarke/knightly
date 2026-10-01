@@ -18,5 +18,5 @@
  *   last git commit, do not increment it again for subsequent tweaks within the same commit.
  * - Keep APP_VERSION in client/src/constants/version.ts and version in client/package.json in parity.
  */
-export const APP_VERSION = 'v.0.2.1';
-export const APP_VERSION_RAW = '0.2.1';
+export const APP_VERSION = 'v.0.2.2';
+export const APP_VERSION_RAW = '0.2.2';

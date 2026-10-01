@@ -50,13 +50,13 @@ export function AppHeader({
           <View style={styles.titleGroup}>
             <View style={styles.wordmarkRow}>
               {left ? <View style={styles.leftContainer}>{left}</View> : null}
-              <ThemedText type="title" style={styles.title}>
+              <ThemedText type="title" style={styles.title} numberOfLines={1} ellipsizeMode="tail">
                 {title}
               </ThemedText>
               <View style={styles.dot} />
             </View>
             {subtitle ? (
-              <ThemedText type="caption" style={styles.subtitle}>
+              <ThemedText type="caption" style={styles.subtitle} numberOfLines={1} ellipsizeMode="tail">
                 {subtitle}
               </ThemedText>
             ) : null}

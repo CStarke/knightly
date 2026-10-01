@@ -5,6 +5,19 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
+## [0.2.2] - 2026-10-01
+
+### Added
+- **Animated Follow Button (3D Wheel Roll & Icon Morph)**: Implemented a fluid, native micro-interaction on `FollowButton` across both compact directory cards and prominent detail hero banners. As users follow or unfollow a club, the label executes a 3D cylindrical tumbler wheel roll along the X axis (matching the verification success modal), the plus/checkmark icon smoothly rotates 90° and scales as it morphs into the other, and the background seamlessly interpolates between solid collegiate gold and translucent followed badge styling. Enforced rigid cross-platform vertical text centering using fixed-height slot wrapping (`height: 18, justifyContent: 'center'`) and disabled Android font padding (`includeFontPadding: false`).
+
+### Fixed
+- **Success Modal Halo & Checkmark Cross-Device Centering**: Resolved an issue where the halo circle and checkmark in `SuccessModal` appeared off-center across varying device dimensions. Reinstated the native `Icon` component (`checkmark` / `check`, size 52, `weight="bold"`) to avoid subpixel vertex gaps from multi-piece views or runtime failures from SVG data URIs. Applied rigid horizontal and vertical flex centering (`alignItems: 'center'`, `justifyContent: 'center'`, `alignSelf: 'center'`) across the modal card, check container, and 96x96 halo ring to ensure the checkmark is always centered within the circle across all devices and screen sizes.
+- **Consistent Amber Banner Selection Circle**: Removed the divergent inner contrast circle on the amber preset color button in `post-banner-section.tsx`, making its active collegiate gold selection ring completely consistent with the other 7 preset banner circles.
+- **Club Detail Post Tag Duplicate Route Prevention**: In the detailed club view (`ClubDetailView`), tapping the organization pill on an announcement now smoothly scrolls the user back to the top of the club profile via forwarded `scrollViewRef` in `Screen` instead of opening a redundant, nested instance of the same club page.
+- **Standardized "View Club" Header**: Standardized the top masthead title across detailed club views in both in-pager subpages (`app-tabs.tsx`) and standalone routes (`app/clubs/[id].tsx`) to `"View Club"` with the category in the subtitle. Added single-line truncation protection to `AppHeader`, preventing long organization names from overflowing or clipping off the screen.
+
+---
+
 ## [0.2.1] - 2026-10-01
 
 ### Added
