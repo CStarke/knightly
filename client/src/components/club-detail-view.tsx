@@ -14,9 +14,11 @@
  *    students a complete activity archive alongside logistics and contact details.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { Image } from 'expo-image';
+import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
+import type Animated from 'react-native-reanimated';
 
 import { PostCard } from '@/components/post-card';
 import { ThemedText } from '@/components/themed-text';
@@ -38,7 +40,8 @@ import { getPostsByClubId } from '@/data/feed';
  * @param props.clubId - The unique slug identifier of the club to display (e.g. 'acm', 'abstraction')
  */
 export function ClubDetailView({ clubId }: { clubId: string }) {
-  // Step 1: Hook Subscriptions
+  // Step 1: Hook Subscriptions & References
+  const scrollRef = useRef<Animated.ScrollView>(null);
   const { isFollowing, toggleFollow } = useClubFollow();
   const { closeClubDetail } = useClubsNavigation();
   const feed = useOptionalFeed();
@@ -56,7 +59,31 @@ export function ClubDetailView({ clubId }: { clubId: string }) {
     [club, feed?.posts]
   );
 
-  // Step 3: Club Not Found Fallback Guard
+  // Step 3: Self-Club Tag Tap Handler (Scroll to Top)
+  // WHY SCROLL TO TOP (VS DUPLICATE ROUTE PUSH):
+  // When a student is already viewing a club's detailed profile page, clicking the organization
+  // badge on any of its announcements should NOT push another identical instance of the club view.
+  // Instead, it smoothly scrolls the page to the top, bringing the hero card, meeting logistics,
+  // and follow button back into view. If an announcement references a different club ID, it navigates normally.
+  const handlePressPostOrg = (postClubId: string) => {
+    if (!postClubId || postClubId === club?.id) {
+      const scrollComponent = scrollRef.current;
+      if (!scrollComponent) return;
+
+      if (typeof (scrollComponent as any).scrollTo === 'function') {
+        (scrollComponent as any).scrollTo({ y: 0, animated: true });
+      } else if (typeof (scrollComponent as any).getNode === 'function') {
+        (scrollComponent as any).getNode()?.scrollTo?.({ y: 0, animated: true });
+      }
+    } else {
+      router.push({
+        pathname: '/clubs/[id]',
+        params: { id: postClubId },
+      });
+    }
+  };
+
+  // Step 4: Club Not Found Fallback Guard
   // Displays a helpful recovery card if an invalid or stale club ID is provided.
   if (!club) {
     return (
@@ -78,7 +105,7 @@ export function ClubDetailView({ clubId }: { clubId: string }) {
   const following = isFollowing(club.id);
 
   return (
-    <Screen style={styles.screenInner}>
+    <Screen scrollViewRef={scrollRef} style={styles.screenInner}>
       {/*
         Step 4: Hero Header Card
         Renders either a photo banner or a solid brand-color fallback, an overlapping avatar
@@ -206,7 +233,7 @@ export function ClubDetailView({ clubId }: { clubId: string }) {
         </View>
 
         {clubPosts.map((post) => (
-          <PostCard key={post.id} post={post} />
+          <PostCard key={post.id} post={post} onPressOrg={handlePressPostOrg} />
         ))}
 
         {clubPosts.length === 0 ? (

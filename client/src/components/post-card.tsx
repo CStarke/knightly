@@ -106,8 +106,19 @@ function OrgBadge({
  * - Dynamic relative timestamp footer with past/future handling and timezone support
  *
  * @param props.post - The post model to render
+ * @param props.onPressOrg - Optional callback when organization tag is tapped (defaults to navigating to `/clubs/[id]`)
  */
-export function PostCard({ post }: { post: Post }) {
+export interface PostCardProps {
+  post: Post;
+  /**
+   * Optional custom callback when the organization pill/badge is pressed.
+   * If provided, receives the post's canonical clubId.
+   * If omitted, defaults to navigating to the club's detail screen (`/clubs/[id]`).
+   */
+  onPressOrg?: (clubId: string) => void;
+}
+
+export function PostCard({ post, onPressOrg }: PostCardProps) {
   const theme = useTheme();
   const { isFollowing } = useClubFollow();
 
@@ -119,7 +130,15 @@ export function PostCard({ post }: { post: Post }) {
   const followed = isFollowing(clubId);
 
   // Step 2: Club page navigation handler
+  // WHY CUSTOM ORG HANDLER:
+  // When viewed inside `ClubDetailView`, tapping the organization badge should NOT push a duplicate
+  // instance of the same club page onto the navigation stack. Supplying `onPressOrg` allows the parent
+  // view to intercept the tap and smoothly scroll the user to the top of the page instead.
   const handlePressOrg = () => {
+    if (onPressOrg) {
+      onPressOrg(clubId);
+      return;
+    }
     router.push({
       pathname: '/clubs/[id]',
       params: { id: clubId },

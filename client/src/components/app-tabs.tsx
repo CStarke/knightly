@@ -1051,8 +1051,13 @@ function SwipeableTabPager({
     }
 
     if (pathname === '/' && clubsLevel === 2) {
+      // WHY STANDARD "View Club" HEADER:
+      // Club names can be exceptionally long (e.g. "Knightly Robotics & Autonomous Vehicle Engineering"),
+      // which overflows the top masthead. Standardizing the title to "View Club" while showing the
+      // concise category in the subtitle keeps the header clean and uniform, letting the club's full
+      // identity shine in the hero card below.
       return {
-        title: activeClub ? activeClub.name : 'Club',
+        title: 'View Club',
         subtitle: activeClub ? activeClub.category : 'Details',
         left: (
           <HeaderBackButton

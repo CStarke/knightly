@@ -1,4 +1,4 @@
-import type { PropsWithChildren, ReactNode } from 'react';
+import type { PropsWithChildren, ReactNode, RefObject } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedScrollHandler } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,9 +12,11 @@ type ScreenProps = PropsWithChildren<{
   /** Fixed masthead rendered above the scroll area. */
   header?: ReactNode;
   scroll?: boolean;
+  /** Optional ref forwarded to the underlying Animated.ScrollView */
+  scrollViewRef?: RefObject<Animated.ScrollView | null>;
 }>;
 
-export function Screen({ children, style, header, scroll = true }: ScreenProps) {
+export function Screen({ children, style, header, scroll = true, scrollViewRef }: ScreenProps) {
   const theme = useTheme();
   const starfield = useStarfield();
   const insets = useSafeAreaInsets();
@@ -33,6 +35,7 @@ export function Screen({ children, style, header, scroll = true }: ScreenProps) 
 
       {scroll ? (
         <Animated.ScrollView
+          ref={scrollViewRef}
           style={styles.fill}
           contentContainerStyle={[styles.outer, {
             paddingTop: Spacing.three,

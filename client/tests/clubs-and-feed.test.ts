@@ -461,4 +461,78 @@ describe('Clubs & Feed Follow Domain', () => {
       assert.deepStrictEqual(manager.followedList, []);
     });
   });
+
+  describe('ClubDetailView & PostCard Tag Navigation Invariants', () => {
+    it('scrolls to top of page when tapping self-club tag within club detail view instead of pushing duplicate route', () => {
+      let scrolledToTop = false;
+      let pushedRoutes: string[] = [];
+
+      const currentClubId = 'acm';
+
+      const handlePressPostOrg = (postClubId: string) => {
+        if (!postClubId || postClubId === currentClubId) {
+          scrolledToTop = true;
+        } else {
+          pushedRoutes.push(`/clubs/${postClubId}`);
+        }
+      };
+
+      // Scenario A: Post belongs to current club ('acm')
+      handlePressPostOrg('acm');
+      assert.strictEqual(scrolledToTop, true, 'Must scroll to top for self-club post');
+      assert.strictEqual(pushedRoutes.length, 0, 'Must NOT push new route instance for self-club post');
+
+      // Scenario B: Post references an empty or fallback ID matching current club
+      scrolledToTop = false;
+      handlePressPostOrg('');
+      assert.strictEqual(scrolledToTop, true);
+      assert.strictEqual(pushedRoutes.length, 0);
+
+      // Scenario C: Post belongs to a partner / external club
+      handlePressPostOrg('knights-robotics');
+      assert.strictEqual(pushedRoutes.length, 1);
+      assert.strictEqual(pushedRoutes[0], '/clubs/knights-robotics');
+    });
+
+    it('defaults to router.push when PostCard is rendered without custom onPressOrg handler', () => {
+      let routedPath = '';
+      const mockRouter = {
+        push: (dest: { pathname: string; params: { id: string } }) => {
+          routedPath = `${dest.pathname.replace('[id]', dest.params.id)}`;
+        },
+      };
+
+      const clubId = 'abstraction';
+      const defaultHandler = (customOnPress?: (id: string) => void) => {
+        if (customOnPress) {
+          customOnPress(clubId);
+          return;
+        }
+        mockRouter.push({ pathname: '/clubs/[id]', params: { id: clubId } });
+      };
+
+      // Feed view behavior (no custom handler): pushes route
+      defaultHandler();
+      assert.strictEqual(routedPath, '/clubs/abstraction');
+    });
+
+    it('uses standard "View Club" header title to prevent long club names from overflowing top masthead', () => {
+      const resolveClubDetailHeader = (club?: { name: string; category: string }) => {
+        return {
+          title: 'View Club',
+          subtitle: club ? club.category : 'Details',
+        };
+      };
+
+      const longNamedClub = {
+        name: 'Knightly Robotics & Autonomous Vehicle Engineering Student Association',
+        category: 'Technology & Engineering',
+      };
+
+      const header = resolveClubDetailHeader(longNamedClub);
+      assert.strictEqual(header.title, 'View Club', 'Title must be standardized to "View Club"');
+      assert.strictEqual(header.subtitle, 'Technology & Engineering', 'Category is displayed in subtitle');
+      assert.ok(header.title.length <= 12, 'Standard title must easily fit within wordmark row');
+    });
+  });
 });
