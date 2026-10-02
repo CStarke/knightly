@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Ground Plinth Baseline -->
+  <line x1="2" y1="21" x2="22" y2="21" />
+
+  <!-- Grand Collegiate Archway Outer Vault -->
+  <path d="M 3.5 21 L 3.5 12 A 8.5 8.5 0 0 1 20.5 12 L 20.5 21" />
+
+  <!-- Twin Cloister Portal Arches -->
+  <path d="M 5 21 L 5 15.5 A 3.5 3.5 0 0 1 12 15.5 L 12 21" stroke-width="1.4" />
+  <path d="M 12 21 L 12 15.5 A 3.5 3.5 0 0 1 19 15.5 L 19 21" stroke-width="1.4" />
+
+  <!-- Tympanum Rosette Medallion -->
+  <circle cx="12" cy="7.8" r="1.3" fill="#FFFFFF" stroke="none" />
+</svg>

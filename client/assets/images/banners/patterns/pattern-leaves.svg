@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg width="1200" height="675" viewBox="0 0 1200 675" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Dynamic Edge-to-Edge Wind Currents -->
+    <path d="M -80, 260 C 280, 360 520, 80 1280, 220" stroke="#FFFFFF" fill="none" stroke-width="1.8" stroke-dasharray="14 10" stroke-opacity="0.16" />
+    <path d="M -60, 520 C 340, 620 680, 280 1280, 380" stroke="#FFFFFF" fill="none" stroke-width="2.2" stroke-dasharray="8 8" stroke-opacity="0.20" />
+    <path d="M 120, 80 C 460, 20 820, 220 1280, 80" stroke="#FFFFFF" fill="none" stroke-width="1.5" stroke-dasharray="10 6" stroke-opacity="0.12" />
+    <path d="M 400, 640 C 720, 600 940, 480 1280, 560" stroke="#FFFFFF" fill="none" stroke-width="1.8" stroke-dasharray="6 6" stroke-opacity="0.14" />
+
+    <!-- Leaf 1: Center Hero Leaf (Turned clockwise sideways across center field) -->
+    <g transform="translate(715, 220) rotate(65) scale(1.05)" stroke="#FFFFFF" fill="none" stroke-width="2.3" stroke-opacity="0.28" stroke-linejoin="round">
+        <path d="M 0,0 C 180,70 240,240 70,420 C 20,380 -30,280 15,180 C 35,130 25,50 0,0 Z M 0,0 C 90,90 130,250 70,420" />
+        <circle cx="0" cy="0" r="4.5" fill="#FFFFFF" stroke="none" opacity="0.28" />
+    </g>
+
+    <!-- Leaf 2: Bottom-Left Entry Leaf (C-curve on left, S-curve on right, bleeding off canvas) -->
+    <g transform="translate(200, 460) rotate(45) scale(1.15)" stroke="#FFFFFF" fill="none" stroke-width="2.1" stroke-opacity="0.26" stroke-linejoin="round">
+        <path d="M 0,0 C -180,70 -240,240 -70,420 C -20,380 30,280 -15,180 C -35,130 -25,50 0,0 Z M 0,0 C -90,90 -130,250 -70,420" />
+        <circle cx="0" cy="0" r="4" fill="#FFFFFF" stroke="none" opacity="0.26" />
+    </g>
+
+    <!-- Leaf 3: Upper-Left Flutter Leaf (Small, delicate gust lift) -->
+    <g transform="translate(340, 90) rotate(-80) scale(0.55)" stroke="#FFFFFF" fill="none" stroke-width="2.6" stroke-opacity="0.22" stroke-linejoin="round">
+        <path d="M 0,0 C 180,70 240,240 70,420 C 20,380 -30,280 15,180 C 35,130 25,50 0,0 Z M 0,0 C 90,90 130,250 70,420" />
+        <circle cx="0" cy="0" r="4.5" fill="#FFFFFF" stroke="none" opacity="0.22" />
+    </g>
+
+    <!-- Leaf 4: Top-Right Drift Leaf (Sailing diagonally into upper right) -->
+    <g transform="translate(980, 150) rotate(-125) scale(0.85)" stroke="#FFFFFF" fill="none" stroke-width="2.2" stroke-opacity="0.25" stroke-linejoin="round">
+        <path d="M 0,0 C -180,70 -240,240 -70,420 C -20,380 30,280 -15,180 C -35,130 -25,50 0,0 Z M 0,0 C -90,90 -130,250 -70,420" />
+        <circle cx="0" cy="0" r="4" fill="#FFFFFF" stroke="none" opacity="0.25" />
+    </g>
+
+    <!-- Leaf 5: Lower-Right Drift Leaf (Tumbling across lower right) -->
+    <g transform="translate(920, 500) rotate(35) scale(0.88)" stroke="#FFFFFF" fill="none" stroke-width="2.2" stroke-opacity="0.24" stroke-linejoin="round">
+        <path d="M 0,0 C 180,70 240,240 70,420 C 20,380 -30,280 15,180 C 35,130 25,50 0,0 Z M 0,0 C 90,90 130,250 70,420" />
+        <circle cx="0" cy="0" r="4" fill="#FFFFFF" stroke="none" opacity="0.24" />
+    </g>
+
+    <!-- Leaf 6: Ghost Upper-Mid Leaf (Dashed blueprint aesthetic, floating in mid-distance) -->
+    <g transform="translate(760, 200) rotate(-75) scale(0.48)" stroke="#FFFFFF" fill="none" stroke-width="2.8" stroke-dasharray="8 6" stroke-opacity="0.15" stroke-linejoin="round">
+        <path d="M 0,0 C -180,70 -240,240 -70,420 C -20,380 30,280 -15,180 C -35,130 -25,50 0,0 Z M 0,0 C -90,90 -130,250 -70,420" />
+        <circle cx="0" cy="0" r="5" fill="#FFFFFF" stroke="none" opacity="0.15" />
+    </g>
+
+    <!-- Ambient Structural Nodes along currents -->
+    <g fill="#FFFFFF">
+        <circle cx="210" cy="290" r="3.5" opacity="0.18" />
+        <circle cx="430" cy="330" r="3" opacity="0.14" />
+        <circle cx="700" cy="140" r="3.5" opacity="0.16" />
+        <circle cx="840" cy="340" r="4" opacity="0.20" />
+        <circle cx="1120" cy="270" r="3.5" opacity="0.16" />
+        <circle cx="620" cy="580" r="3" opacity="0.14" />
+    </g>
+</svg>

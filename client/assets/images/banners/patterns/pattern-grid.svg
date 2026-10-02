@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675">
+  <!-- Architectural Minor Metric Gridlines (Subdivision Mesh) -->
+  <g stroke="#FFFFFF" stroke-width="0.9" opacity="0.11" fill="none">
+    <!-- Minor Vertical Gridlines (50px Subdivisions) -->
+    <line x1="50" y1="0" x2="50" y2="675" />
+    <line x1="100" y1="0" x2="100" y2="675" />
+    <line x1="200" y1="0" x2="200" y2="675" />
+    <line x1="250" y1="0" x2="250" y2="675" />
+    <line x1="350" y1="0" x2="350" y2="675" />
+    <line x1="400" y1="0" x2="400" y2="675" />
+    <line x1="500" y1="0" x2="500" y2="675" />
+    <line x1="550" y1="0" x2="550" y2="675" />
+    <line x1="650" y1="0" x2="650" y2="675" />
+    <line x1="700" y1="0" x2="700" y2="675" />
+    <line x1="800" y1="0" x2="800" y2="675" />
+    <line x1="850" y1="0" x2="850" y2="675" />
+    <line x1="950" y1="0" x2="950" y2="675" />
+    <line x1="1000" y1="0" x2="1000" y2="675" />
+    <line x1="1100" y1="0" x2="1100" y2="675" />
+    <line x1="1150" y1="0" x2="1150" y2="675" />
+
+    <!-- Minor Horizontal Gridlines (45px Subdivisions) -->
+    <line x1="0" y1="45" x2="1200" y2="45" />
+    <line x1="0" y1="90" x2="1200" y2="90" />
+    <line x1="0" y1="180" x2="1200" y2="180" />
+    <line x1="0" y1="225" x2="1200" y2="225" />
+    <line x1="0" y1="315" x2="1200" y2="315" />
+    <line x1="0" y1="360" x2="1200" y2="360" />
+    <line x1="0" y1="450" x2="1200" y2="450" />
+    <line x1="0" y1="495" x2="1200" y2="495" />
+    <line x1="0" y1="585" x2="1200" y2="585" />
+    <line x1="0" y1="630" x2="1200" y2="630" />
+  </g>
+
+  <!-- Architectural Major Cartesian Gridlines (150px × 135px Modules) -->
+  <g stroke="#FFFFFF" stroke-width="1.8" opacity="0.24" fill="none">
+    <!-- Major Vertical Gridlines -->
+    <line x1="150" y1="0" x2="150" y2="675" />
+    <line x1="300" y1="0" x2="300" y2="675" />
+    <line x1="450" y1="0" x2="450" y2="675" />
+    <line x1="600" y1="0" x2="600" y2="675" />
+    <line x1="750" y1="0" x2="750" y2="675" />
+    <line x1="900" y1="0" x2="900" y2="675" />
+    <line x1="1050" y1="0" x2="1050" y2="675" />
+
+    <!-- Major Horizontal Gridlines -->
+    <line x1="0" y1="135" x2="1200" y2="135" />
+    <line x1="0" y1="270" x2="1200" y2="270" />
+    <line x1="0" y1="405" x2="1200" y2="405" />
+    <line x1="0" y1="540" x2="1200" y2="540" />
+  </g>
+
+  <!-- Cartesian Coordinate Crosshair Registration Marks (+) -->
+  <g stroke="#FFFFFF" stroke-width="2.2" opacity="0.34" fill="none" stroke-linecap="round">
+    <!-- Row y = 135 -->
+    <path d="M292 135 L308 135 M300 127 L300 143" />
+    <path d="M592 135 L608 135 M600 127 L600 143" />
+    <path d="M892 135 L908 135 M900 127 L900 143" />
+
+    <!-- Row y = 270 (Central Horizon) -->
+    <path d="M142 270 L158 270 M150 262 L150 278" />
+    <path d="M292 270 L308 270 M300 262 L300 278" />
+    <path d="M442 270 L458 270 M450 262 L450 278" />
+    <path d="M592 270 L608 270 M600 262 L600 278" />
+    <path d="M742 270 L758 270 M750 262 L750 278" />
+    <path d="M892 270 L908 270 M900 262 L900 278" />
+    <path d="M1042 270 L1058 270 M1050 262 L1050 278" />
+
+    <!-- Row y = 405 -->
+    <path d="M292 405 L308 405 M300 397 L300 413" />
+    <path d="M442 405 L458 405 M450 397 L450 413" />
+    <path d="M592 405 L608 405 M600 397 L600 413" />
+    <path d="M742 405 L758 405 M750 397 L750 413" />
+    <path d="M892 405 L908 405 M900 397 L900 413" />
+
+    <!-- Row y = 540 -->
+    <path d="M292 540 L308 540 M300 532 L300 548" />
+    <path d="M592 540 L608 540 M600 532 L600 548" />
+    <path d="M892 540 L908 540 M900 532 L900 548" />
+  </g>
+
+  <!-- Architectural Dimension & Callout Brackets -->
+  <g stroke="#FFFFFF" fill="none" opacity="0.25">
+    <!-- Focal Dimension Module Frame in Upper-Left -->
+    <rect x="50" y="45" width="200" height="90" stroke-width="1.8" stroke-dasharray="6 6" />
+    <circle cx="50" cy="45" r="3.5" fill="#FFFFFF" stroke="none" />
+    <circle cx="250" cy="45" r="3.5" fill="#FFFFFF" stroke="none" />
+    <circle cx="50" cy="135" r="3.5" fill="#FFFFFF" stroke="none" />
+    <circle cx="250" cy="135" r="3.5" fill="#FFFFFF" stroke="none" />
+
+    <!-- Diagonal Blueprint Sightline Ray -->
+    <line x1="0" y1="540" x2="600" y2="0" stroke-width="1.6" stroke-dasharray="8 8" opacity="0.18" />
+
+    <!-- Lower-Right Precision Calibration Module -->
+    <rect x="950" y="495" width="200" height="90" stroke-width="1.8" stroke-dasharray="6 6" />
+    <circle cx="950" cy="495" r="3.5" fill="#FFFFFF" stroke="none" />
+    <circle cx="1150" cy="495" r="3.5" fill="#FFFFFF" stroke="none" />
+    <circle cx="950" cy="585" r="3.5" fill="#FFFFFF" stroke="none" />
+    <circle cx="1150" cy="585" r="3.5" fill="#FFFFFF" stroke="none" />
+  </g>
+</svg>

@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 1200 675"
+   width="1200"
+   height="675"
+   version="1.1"
+   id="svg7"
+   sodipodi:docname="pattern-waves.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs7" />
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#505050"
+     bordercolor="#ffffff"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="1"
+     inkscape:deskcolor="#505050"
+     inkscape:zoom="1.9037037"
+     inkscape:cx="613.01556"
+     inkscape:cy="254.50389"
+     inkscape:window-width="2560"
+     inkscape:window-height="1566"
+     inkscape:window-x="-11"
+     inkscape:window-y="-11"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="g6" />
+  <!-- Grand Edge-to-Edge Horizon Waves & Flowing Contours -->
+  <g
+     stroke="#FFFFFF"
+     opacity="0.22"
+     stroke-width="2.5"
+     fill="none"
+     id="g6">
+    <path
+       d="M-80 80 C260 0, 480 200, 780 100 C980 40, 1120 180, 1280 120"
+       id="path1" />
+    <path
+       d="M-80 180 C260 100, 480 300, 780 200 C980 140, 1120 280, 1280 220"
+       stroke-width="1.8"
+       stroke-dasharray="10 8"
+       id="path2" />
+    <path
+       d="m -95.22179,-20 c 340,-80 560,120 860,20 200,-60 339.99999,80 499.99999,20"
+       stroke-width="1.8"
+       stroke-dasharray="10, 8"
+       id="path2-5" />
+    <path
+       d="M-80 280 C260 200, 480 400, 780 300 C980 240, 1120 380, 1280 320"
+       stroke-width="2.8"
+       id="path3" />
+    <path
+       d="M-80 380 C260 300, 480 500, 780 400 C980 340, 1120 480, 1280 420"
+       stroke-width="1.8"
+       stroke-dasharray="14 8"
+       id="path4" />
+    <path
+       d="M-80 480 C260 400, 480 600, 780 500 C980 440, 1120 580, 1280 520"
+       stroke-width="2.5"
+       id="path5" />
+    <path
+       d="M-80 580 C260 500, 480 700, 780 600 C980 540, 1120 680, 1280 620"
+       stroke-width="1.8"
+       stroke-dasharray="8 8"
+       id="path6" />
+  </g>
+  <!-- Accent counter-wave sweeping across the lower edge -->
+  <g
+     stroke="#ffffff"
+     opacity="0.24"
+     stroke-width="2.2"
+     fill="none"
+     id="g7"
+     transform="translate(-0.37462663,24.567819)">
+    <path
+       d="m -80,420 c 260,140 660,-100 960,80 200,100 300,-60 400,20"
+       id="path7" />
+  </g>
+  <g
+     stroke="#ffffff"
+     opacity="0.24"
+     stroke-width="2.2"
+     fill="none"
+     id="g7-8"
+     transform="translate(-0.19559176,-275.93305)">
+    <path
+       d="m -80,420 c 260,140 660,-100 960,80 200,100 300,-60 400,20"
+       id="path7-2" />
+  </g>
+</svg>

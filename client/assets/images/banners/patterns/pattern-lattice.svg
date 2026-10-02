@@ -1,5 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675">
-  <rect width="100%" height="100%" fill="#134E5E"/>
   <!-- Grand Edge-to-Edge Isometric Geometric Facets & Triangular Planes -->
   <g stroke="#FFFFFF" opacity="0.20" stroke-width="2.2" fill="none">
     <!-- Grand Left-to-Center Facet Lattice (anchored off left and bottom edges) -->
@@ -15,12 +14,12 @@
     <polygon points="960,380 1250,280 1250,675 840,675" stroke-dasharray="10 8" />
   </g>
   <!-- Full-width intersecting isometric diagonal guide wires -->
-  <g stroke="#71B1C8" opacity="0.22" stroke-width="1.8" stroke-dasharray="6 6" fill="none">
+  <g stroke="#FFFFFF" opacity="0.22" stroke-width="1.8" stroke-dasharray="6 6" fill="none">
     <line x1="-50" y1="150" x2="1250" y2="520" />
     <line x1="-50" y1="520" x2="1250" y2="150" />
-    <circle cx="420" cy="320" r="5" fill="#71B1C8" />
-    <circle cx="680" cy="200" r="4.5" fill="#71B1C8" />
-    <circle cx="960" cy="380" r="5" fill="#71B1C8" />
-    <circle cx="600" cy="560" r="4.5" fill="#71B1C8" />
+    <circle cx="420" cy="320" r="5" fill="#FFFFFF" />
+    <circle cx="680" cy="200" r="4.5" fill="#FFFFFF" />
+    <circle cx="960" cy="380" r="5" fill="#FFFFFF" />
+    <circle cx="600" cy="560" r="4.5" fill="#FFFFFF" />
   </g>
 </svg>

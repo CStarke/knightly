@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 
@@ -10,12 +10,14 @@ import {
 import { ThemedText } from '@/components/themed-text';
 import { FieldLabel } from '@/components/ui/field-label';
 import { Icon } from '@/components/ui/icon';
+import { Segmented } from '@/components/ui/segmented';
 import {
-  PRESET_BANNER_LIST,
+  PRESET_COLOR_LIST,
+  PRESET_PATTERN_LIST,
   createPresetBannerUri,
-  getPresetBannerId,
-  getPresetBannerSource,
+  getPresetBannerDetails,
   isPresetBanner,
+  parsePresetBannerUri,
 } from '@/constants/preset-banners';
 import { Brand, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -50,8 +52,94 @@ export function PostBannerSection({
   onCroppingInteractionChange,
 }: PostBannerSectionProps) {
   const theme = useTheme();
+  const [bannerMode, setBannerMode] = useState<'Color' | 'Pattern'>('Color');
+
   const isPreset = isPresetBanner(imageUrl);
-  const activePresetId = getPresetBannerId(imageUrl);
+  const { color: activeColor, pattern: activePattern } = parsePresetBannerUri(imageUrl);
+  const presetDetails = getPresetBannerDetails(imageUrl);
+
+  // Split color swatches across two balanced rows of 6
+  const colorMidpoint = Math.ceil(PRESET_COLOR_LIST.length / 2);
+  const colorRow1 = PRESET_COLOR_LIST.slice(0, colorMidpoint);
+  const colorRow2 = PRESET_COLOR_LIST.slice(colorMidpoint);
+
+  // Split pattern icons across two balanced rows of 6
+  const patternMidpoint = Math.ceil(PRESET_PATTERN_LIST.length / 2);
+  const patternRow1 = PRESET_PATTERN_LIST.slice(0, patternMidpoint);
+  const patternRow2 = PRESET_PATTERN_LIST.slice(patternMidpoint);
+
+  const renderColorButton = (colorPreset: (typeof PRESET_COLOR_LIST)[number]) => {
+    const isSelected = activeColor === colorPreset.id;
+    return (
+      <Pressable
+        key={colorPreset.id}
+        onPress={() =>
+          onSelectPresetBanner?.(createPresetBannerUri(colorPreset.id, activePattern))
+        }
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel={`Select ${colorPreset.name} background color`}
+        accessibilityState={{ selected: isSelected }}
+        style={[
+          styles.presetCircleButton,
+          { backgroundColor: colorPreset.color },
+          isSelected
+            ? {
+                borderWidth: 3.5,
+                borderColor: Brand.gold,
+                transform: [{ scale: 1.08 }],
+              }
+            : {
+                borderWidth: 1.5,
+                borderColor: theme.border,
+              },
+        ]}
+      />
+    );
+  };
+
+  const renderPatternButton = (patternPreset: (typeof PRESET_PATTERN_LIST)[number]) => {
+    const isSelected = activePattern === patternPreset.id;
+    return (
+      <Pressable
+        key={patternPreset.id}
+        onPress={() => {
+          // Tapping the active pattern toggles it off to 'none' (solid color)
+          const nextPattern = isSelected ? 'none' : patternPreset.id;
+          onSelectPresetBanner?.(createPresetBannerUri(activeColor, nextPattern));
+        }}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel={`Select ${patternPreset.name} pattern`}
+        accessibilityState={{ selected: isSelected }}
+        style={[
+          styles.presetCircleButton,
+          {
+            backgroundColor: theme.backgroundElement,
+          },
+          isSelected
+            ? {
+                borderWidth: 3.5,
+                borderColor: Brand.gold,
+                transform: [{ scale: 1.08 }],
+              }
+            : {
+                borderWidth: 1.5,
+                borderColor: theme.border,
+              },
+        ]}
+      >
+        {patternPreset.iconAsset ? (
+          <Image
+            source={patternPreset.iconAsset}
+            tintColor={isSelected ? Brand.gold : theme.text}
+            contentFit="contain"
+            style={{ width: 18, height: 18 }}
+          />
+        ) : null}
+      </Pressable>
+    );
+  };
 
   return (
     <View style={styles.section}>
@@ -75,12 +163,21 @@ export function PostBannerSection({
 
       {isPreset ? (
         <View style={{ gap: Spacing.two }}>
-          <View style={styles.forceCroppedContainer}>
-            <Image
-              source={getPresetBannerSource(imageUrl)}
-              contentFit="cover"
-              style={styles.forceCroppedImage}
-            />
+          {/* 16:9 Banner Preview: Solid Background Color + Dynamic Pattern Overlay */}
+          <View
+            style={[
+              styles.forceCroppedContainer,
+              { backgroundColor: presetDetails.colorHex },
+            ]}
+          >
+            {presetDetails.patternAsset ? (
+              <Image
+                source={presetDetails.patternAsset}
+                tintColor={presetDetails.accentColor}
+                contentFit="cover"
+                style={styles.forceCroppedImage}
+              />
+            ) : null}
             <View style={styles.cropBadge}>
               <ThemedText type="caption" style={styles.cropBadgeText}>
                 16:9 CARD BANNER
@@ -88,36 +185,33 @@ export function PostBannerSection({
             </View>
           </View>
 
-          {/* 8 Circular Color Palette Buttons (No extra action buttons) */}
-          <View style={styles.presetPaletteRow}>
-            {PRESET_BANNER_LIST.map((preset) => {
-              const isSelected = activePresetId === preset.id;
-              return (
-                <Pressable
-                  key={preset.id}
-                  onPress={() => onSelectPresetBanner?.(createPresetBannerUri(preset.id))}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Select ${preset.name} banner`}
-                  accessibilityState={{ selected: isSelected }}
-                  style={[
-                    styles.presetCircleButton,
-                    { backgroundColor: preset.color },
-                    isSelected
-                      ? {
-                          borderWidth: 3.5,
-                          borderColor: Brand.gold,
-                          transform: [{ scale: 1.08 }],
-                        }
-                      : {
-                          borderWidth: 1.5,
-                          borderColor: theme.border,
-                        },
-                  ]}
-                />
-              );
-            })}
-          </View>
+          {/* Segmented Mode Selector: Color vs Pattern */}
+          <Segmented
+            options={['Color', 'Pattern'] as const}
+            value={bannerMode}
+            onChange={setBannerMode}
+          />
+
+          {/* Circular Selector Buttons (Color Swatches OR Pattern Icons in 2 Balanced Rows of 6) */}
+          {bannerMode === 'Color' ? (
+            <View style={styles.presetPaletteGrid}>
+              <View style={styles.presetPaletteRow}>
+                {colorRow1.map(renderColorButton)}
+              </View>
+              <View style={styles.presetPaletteRow}>
+                {colorRow2.map(renderColorButton)}
+              </View>
+            </View>
+          ) : (
+            <View style={styles.presetPaletteGrid}>
+              <View style={styles.presetPaletteRow}>
+                {patternRow1.map(renderPatternButton)}
+              </View>
+              <View style={styles.presetPaletteRow}>
+                {patternRow2.map(renderPatternButton)}
+              </View>
+            </View>
+          )}
         </View>
       ) : imageUrl || rawImage ? (
         <View style={{ gap: Spacing.two }}>
@@ -233,9 +327,9 @@ export function PostBannerSection({
             </ThemedText>
           </Pressable>
 
-          {/* 2. Simple Banners */}
+          {/* 2. Simple Banners (Defaults to Solid Maroon, with pattern starting OFF) */}
           <Pressable
-            onPress={() => onSelectPresetBanner?.(createPresetBannerUri('maroon'))}
+            onPress={() => onSelectPresetBanner?.(createPresetBannerUri('maroon', 'none'))}
             accessibilityRole="button"
             accessibilityLabel="Select simple banner"
             style={[
@@ -312,6 +406,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
   },
+  presetPaletteGrid: {
+    width: '100%',
+    gap: Spacing.two,
+  },
   presetPaletteRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -321,9 +419,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   presetCircleButton: {
-    width: 35,
-    height: 35,
-    borderRadius: 17.5,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',

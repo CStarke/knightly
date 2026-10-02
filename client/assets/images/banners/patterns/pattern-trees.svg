@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg width="1200" height="675" viewBox="0 0 1200 675" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <path id="t1" d="M 0,0 L 15,40 L 5,35 L 25,90 L 10,80 L 35,150 L 20,140 L 50,220 L 30,210 L 70,300 L 40,290 L 90,390 L 55,370 L 120,490 L 80,480 L 140,580 L 10,580 L 10,900 L -10,900 L -10,580 L -130,580 L -70,480 L -110,490 L -50,370 L -80,390 L -30,290 L -60,300 L -20,210 L -40,220 L -15,140 L -30,150 L -5,80 L -20,90 L 0,35 L -10,40 Z" />
+        <path id="t2" d="M 0,0 L 10,60 L 0,55 L 20,130 L 5,120 L 30,220 L 15,210 L 45,330 L 25,320 L 60,450 L 35,430 L 80,560 L 8,560 L 8,900 L -8,900 L -8,560 L -70,560 L -30,430 L -55,450 L -20,320 L -40,330 L -10,210 L -25,220 L -5,120 L -15,130 L 0,55 L -10,60 Z" />
+        <path id="t3" d="M 0,0 L 25,50 L 10,45 L 45,120 L 20,110 L 70,200 L 40,180 L 100,290 L 60,270 L 130,400 L 90,380 L 170,520 L 15,520 L 15,900 L -15,900 L -15,520 L -160,520 L -80,380 L -120,400 L -50,270 L -90,290 L -30,180 L -60,200 L -15,110 L -35,120 L -5,45 L -20,50 Z" />
+    </defs>
+
+    <!-- Edge-to-Edge Schematic Horizon Lines -->
+    <g stroke="#FFFFFF" fill="none">
+        <line x1="-100" y1="580" x2="1300" y2="580" stroke-opacity="0.14" stroke-width="1.8" stroke-dasharray="14 10" />
+        <line x1="-100" y1="620" x2="1300" y2="620" stroke-opacity="0.22" stroke-width="2.5" />
+        <line x1="-100" y1="660" x2="1300" y2="660" stroke-opacity="0.12" stroke-width="1.6" stroke-dasharray="6 8" />
+    </g>
+
+    <!-- LEFT GROVE (X: -100 to 450) -->
+    <g stroke="#FFFFFF" fill="none" stroke-linejoin="round">
+        <!-- Background ghosts (dashed, thin, low opacity) -->
+        <use href="#t2" transform="translate(350, 420) scale(0.6)" stroke-width="1.8" stroke-dasharray="10 8" stroke-opacity="0.14" />
+        <use href="#t1" transform="translate(100, 350) scale(0.65)" stroke-width="1.6" stroke-dasharray="8 6" stroke-opacity="0.16" />
+        
+        <!-- Midground lines -->
+        <use href="#t1" transform="translate(240, 250) scale(0.75)" stroke-width="2.2" stroke-opacity="0.20" />
+        <use href="#t3" transform="translate(60, 320) scale(0.7)" stroke-width="2.0" stroke-opacity="0.22" />
+
+        <!-- Foreground (boldest lines) -->
+        <use href="#t3" transform="translate(320, 300) scale(0.85)" stroke-width="2.6" stroke-opacity="0.26" />
+        <use href="#t2" transform="translate(150, 150) scale(0.9)" stroke-width="2.5" stroke-opacity="0.28" />
+
+        <!-- Dots for Left Grove -->
+        <circle cx="150" cy="120" r="4.5" fill="#FFFFFF" opacity="0.28" />
+        <circle cx="240" cy="220" r="3.5" fill="#FFFFFF" opacity="0.20" />
+        <circle cx="320" cy="270" r="4" fill="#FFFFFF" opacity="0.26" />
+        <circle cx="70" cy="180" r="3" fill="#FFFFFF" opacity="0.18" />
+        <circle cx="290" cy="380" r="2.5" fill="#FFFFFF" opacity="0.22" />
+    </g>
+
+    <!-- RIGHT GROVE (X: 750 to 1300) -->
+    <g stroke="#FFFFFF" fill="none" stroke-linejoin="round">
+        <!-- Background ghosts (dashed) -->
+        <use href="#t2" transform="translate(850, 400) scale(0.55)" stroke-width="1.8" stroke-dasharray="10 8" stroke-opacity="0.14" />
+        <use href="#t3" transform="translate(1100, 360) scale(0.65)" stroke-width="1.6" stroke-dasharray="8 6" stroke-opacity="0.16" />
+
+        <!-- Midground lines -->
+        <use href="#t1" transform="translate(980, 230) scale(0.8)" stroke-width="2.2" stroke-opacity="0.20" />
+        <use href="#t3" transform="translate(800, 330) scale(0.75)" stroke-width="2.0" stroke-opacity="0.22" />
+
+        <!-- Foreground -->
+        <use href="#t2" transform="translate(1120, 180) scale(0.85)" stroke-width="2.6" stroke-opacity="0.26" />
+        <use href="#t1" transform="translate(880, 280) scale(0.9)" stroke-width="2.5" stroke-opacity="0.28" />
+
+        <!-- Dots for Right Grove -->
+        <circle cx="980" cy="200" r="4" fill="#FFFFFF" opacity="0.20" />
+        <circle cx="880" cy="240" r="4.5" fill="#FFFFFF" opacity="0.28" />
+        <circle cx="1120" cy="150" r="4" fill="#FFFFFF" opacity="0.26" />
+        <circle cx="1060" cy="280" r="3" fill="#FFFFFF" opacity="0.18" />
+        <circle cx="820" cy="420" r="2.5" fill="#FFFFFF" opacity="0.22" />
+    </g>
+    
+    <!-- Central distant ghost tree just to bridge the gap slightly -->
+    <g stroke="#FFFFFF" fill="none" stroke-linejoin="round">
+        <use href="#t3" transform="translate(600, 520) scale(0.4)" stroke-width="1.6" stroke-dasharray="6 6" stroke-opacity="0.12" />
+        <circle cx="600" cy="500" r="2.5" fill="#FFFFFF" opacity="0.12" />
+    </g>
+</svg>
