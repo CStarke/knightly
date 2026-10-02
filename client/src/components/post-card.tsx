@@ -7,7 +7,7 @@ import { Badge, type BadgeTone } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { Brand, Fonts, Radius, Spacing } from '@/constants/theme';
-import { getPresetBannerSource, isPresetBanner } from '@/constants/preset-banners';
+import { getPresetBannerDetails, isPresetBanner } from '@/constants/preset-banners';
 import { useClubFollow } from '@/context/club-follow-context';
 import type { Post } from '@/data/feed';
 import { useTheme } from '@/hooks/use-theme';
@@ -145,22 +145,40 @@ export function PostCard({ post, onPressOrg }: PostCardProps) {
     });
   };
 
+  const isPreset = isPresetBanner(post.image);
+  const presetDetails = isPreset ? getPresetBannerDetails(post.image) : null;
+
   return (
     <Card flush style={styles.card}>
       {/* Step 3: Top Banner Image Container (when image is present) */}
       {post.image ? (
         <View style={styles.imageContainer}>
           {/*
-            WHY PRESET VS URI SOURCE:
-            Preset banners are bundled local assets resolved via getPresetBannerSource(key),
-            avoiding remote network requests. User-uploaded images provide remote or local URIs.
+            WHY LAYERED PRESET BANNERS:
+            Preset banners decouple collegiate background colors from vector patterns.
+            A solid View provides the background color and an absolute-positioned Image
+            renders the transparent SVG pattern overlay tinted by the background's accent.
           */}
-          <Image
-            source={isPresetBanner(post.image) ? getPresetBannerSource(post.image) : { uri: post.image }}
-            style={styles.image}
-            contentFit="cover"
-            transition={250}
-          />
+          {presetDetails ? (
+            <View style={[styles.image, { backgroundColor: presetDetails.colorHex }]}>
+              {presetDetails.patternAsset ? (
+                <Image
+                  source={presetDetails.patternAsset}
+                  tintColor={presetDetails.accentColor}
+                  contentFit="cover"
+                  style={StyleSheet.absoluteFill}
+                  transition={250}
+                />
+              ) : null}
+            </View>
+          ) : (
+            <Image
+              source={{ uri: post.image }}
+              style={styles.image}
+              contentFit="cover"
+              transition={250}
+            />
+          )}
           {/* Subtle top scrim ensuring overlay badges contrast cleanly against bright photos */}
           <View style={styles.scrim} />
 

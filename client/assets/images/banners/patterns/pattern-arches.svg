@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675">
+  <!-- Collegiate Architectural Colonnade & Romanesque Chapel Arches -->
+  <g stroke="#FFFFFF" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Architectural Ground Plinth Baseline -->
+    <line x1="-50" y1="620" x2="1250" y2="620" stroke-width="3.6" opacity="0.30" />
+    <line x1="-50" y1="636" x2="1250" y2="636" stroke-width="1.8" opacity="0.20" />
+
+    <!-- Impost Entablature Horizontal Horizon Line -->
+    <line x1="-50" y1="350" x2="1250" y2="350" stroke-width="1.4" stroke-dasharray="8 8" opacity="0.16" />
+
+    <!-- Grand Master Central Arch Bay (Centered at x = 600) -->
+    <!-- Outer Vault Ring -->
+    <path d="M 380 620 L 380 350 A 220 220 0 0 1 820 350 L 820 620" stroke-width="2.8" opacity="0.26" />
+    <!-- Secondary Dashed Accent Vault -->
+    <path d="M 430 620 L 430 350 A 170 170 0 0 1 770 350 L 770 620" stroke-width="2.0" stroke-dasharray="10 8" opacity="0.22" />
+    <!-- Inner Portal Vault -->
+    <path d="M 480 620 L 480 350 A 120 120 0 0 1 720 350 L 720 620" stroke-width="2.2" opacity="0.24" />
+    <!-- Core Cloister Portal -->
+    <path d="M 530 620 L 530 350 A 70 70 0 0 1 670 350 L 670 620" stroke-width="1.8" opacity="0.20" />
+
+    <!-- Left Flanking Arch Bay (Centered at x = 220) -->
+    <path d="M 70 620 L 70 380 A 150 150 0 0 1 370 380 L 370 620" stroke-width="2.4" opacity="0.22" />
+    <path d="M 120 620 L 120 380 A 100 100 0 0 1 320 380 L 320 620" stroke-width="1.8" stroke-dasharray="8 6" opacity="0.20" />
+    <path d="M 170 620 L 170 380 A 50 50 0 0 1 270 380 L 270 620" stroke-width="1.6" opacity="0.18" />
+
+    <!-- Right Flanking Arch Bay (Centered at x = 980) -->
+    <path d="M 830 620 L 830 380 A 150 150 0 0 1 1130 380 L 1130 620" stroke-width="2.4" opacity="0.22" />
+    <path d="M 880 620 L 880 380 A 100 100 0 0 1 1080 380 L 1080 620" stroke-width="1.8" stroke-dasharray="8 6" opacity="0.20" />
+    <path d="M 930 620 L 930 380 A 50 50 0 0 1 1030 380 L 1030 620" stroke-width="1.6" opacity="0.18" />
+
+    <!-- Bleeding Margin Half-Arches (Left & Right Horizon Extensions) -->
+    <path d="M -80 620 L -80 380 A 150 150 0 0 1 70 380" stroke-width="2.0" opacity="0.18" />
+    <path d="M 1130 380 A 150 150 0 0 1 1280 380 L 1280 620" stroke-width="2.0" opacity="0.18" />
+
+    <!-- Apex Keystone Blocks -->
+    <rect x="590" y="118" width="20" height="24" rx="2" stroke-width="2.0" opacity="0.28" />
+    <rect x="212" y="218" width="16" height="20" rx="2" stroke-width="1.8" opacity="0.24" />
+    <rect x="972" y="218" width="16" height="20" rx="2" stroke-width="1.8" opacity="0.24" />
+  </g>
+
+  <!-- Tympanum Rosette Medallions (Stained Glass Circular Windows) -->
+  <g stroke="#FFFFFF" fill="none">
+    <!-- Center Grand Rosette (x = 600, y = 65) -->
+    <circle cx="600" cy="65" r="32" stroke-width="2.4" opacity="0.28" />
+    <circle cx="600" cy="65" r="18" stroke-width="1.6" stroke-dasharray="6 5" opacity="0.22" />
+    <circle cx="600" cy="65" r="4.5" fill="#FFFFFF" stroke="none" opacity="0.30" />
+
+    <!-- Left Symmetrical Rosette (x = 220, y = 150) -->
+    <circle cx="220" cy="150" r="22" stroke-width="2.0" opacity="0.24" />
+    <circle cx="220" cy="150" r="12" stroke-width="1.4" opacity="0.18" />
+    <circle cx="220" cy="150" r="3.5" fill="#FFFFFF" stroke="none" opacity="0.26" />
+
+    <!-- Right Symmetrical Rosette (x = 980, y = 150) -->
+    <circle cx="980" cy="150" r="22" stroke-width="2.0" opacity="0.24" />
+    <circle cx="980" cy="150" r="12" stroke-width="1.4" opacity="0.18" />
+    <circle cx="980" cy="150" r="3.5" fill="#FFFFFF" stroke="none" opacity="0.26" />
+  </g>
+</svg>

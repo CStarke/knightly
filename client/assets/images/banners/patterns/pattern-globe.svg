@@ -1,0 +1,305 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 1200 675"
+   width="1200"
+   height="675"
+   version="1.1"
+   id="svg31"
+   sodipodi:docname="pattern-globe.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs31" />
+  <sodipodi:namedview
+     id="namedview31"
+     pagecolor="#505050"
+     bordercolor="#ffffff"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="1"
+     inkscape:deskcolor="#505050"
+     inkscape:zoom="2.6922436"
+     inkscape:cx="403.38103"
+     inkscape:cy="296.22134"
+     inkscape:window-width="2560"
+     inkscape:window-height="1566"
+     inkscape:window-x="-11"
+     inkscape:window-y="-11"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="g7" />
+  <!-- Atmospheric Outer Astrolabe Rings & Celestial Halos (Radius r="440" Centered Halfway Off Left Edge at cx="0", cy="250") -->
+  <g
+     stroke="#FFFFFF"
+     fill="none"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     id="g4">
+    <circle
+       cx="0"
+       cy="250"
+       r="506"
+       stroke-width="1.4"
+       stroke-dasharray="4 8"
+       opacity="0.09"
+       id="circle1" />
+    <circle
+       cx="0"
+       cy="250"
+       r="482"
+       stroke-width="2.2"
+       opacity="0.12"
+       id="circle2" />
+    <circle
+       cx="0"
+       cy="250"
+       r="460"
+       stroke-width="1.8"
+       stroke-dasharray="10 8"
+       opacity="0.18"
+       id="circle3" />
+    <!-- Main Globe Horizon Limb (Radius 440) -->
+    <circle
+       cx="0"
+       cy="250"
+       r="440"
+       stroke-width="3.0"
+       opacity="0.26"
+       id="circle4" />
+  </g>
+  <!-- Longitude Meridians (North Pole at (0, -190), South Pole at (0, 690)) -->
+  <g
+     stroke="#FFFFFF"
+     fill="none"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     id="g7">
+    <!-- 18° East Meridian -->
+    <path
+       d="M 0 -190 A 136 440 0 0 1 0 690"
+       stroke-width="1.8"
+       stroke-dasharray="10 7"
+       opacity="0.18"
+       id="path4" />
+    <!-- 36° East Meridian -->
+    <path
+       d="M 0 -190 A 259 440 0 0 1 0 690"
+       stroke-width="2.2"
+       opacity="0.22"
+       id="path5" />
+    <!-- 54° East Meridian -->
+    <path
+       d="M 0 -190 A 356 440 0 0 1 0 690"
+       stroke-width="1.8"
+       stroke-dasharray="12 8"
+       opacity="0.18"
+       id="path6" />
+    <!-- 72° East Meridian -->
+  </g>
+  <!-- Latitude Parallels (Orthographic Elliptical Arcs with 14° Forward Viewing Inclination) -->
+  <g
+     stroke="#FFFFFF"
+     fill="none"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     id="g14">
+    <!-- Arctic Circle (66.5° N) -->
+    <path
+       d="M 0 -100 A 175 42 0 0 0 175 -153"
+       stroke-width="1.6"
+       stroke-dasharray="8 6"
+       opacity="0.16"
+       id="path8" />
+    <!-- Mid-Northern Parallel (45° N) -->
+    <path
+       d="M 0 23 A 311 75 0 0 0 311 -61"
+       stroke-width="2.0"
+       opacity="0.20"
+       id="path9" />
+    <!-- Tropic of Cancer (23.5° N) -->
+    <path
+       d="M 0 178 A 403 98 0 0 0 403 75"
+       stroke-width="1.8"
+       stroke-dasharray="10 7"
+       opacity="0.18"
+       id="path10" />
+    <!-- Equator (0° Latitude) -->
+    <path
+       d="M 0 356 A 440 106 0 0 0 440 250"
+       stroke-width="2.6"
+       opacity="0.26"
+       id="path11" />
+    <!-- Tropic of Capricorn (23.5° S) -->
+    <path
+       d="M 0 518 A 403 98 0 0 0 403 425"
+       stroke-width="1.8"
+       stroke-dasharray="10 7"
+       opacity="0.18"
+       id="path12" />
+    <!-- Mid-Southern Parallel (45° S) -->
+    <path
+       d="M 0 627 A 311 75 0 0 0 311 561"
+       stroke-width="2.0"
+       opacity="0.20"
+       id="path13" />
+    <!-- Antarctic Circle (66.5° S) -->
+    <path
+       d="M 0 684 A 175 42 0 0 0 175 653"
+       stroke-width="1.6"
+       stroke-dasharray="8 6"
+       opacity="0.16"
+       id="path14" />
+  </g>
+  <!-- Geographically Accurate Continental Coastlines (Scaled Perfectly to Fit the 3D Sphere) -->
+  <g
+     stroke="#FFFFFF"
+     fill="none"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     id="g22">
+    <!-- North American Continent (Hudson Bay, Canadian Arctic, St. Lawrence, US East Coast, Florida, Gulf of Mexico, Yucatan, Central America) -->
+    <path
+       d="M 0 -60              C 15 -90, 25 -125, 35 -142              C 45 -130, 60 -110, 72 -92              C 75 -105, 74 -118, 72 -123              C 90 -130, 105 -132, 113 -131              C 140 -120, 160 -105, 174 -92              C 190 -85, 202 -78, 201 -74              C 195 -68, 185 -64, 178 -61              C 160 -55, 145 -48, 138 -44              C 125 -32, 118 -22, 115 -15              C 118 -5, 122 -3, 123 -2              C 112 5, 102 12, 97 17              C 96 28, 97 35, 97 40              C 100 50, 104 58, 103 64              C 95 64, 88 52, 84 43              C 78 38, 72 32, 66 30              C 55 32, 48 35, 40 37              C 25 35, 10 34, 0 34              L 0 75              C 15 80, 30 85, 42 88              C 52 88, 56 86, 57 89              C 56 105, 60 118, 66 129              C 72 145, 78 158, 82 166              C 92 176, 102 182, 113 185              C 105 188, 92 184, 85 178              C 76 168, 68 152, 60 135              C 50 115, 35 98, 22 90              C 10 85, 0 82, 0 80 Z"
+       stroke-width="2.2"
+       opacity="0.32"
+       id="path15" />
+    <!-- Caribbean Islands (Cuba & Hispaniola) -->
+    <path
+       d="m 74,85 c 22.113385,0.212276 55.59108,-0.09146 71.09286,13.628563 C 125.40129,100.21794 99.381597,96.915559 74,89.300031 Z"
+       stroke-width="1.8"
+       opacity="0.3"
+       id="path16"
+       sodipodi:nodetypes="cccc" />
+    <path
+       d="M 158 104 C 170 106, 185 109, 195 112 C 190 114, 175 111, 158 107 Z"
+       stroke-width="1.6"
+       opacity="0.28"
+       id="path17" />
+    <!-- South American Continent (Panama Junction, Caribbean Coast, Amazon Mouth, Brazil Bulge, Rio, River Plate, Patagonia, Cape Horn, Andes, Peru, Ecuador) -->
+    <path
+       d="m 113,185 c 12,-7 25,-15 35,-19 22,-1 40,2 55,4 17,4 32,8 40,11 22,14 35,24 44,31 11,16 19,28 24,38 23.47471,20.63716 39,20 49,27 12,13 18,23 18,30 -3,18 -10,33 -21,42 -12,26 -25,51 -42,73 -17,23 -33,38 -50,48 -15,15 -30,25 -43,32 -17,18 -37,33 -54,42 -13,11 -20,16 -25,22 -11,19 -17.45428,46.607 -28,44 -9.23249,-1.32296 -20.879377,-19.08074 -20,-40 1.896887,-21.63424 68.26362,-92.37354 64.75681,-140.34339 C 159.46498,399.47471 151.94582,349.47897 133,341 115.17121,321.15175 112.65661,301.02043 115.7179,281.52529 119.05058,251.84825 128,235 135,219 128,205 118,195 113,185 Z"
+       stroke-width="2.2"
+       opacity="0.32"
+       id="path18"
+       sodipodi:nodetypes="ccccccccccccccccccccc" />
+    <!-- Greenland (North Atlantic) -->
+    <path
+       d="M 63 -183              C 105 -180, 130 -175, 141 -163              C 155 -150, 168 -140, 171 -131              C 155 -138, 130 -148, 105 -155              C 88 -162, 75 -172, 63 -183 Z"
+       stroke-width="1.8"
+       opacity="0.26"
+       id="path19" />
+    <!-- Western Europe & British Isles (Ireland & Iberian Peninsula) -->
+    <path
+       d="m 323.56518,-35.928988 c 12,5 18,20 12,29.9999997 -7,4.99999998 -17,-14.9999997 -12,-29.9999997 z"
+       stroke-width="1.8"
+       opacity="0.28"
+       id="path21" />
+    <!-- North-West African Bulge (Morocco, Sahara, Senegal/Dakar, Guinea, Liberia along Eastern Atlantic) -->
+    <path
+       d="M 357 -7              C 362 2, 365 5, 366 7              C 382 45, 395 70, 402 92              C 410 112, 415 125, 415 138              C 418 155, 425 168, 429 177              C 432 188, 435 195, 435 202              C 437 210, 438 214, 438 216              C 434 220, 425 210, 420 195              C 412 175, 405 150, 400 130              C 390 100, 378 70, 368 40              C 360 20, 355 5, 357 -7 Z"
+       stroke-width="2.2"
+       opacity="0.28"
+       id="path22" />
+  </g>
+  <!-- Sweeping Trans-Global Flight Trajectories & Orbital Great-Circle Ribbons -->
+  <g
+     stroke="#FFFFFF"
+     fill="none"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     id="g26">
+    <!-- Primary Equator Orbital Trajectory -->
+    <path
+       d="m -0.40002304,308.92597 c 240.00000304,0 480.00000304,-56 780.00000304,-141 200,-60 340.00002,-89.999999 480.00002,-99.999999"
+       stroke-width="2.4"
+       opacity="0.22"
+       id="path23" />
+    <!-- Secondary Dashed Orbit Corridor -->
+    <path
+       d="M 0 332 C 260 332, 520 270, 820 185 C 1000 130, 1140 100, 1260 90"
+       stroke-width="1.6"
+       stroke-dasharray="10 8"
+       opacity="0.18"
+       id="path24" />
+    <!-- Southern Great-Circle Arc -->
+    <path
+       d="M 0 518 C 280 518, 560 480, 860 400 C 1040 345, 1160 310, 1260 300"
+       stroke-width="2.0"
+       opacity="0.18"
+       id="path25" />
+    <path
+       d="M 0 627 C 300 627, 620 590, 940 525 C 1100 485, 1200 460, 1260 455"
+       stroke-width="1.6"
+       stroke-dasharray="12 8"
+       opacity="0.14"
+       id="path26" />
+  </g>
+  <!-- Cartographic Navigation Stars & Astrolabe Sparkle Nodes -->
+  <g
+     stroke="#FFFFFF"
+     fill="none"
+     id="g28">
+    <!-- Polaris Cardinal Navigation Star (Upper-Right Sky at (960, 140)) -->
+    <circle
+       cx="923.29529"
+       cy="84.396988"
+       r="14"
+       stroke-width="1.4"
+       opacity="0.18"
+       id="circle26" />
+    <polygon
+       points="972,140 963,143 960,152 957,143 948,140 957,137 960,128 963,137 "
+       fill="#ffffff"
+       stroke="none"
+       opacity="0.32"
+       id="polygon26"
+       transform="translate(-36.70471,-55.603012)" />
+    <!-- Trajectory Waypoint Node at (720, 220) -->
+    <circle
+       cx="733.89368"
+       cy="260.21143"
+       r="6"
+       stroke-width="1.8"
+       opacity="0.24"
+       id="circle27" />
+    <circle
+       cx="733.89368"
+       cy="260.21143"
+       r="2.5"
+       fill="#ffffff"
+       stroke="none"
+       opacity="0.3"
+       id="circle28" />
+    <!-- Southern Cross-Spike Diamond at (1080, 380) -->
+    <polygon
+       points="1080,370 1082,378 1090,380 1082,382 1080,390 1078,382 1070,380 1078,378"
+       fill="#FFFFFF"
+       stroke="none"
+       opacity="0.26"
+       id="polygon28" />
+  </g>
+  <!-- Fine Celestial Coordinate Sparkles -->
+  <g
+     fill="#FFFFFF"
+     opacity="0.24"
+     id="g31">
+    <circle
+       cx="560"
+       cy="150"
+       r="3.5"
+       id="circle29" />
+    <circle
+       cx="860"
+       cy="490"
+       r="3.5"
+       id="circle30" />
+    <circle
+       cx="1160"
+       cy="240"
+       r="3"
+       id="circle31" />
+  </g>
+</svg>

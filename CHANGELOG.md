@@ -5,55 +5,63 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
+## [0.3.0] - 2026-10-01
+
+### Added
+- **Decoupled Banner Colors & Patterns (256 Combinations)**: Expanded simple banners to 16 collegiate colors and 16 vector patterns plus clean solid color options, yielding 256 unique combinations.
+- **Symmetrical 8×2 Selector Grids**: Both Color swatches and Pattern icons render in non-scrolling 2-row grids of 36px circular buttons with an identical footprint, toggled via an animated `Segmented` slider with zero layout shift.
+- **16 Collegiate Colors**: Added Velvet Plum, Granite Grey, Warm Chestnut, and Cafe Espresso alongside existing collegiate tones, each with paired companion accent tinting.
+- **16 Vector Patterns & Mini Icons**: Added Globe, Circuit, Grid, Stripes, Arches, Constellation, and Topography alongside classic patterns, with matching 24×24 mini icons.
+- **Layered Feed Rendering**: `PostCard` dynamically composites simple banners using a background color layer and a hardware-composited vector pattern overlay with companion accent tinting.
+
+### Changed
+- **Pure Calvin Maroon Pattern**: Removed white guide rails from the Calvin diamonds pattern for clean Collegiate Gold contrast on Maroon.
+- **Snowflake Icon Symmetry**: Redesigned `icon-snowflakes.svg` with 60° rotational symmetry and center crystal node.
+- **Circuit Bus Clearance**: Decluttered parallel traces in `pattern-circuit.svg` with 30px uniform spacing, an orthogonal vertical power rail, and non-overlapping perimeter breakout routing.
+
+---
+
 ## [0.2.2] - 2026-10-01
 
 ### Added
-- **Animated Follow Button (3D Wheel Roll & Icon Morph)**: Implemented a fluid, native micro-interaction on `FollowButton` across both compact directory cards and prominent detail hero banners. As users follow or unfollow a club, the label executes a 3D cylindrical tumbler wheel roll along the X axis (matching the verification success modal), the plus/checkmark icon smoothly rotates 90° and scales as it morphs into the other, and the background seamlessly interpolates between solid collegiate gold and translucent followed badge styling. Enforced rigid cross-platform vertical text centering using fixed-height slot wrapping (`height: 18, justifyContent: 'center'`) and disabled Android font padding (`includeFontPadding: false`).
+- **Animated Follow Button**: Added a fluid micro-interaction on `FollowButton` with a 3D cylindrical roll, rotating icon morph, and background color interpolation.
 
 ### Fixed
-- **Success Modal Halo & Checkmark Cross-Device Centering**: Resolved an issue where the halo circle and checkmark in `SuccessModal` appeared off-center across varying device dimensions. Reinstated the native `Icon` component (`checkmark` / `check`, size 52, `weight="bold"`) to avoid subpixel vertex gaps from multi-piece views or runtime failures from SVG data URIs. Applied rigid horizontal and vertical flex centering (`alignItems: 'center'`, `justifyContent: 'center'`, `alignSelf: 'center'`) across the modal card, check container, and 96x96 halo ring to ensure the checkmark is always centered within the circle across all devices and screen sizes.
-- **Consistent Amber Banner Selection Circle**: Removed the divergent inner contrast circle on the amber preset color button in `post-banner-section.tsx`, making its active collegiate gold selection ring completely consistent with the other 7 preset banner circles.
-- **Club Detail Post Tag Duplicate Route Prevention**: In the detailed club view (`ClubDetailView`), tapping the organization pill on an announcement now smoothly scrolls the user back to the top of the club profile via forwarded `scrollViewRef` in `Screen` instead of opening a redundant, nested instance of the same club page.
-- **Standardized "View Club" Header**: Standardized the top masthead title across detailed club views in both in-pager subpages (`app-tabs.tsx`) and standalone routes (`app/clubs/[id].tsx`) to `"View Club"` with the category in the subtitle. Added single-line truncation protection to `AppHeader`, preventing long organization names from overflowing or clipping off the screen.
+- **Success Modal Centering**: Replaced raw SVG data URIs with the native `Icon` component and applied rigid cross-platform flex centering to guarantee the checkmark and halo remain perfectly centered on all screen sizes.
+- **Amber Banner Selection Ring**: Standardized active selection styling on the amber color button to match all other preset circles.
+- **Club Detail Navigation & Header**: Tapping a post's organization tag inside a club view now scrolls smoothly to top instead of opening duplicate views, and masthead titles are standardized to "View Club".
 
 ---
 
 ## [0.2.1] - 2026-10-01
 
 ### Added
-- **Dynamic Post Timestamps & Future Countdowns**: Converted `postedAt` to an ISO 8601 creation timestamp rather than static display text. Posts now compute their relative display dynamically based on the current viewing time:
-  - `0–5 minutes` (past or minor clock skew): `"Just now"`
-  - `5–60 minutes`: `"${minutes} minutes ago"` (past) or `"In ${minutes} minutes"` (future)
-  - `1–24 hours`: Truncated `# of hours` (`"1 hour ago"`, `"2 hours ago"`, `"In 1 hour"`, `"In 2 hours"`, e.g. 1 hour 50 minutes displays `"1 hour ago"` / `"In 1 hour"`)
-  - `1–30 days`: `"${days} days ago"` (past) or `"In ${days} days"` (future)
-  - `Past 30 days` & distant future: Formatted as exact post date (`"Posted 21 October 2026"`), with full support for international time zones via `Intl.DateTimeFormat`.
-- **Feed Chronological Sorting**: Implemented `sortPostsByDate` across `FeedScreen` (both Following and All Campus explore tabs), `FeedContext`, and `data/feed` query helpers to guarantee posts are strictly ordered by publication timestamp with the newest at the top.
-- **Auto-Commit Photo Crop on Tab Switch**: In the Create Post composer (`post.tsx`), switching away from the Post tab while in active photo cropping mode automatically ends the crop session and commits the adjusted transform matrix (equivalent to clicking the "Done" button), preserving the user's zoom and pan adjustments on the flyer banner.
-- **Randomized Cold Start Photo Upload Stress Test (10,000 Iterations)**: Enhanced `tab-focus-preservation.test.ts` with controlled, realistic entropy across 10,000 iterations modeling OS hardware diversity (8 screen widths: 360–768px), 3 cold launch pathways, 3 user navigation patterns, 10 dev-server resume intent URLs, Android Low Memory Killer (LMK) activity recreations (`initial: true`), photo picker cancellations, 5 photo aspect ratios, and mid-crop tab switches with sub-second execution (~170–250ms).
-- **Server-Authoritative Timestamp Guidelines**: Added architectural specifications in `AGENTS.md`, `client/AGENTS.md`, and `docs/api.md` mandating that post creation timestamps (`postedAt` and `createdAt`) are generated server-side upon backend integration, immunizing the feed against client-side device clock manipulation.
+- **Dynamic Post Timestamps & Countdown**: Converted `postedAt` to an ISO 8601 creation timestamp that calculates relative time dynamically ("Just now", minutes, hours, days, or full date) with international timezone support.
+- **Feed Chronological Sorting**: Implemented `sortPostsByDate` across feed views and queries to ensure announcements strictly order newest first.
+- **Auto-Commit Photo Crop**: Switching tabs in the composer now automatically commits the active crop transform matrix.
+- **Stress & Concurrency Test Suite**: Added 10,000-iteration stress simulation modeling cold starts, photo picker backgrounding, and Android LMK activity drops.
+- **Server-Authoritative Timestamp Policy**: Documented backend integration standards requiring server-authoritative timestamps to prevent client clock manipulation.
 
 ### Changed
-- **Gold Publish Action Button**: Updated the primary post creation action button in the Create Post composer (`post.tsx`) to use the new `variant="gold"` button styling (`Brand.gold` with `#0B0C0E` high-contrast bold typography), highlighting the active publishing organization (e.g. "Publish as Abstraction").
-- **Codebase Commenting & Documentation Standards**: Enriched the codebase with detailed "what" step-by-step pipeline labels, "why" architectural rationale comments, and comprehensive JSDoc blocks across post authoring, feed rendering, club directories, and context providers.
+- **Gold Publish Button**: Styled the composer publish action with prominent collegiate gold branding.
+- **Documentation Standards**: Enriched the codebase with step-by-step pipeline labels, architectural rationale comments, and JSDoc blocks.
 
 ### Fixed
-- **Club Page Live Announcements**: Connected `ClubDetailView` to the live `FeedContext` state, ensuring the "Recent Updates & Announcements" section and post counter dynamically update and immediately replace the "No announcements yet" placeholder whenever a student leader publishes a post on behalf of their organization.
+- **Club Page Live Announcements**: Linked `ClubDetailView` to live `FeedContext` so new announcements immediately replace empty-state placeholders.
 
 ---
 
 ## [0.2.0] - 2026-10-01
 
 ### Added
-- **Second Claimable Demo Club**: Added `Knights Robotics` alongside `Abstraction` in the Claim Club modal with side-by-side quick-fill buttons and random 10-character alphanumeric claim code generation (`0-9`, `A-Z`).
-- **Directory Staff & Faculty Catalog**: Added 11 new faculty and staff profiles spanning Biology, Business, Computer Science, Engineering, Education, Campus Safety, Dining Services, Nursing, and Student Life.
-- **Split Banner Upload & Simple Banners**: Replaced the full-width upload box with two side-by-side equal-height buttons ("Upload Photo" and "Simple Banners") and unified header label to "Remove Banner". Added 8 preset solid-color banners arranged in chromatic rainbow order (Calvin Maroon, Sunset Terracotta, Honey Amber, Forest Green, Ocean Teal, Arctic Blue, Midnight Navy, and Royal Amethyst) with edge-filling vector art (including enlarged 33° Calvin scaffolding diamonds on Maroon, interlocking tapered mechanical gears on Navy, and opposing crystalline quartz formations on Amethyst) and instant in-place circle selection with gold border highlighting.
-- **Randomized Demo Feed**: Knightly feed posts and relative timestamps now randomly shuffle upon app launch to provide fresh content order on every boot.
+- **Second Claimable Demo Club**: Added Knights Robotics alongside Abstraction in the Claim Club modal with quick-fill buttons and random claim codes.
+- **Directory Staff & Faculty Catalog**: Added 11 faculty and staff profiles across academic and campus departments.
+- **Split Banner Selection**: Replaced full-width upload box with side-by-side "Upload Photo" and "Simple Banners" options, introducing chromatic preset banner options.
+- **Randomized Demo Feed**: Shuffled posts upon app launch to provide fresh content order on each boot.
 
 ### Changed
-- **Calvin Gold Brand Color**: Calibrated `Brand.gold` from canary yellow (`#F3CD00`) to radiant collegiate gold (`#E8B019`), with accompanying `Brand.goldDark` (`#B38410`) for rich contrast against Calvin Maroon and dark backgrounds.
-- **Create Post Placeholder**: Updated post title placeholder to generic, student-wide prompt (`"e.g. Welcome Night & Info Session"`).
-- **Directory Role Filters**: Updated directory filter chips to `Everyone`, `Faculty`, and `Staff`.
-- **Versioning Policy**: Relaxed AI versioning rules to increment once per commit, removed rigid version test assertions, and reinforced 1-number-per-commit cadence.
+- **Collegiate Gold Brand Color**: Calibrated `Brand.gold` to collegiate gold (`#E8B019`) with high-contrast companion tones.
+- **Directory Filters & Privacy**: Updated filter chips to Everyone, Faculty, and Staff, and removed student entries for privacy compliance.
 
 ### Removed
 - **Student Directory Records**: Removed student entries from the public directory in compliance with student data privacy standards.

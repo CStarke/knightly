@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Outer Calvin Scaffolding Diamond (Tilted 33°) -->
+  <polygon points="12,3 20.5,12 12,21 3.5,12" />
+  <!-- Inner Concentric Diamond -->
+  <polygon points="12,7 16.5,12 12,17 7.5,12" stroke-width="1.4" stroke-dasharray="2 1.5" />
+  <!-- Center Node -->
+  <circle cx="12" cy="12" r="1.5" fill="#FFFFFF" stroke="none" />
+</svg>

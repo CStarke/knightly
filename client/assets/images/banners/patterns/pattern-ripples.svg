@@ -1,7 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675">
-  <rect width="100%" height="100%" fill="#1E4D2B"/>
   <!-- Grand Concentric Circular Ripple Arcs Expanding Edge-to-Edge -->
-  <g stroke="#A2D683" opacity="0.22" stroke-width="2.2" fill="none">
+  <g stroke="#FFFFFF" opacity="0.22" stroke-width="2.2" fill="none">
     <!-- Bottom Left Ripple Origin (anchored off corner) -->
     <circle cx="80" cy="620" r="140" />
     <circle cx="80" cy="620" r="240" stroke-dasharray="10 8" />
@@ -20,10 +19,10 @@
     <circle cx="1120" cy="60" r="800" stroke-dasharray="12 12" stroke-width="1.6" />
   </g>
   <!-- Graceful organic contour bridge curves -->
-  <g stroke="#FFFFFF" opacity="0.14" stroke-width="1.8" fill="none">
+  <g stroke="#FFFFFF" opacity="0.16" stroke-width="1.8" fill="none">
     <path d="M460 675 C600 500, 680 320, 620 0" stroke-dasharray="8 8" />
     <path d="M540 675 C680 540, 760 360, 700 0" />
-    <circle cx="80" cy="620" r="7" fill="#A2D683" opacity="0.3" />
-    <circle cx="1120" cy="60" r="7" fill="#A2D683" opacity="0.3" />
+    <circle cx="80" cy="620" r="7" fill="#FFFFFF" opacity="0.3" />
+    <circle cx="1120" cy="60" r="7" fill="#FFFFFF" opacity="0.3" />
   </g>
 </svg>
