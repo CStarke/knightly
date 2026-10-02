@@ -5,7 +5,7 @@ import { formatRelativeTime } from '@/utils/date-format';
 
 describe('Knightly Feed Domain', () => {
   describe('Feed Categories', () => {
-    it('contains all twelve official feed categories', () => {
+    it('contains all thirteen official feed categories', () => {
       const expectedCategories: FeedCategory[] = [
         'Academics',
         'Athletics',
@@ -14,6 +14,7 @@ describe('Knightly Feed Domain', () => {
         'Faith',
         'Gaming',
         'Music',
+        'Official',
         'Outdoors',
         'Service',
         'Social',
@@ -21,7 +22,7 @@ describe('Knightly Feed Domain', () => {
         'Wellness',
       ];
 
-      assert.strictEqual(feedCategories.length, 12);
+      assert.strictEqual(feedCategories.length, 13);
       assert.deepStrictEqual(feedCategories, expectedCategories);
       for (const cat of expectedCategories) {
         assert.ok(feedCategories.includes(cat), `Expected category ${cat} in feedCategories`);

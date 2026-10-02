@@ -5,6 +5,29 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
+## [0.4.0] - 2026-10-02
+
+### Added
+- **Live Calvin University Event Scraper & Ingestion**: Implemented backend crawler (`server/services/event-scraper.js`) targeting `https://calvin.edu/events/all` with pagination support, Drupal HTML entity decoding, protocol-relative image normalization, and in-memory TTL caching.
+- **Multi-Tiered Category Classifier (`server/services/category-mapper.js`)**: Robust heuristics mapping 100% of campus events into Knightly's 13 feed categories. Enforces special invariants: strict isolation of `Kinesiology` into `Academics` (never Athletics), `Music` and `The Arts` separation, and consolidation of chapel/worship/campus ministries into `Faith`.
+- **New `Official` Feed Category**: Added `Official` category (gold tone badge) to Knightly's feed taxonomy for university-wide, administrative, and governance communications.
+- **Calvin Events REST API (`GET /api/events`)**: Node.js/Express endpoint with query filters (`category`, `pages`, `refresh`) and graceful offline fallback.
+- **Offline Fallback Snapshot (`calvin-events-seed.ts`)**: Synchronized 29 upcoming campus events into an isolated client fallback dataset, ensuring complete zero-crash offline resilience (Sprint 1 SLO `SC2` compliance).
+- **Client Event Adapter (`calvin-event-adapter.ts`)**: Automatically adapts scraped events into native Knightly `Post` format, assigning category-coordinated Simple Banner presets for events without images.
+- **Automated Sync CLI Tool**: Added `server/scripts/sync-calvin-events.js` to scrape and update the client seed snapshot on demand.
+- **Calvin Drupal Placeholder Image Fingerprinting & Replacement**: Implemented dual-layer detection (`server/services/image-fingerprint.js` and `client/src/utils/image-fingerprint.ts`) targeting generic Calvin line-art graphics (`athletics.png`, `learning-academics.png`, `faith-worship.png`, `campus-life.png`, `arts-culture.png`, `calvin-west-michigan.png`). Automatically replaces generic placeholders with category-coordinated Knightly Simple Banners (e.g. `preset:maroon:stripes`, `preset:navy:arches`) while enforcing strict immunity for custom flyers and photos via exact canonical system paths and cryptographic SHA-256 binary checksums (guaranteeing photos sharing the same filename are never replaced).
+- **Event Time Range Support on Post Screen**: Expanded event scheduling with dual time inputs (Start Time & optional End Time) arranged in balanced side-by-side columns below the calendar date picker. Formats clean ranges (e.g. "7:00 – 9:00 PM" or "10:00 AM – 1:00 PM"), includes real-time chronological validation (rejecting inverted ranges or matching times while allowing overnight events), and supports AM/PM period auto-synchronization.
+- **Form Guidance Modals & Info Buttons**: Added inline info trigger buttons next to "EVENT DATE & TIME" and "LOCATION" section headers on the post creation screen, opening concise bottom-sheet modals with clear bulleted guidance on flexible scheduling, time bounds, and campus location best practices.
+
+### Changed
+- **Expo SDK Patch**: Updated Expo core framework from `~57.0.24` to `~57.0.26`.
+
+### Fixed
+- **Dining Card Shadow Artifact**: Eliminated dark rectangular border rendering around meal swipes, knightbucks, and dining dollar balances on Android and web.
+- **Label & Modal Icon Vertical Baseline Alignment**: Resolved line-offset vertical baseline creep in guidance modals and form labels using natural flexbox centering and native `Text` components.
+
+---
+
 ## [0.3.0] - 2026-10-01
 
 ### Added

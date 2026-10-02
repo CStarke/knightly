@@ -1,10 +1,10 @@
 {
   "name": "calvinapp",
   "main": "expo-router/entry",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "dependencies": {
     "@expo/ui": "~57.0.19",
-    "expo": "~57.0.24",
+    "expo": "~57.0.26",
     "expo-brightness": "~57.0.2",
     "expo-constants": "~57.0.18",
     "expo-device": "~57.0.2",

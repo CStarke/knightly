@@ -93,10 +93,7 @@ const styles = StyleSheet.create({
   heroStatsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
-    borderRadius: 14,
-    paddingVertical: Spacing.two + 2,
-    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.one,
   },
   heroStatBox: {
     flex: 1,

@@ -807,7 +807,7 @@ describe('Sub-Pages Hierarchy, Pager Invariants & State Machine', () => {
 
     it('verifies all feed categories and "All" option are present for filtering', () => {
       const filterOptions = ['All', ...feedCategories];
-      assert.strictEqual(filterOptions.length, 13);
+      assert.strictEqual(filterOptions.length, 14);
       assert.deepStrictEqual(filterOptions, [
         'All',
         'Academics',
@@ -817,6 +817,7 @@ describe('Sub-Pages Hierarchy, Pager Invariants & State Machine', () => {
         'Faith',
         'Gaming',
         'Music',
+        'Official',
         'Outdoors',
         'Service',
         'Social',

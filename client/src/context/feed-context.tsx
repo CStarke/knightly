@@ -11,11 +11,14 @@
  * 3. Follow state synchronization (ensuring published posts appear in the user's Following feed).
  */
 
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { posts as defaultPosts, sortPostsByDate, type Post, type FeedCategory } from '@/data/feed';
 import { useClubFollow } from '@/context/club-follow-context';
 import type { Club } from '@/data/clubs';
+import { CALVIN_EVENTS_SEED } from '@/data/calvin-events-seed';
+import { adaptCalvinEventToPost } from '@/utils/calvin-event-adapter';
+import { fetchCampusEvents } from '@/services/events-api';
 
 export type CreatePostInput = {
   club: Club;
@@ -57,9 +60,14 @@ const DEMO_POST_OFFSETS_MS = [
 function getInitialPosts(): Post[] {
   // Step 1: Record current wall-clock epoch timestamp
   const now = Date.now();
-  // Step 2: Randomize order of default posts so different organizations appear at the top on reload
-  const shuffled = [...defaultPosts].sort(() => Math.random() - 0.5);
-  // Step 3: Assign strictly increasing past offsets so posts have valid chronological history
+  // Step 2: Adapt isolated offline seed events from Calvin website
+  const calvinSeedPosts = CALVIN_EVENTS_SEED.slice(0, 15).map((e, idx) =>
+    adaptCalvinEventToPost(e, now - (idx + 1) * 1800 * 1000)
+  );
+  // Step 3: Combine with default club posts and randomize order for feed diversity
+  const combined = [...defaultPosts, ...calvinSeedPosts];
+  const shuffled = combined.sort(() => Math.random() - 0.5);
+  // Step 4: Assign strictly increasing past offsets so posts have valid chronological history
   const populated = shuffled.map((post, idx) => {
     const offset =
       idx < DEMO_POST_OFFSETS_MS.length
@@ -72,13 +80,31 @@ function getInitialPosts(): Post[] {
       createdAt: postTime,
     };
   });
-  // Step 4: Sort all posts in descending chronological order (newest first)
+  // Step 5: Sort all posts in descending chronological order (newest first)
   return sortPostsByDate(populated);
 }
 
 export function FeedProvider({ children }: { children: React.ReactNode }) {
   const [feedPosts, setFeedPosts] = useState<Post[]>(getInitialPosts);
   const { isFollowing, toggleFollow } = useClubFollow();
+
+  // SPRINT 1 SLO DIRECTIVE (SC2):
+  // Asynchronously retrieve fresh events from the server REST API (/api/events),
+  // merging with local state while preserving the offline seed data fallback.
+  useEffect(() => {
+    let mounted = true;
+    fetchCampusEvents().then((liveEvents) => {
+      if (mounted && liveEvents.length > 0) {
+        setFeedPosts((prev) => {
+          const nonCalvin = prev.filter((p) => p.clubId !== 'calvin-university');
+          return sortPostsByDate([...nonCalvin, ...liveEvents]);
+        });
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   /**
    * Publishes a new event flyer or announcement.
