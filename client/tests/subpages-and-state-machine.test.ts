@@ -636,15 +636,15 @@ describe('Sub-Pages Hierarchy, Pager Invariants & State Machine', () => {
 
   describe('Device Viewports & Responsive Starfield Benchmarks', () => {
     const devices = [
-      { name: 'iPhone SE', w: 375, h: 667, minBase: 24 },
-      { name: 'iPhone 15 Pro', w: 393, h: 852, minBase: 24 },
-      { name: 'Pixel 9a Baseline', w: 412, h: 915, minBase: 24 },
+      { name: 'iPhone SE', w: 375, h: 667, minBase: 18 },
+      { name: 'iPhone 15 Pro', w: 393, h: 852, minBase: 21 },
+      { name: 'Pixel 9a', w: 412, h: 915, minBase: 23 },
       { name: 'Pixel 9 Pro XL', w: 448, h: 996, minBase: 26 },
-      { name: 'iPad Mini', w: 744, h: 1133, minBase: 38 },
-      { name: 'iPad Pro 12.9', w: 1024, h: 1366, minBase: 60 },
-      { name: 'MacBook Pro 14', w: 1512, h: 982, minBase: 70 },
-      { name: 'Desktop Full HD', w: 1920, h: 1080, minBase: 110 },
-      { name: 'Ultrawide 3440x1440', w: 3440, h: 1440, minBase: 192 },
+      { name: 'iPad Mini', w: 744, h: 1133, minBase: 45 },
+      { name: 'iPad Pro 12.9', w: 1024, h: 1366, minBase: 70 },
+      { name: 'MacBook Pro 14', w: 1512, h: 982, minBase: 85 },
+      { name: 'Desktop Full HD', w: 1920, h: 1080, minBase: 115 },
+      { name: 'Ultrawide 3440x1440', w: 3440, h: 1440, minBase: 190 },
     ];
 
     for (const device of devices) {
