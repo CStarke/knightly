@@ -5,16 +5,18 @@ import { feedCategories } from '@/data/feed';
 
 describe('Chip Layout & Category Grid Partitioning', () => {
   describe('distributeIntoRows', () => {
-    it('distributes 12 feed categories into exactly 3 rows of 4 chips each', () => {
+    it('distributes 13 feed categories into balanced rows with max 4 chips per row', () => {
       const rows = distributeIntoRows(feedCategories, 4);
-      assert.strictEqual(rows.length, 3, '12 categories must take 3 rows with max 4 per row');
+      assert.strictEqual(rows.length, 4, '13 categories must take 4 rows with max 4 per row');
       assert.strictEqual(rows[0].length, 4);
-      assert.strictEqual(rows[1].length, 4);
-      assert.strictEqual(rows[2].length, 4);
+      assert.strictEqual(rows[1].length, 3);
+      assert.strictEqual(rows[2].length, 3);
+      assert.strictEqual(rows[3].length, 3);
 
       assert.deepStrictEqual(rows[0], ['Academics', 'Athletics', 'Career', 'Culture']);
-      assert.deepStrictEqual(rows[1], ['Faith', 'Gaming', 'Music', 'Outdoors']);
-      assert.deepStrictEqual(rows[2], ['Service', 'Social', 'The Arts', 'Wellness']);
+      assert.deepStrictEqual(rows[1], ['Faith', 'Gaming', 'Music']);
+      assert.deepStrictEqual(rows[2], ['Official', 'Outdoors', 'Service']);
+      assert.deepStrictEqual(rows[3], ['Social', 'The Arts', 'Wellness']);
     });
 
     it('handles empty list safely', () => {

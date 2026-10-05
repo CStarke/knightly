@@ -22,6 +22,22 @@ export type Club = {
 
 export const CALVIN_CLUBS: Club[] = [
   {
+    id: 'calvin-university',
+    name: 'Calvin University',
+    category: 'Official',
+    mark: 'CU',
+    tagline: 'Official university events, chapel services, lectures & community gatherings',
+    description:
+      'Official campus events, daily chapel services, academic colloquia, arts performances, and university-wide gatherings.',
+    contactEmail: 'events@calvin.edu',
+    colors: ['#8C2131', '#E8B019'],
+    sf: 'building.columns',
+    md: 'account_balance',
+    image:
+      'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=800&q=80',
+    isDepartment: true,
+  },
+  {
     id: 'abstraction',
     name: 'Abstraction',
     category: 'Academics',

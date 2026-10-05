@@ -687,6 +687,93 @@ export function resolveEventTime(
   return `${h}:${m} ${period}`;
 }
 
+/**
+ * Parses a 12-hour time string and period into total minutes from midnight (0 - 1439).
+ * Handles 12:00 AM (0 mins) and 12:00 PM (720 mins) accurately.
+ */
+export function parseTimeToMinutes(timeStr: string, period: 'AM' | 'PM'): number | null {
+  const sanitized = sanitizeTime(timeStr);
+  if (sanitized.error || !sanitized.digits) return null;
+
+  const resolved = resolveEventTime(timeStr, period);
+  if (!resolved) return null;
+  const match = resolved.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  if (hours < 1 || hours > 12 || minutes < 0 || minutes > 59) return null;
+
+  const p = match[3].toUpperCase();
+  if (p === 'PM' && hours !== 12) hours += 12;
+  if (p === 'AM' && hours === 12) hours = 0;
+  return hours * 60 + minutes;
+}
+
+/**
+ * Validates a start and end time combination.
+ * Enforces:
+ * 1. If end time is provided, start time must also be provided.
+ * 2. End time must be distinct from start time.
+ * 3. End time cannot be earlier than start time within the same time period.
+ * 4. Permits overnight events crossing PM to AM (e.g. 10:00 PM – 1:00 AM).
+ */
+export function validateTimeRange(
+  rawStartTime: string,
+  startPeriod: 'AM' | 'PM',
+  rawEndTime: string,
+  endPeriod: 'AM' | 'PM'
+): string | null {
+  if (!rawEndTime || !rawEndTime.trim()) return null;
+  if (!rawStartTime || !rawStartTime.trim()) {
+    return 'Please enter a start time';
+  }
+
+  const startMins = parseTimeToMinutes(rawStartTime, startPeriod);
+  const endMins = parseTimeToMinutes(rawEndTime, endPeriod);
+  if (startMins === null || endMins === null) return null;
+
+  if (startMins === endMins) {
+    return 'End time must be different from start time';
+  }
+
+  if (startPeriod === endPeriod && endMins < startMins) {
+    return 'End time cannot be earlier than start time';
+  }
+
+  return null;
+}
+
+/**
+ * 9. Combines start time and optional end time with their AM/PM periods into a standardized range.
+ *
+ * Formats:
+ * - Single time: "7:00 PM"
+ * - Same period range: "7:00 – 9:00 PM"
+ * - Different period range: "10:00 AM – 1:00 PM"
+ * - Fallback to single end time if start omitted: "9:00 PM"
+ */
+export function resolveEventTimeRange(
+  startTimeStr: string,
+  startPeriod: 'AM' | 'PM' = 'PM',
+  endTimeStr?: string,
+  endPeriod: 'AM' | 'PM' = 'PM'
+): string {
+  const start = resolveEventTime(startTimeStr, startPeriod);
+  const end = endTimeStr && endTimeStr.trim() ? resolveEventTime(endTimeStr, endPeriod) : '';
+
+  if (start && end) {
+    if (startPeriod === endPeriod) {
+      const startDigits = start.replace(/\s*(AM|PM)$/i, '');
+      return `${startDigits} – ${end}`;
+    }
+    return `${start} – ${end}`;
+  }
+
+  if (start) return start;
+  if (end) return end;
+  return '';
+}
+
 // ============================================================================
 // Consolidated Namespace Objects
 // ============================================================================
@@ -708,6 +795,9 @@ export const TimeUtils = {
   sanitize: sanitizeTime,
   formatSegments: formatTimeSegments,
   resolve: resolveEventTime,
+  resolveRange: resolveEventTimeRange,
+  validateRange: validateTimeRange,
+  parseMinutes: parseTimeToMinutes,
   complete: completeTimeDigits,
   getMaxInputLength: getMaxTimeInputLength,
   getMaxRawDigits: getMaxTimeRawDigitLength,

@@ -1,6 +1,6 @@
 # Knightly — Calvin University Student App
 
-> **Current Version:** `v.0.1.0`
+> **Current Version:** `v.0.3.1`
 
 Knightly is a mobile application built for Calvin University students, providing a centralized hub for everyday campus life, student organizations, dining, safety, and campus resources.
 
@@ -114,13 +114,18 @@ The application features a custom bottom tab bar with fluid horizontal follow-my
 - **Gesture Priority & Edge Snapping**: Follow-my-finger horizontal swiping coordinates between inner scroll views and root pager gestures to eliminate gesture conflicts.
 - **Cinematic Easing**: Utilizes an ease-in-out curve (`Easing.bezier(0.4, 0.0, 0.2, 1.0)`) with zero initial derivative, preventing frame drops during concurrent slot mountings.
 
+## Documentation
+
+- **[Coding Standards & Guidelines](docs/CodingStandard.md)**: Engineering practices, TypeScript invariants, pure SVG standards, commenting standards, and platform lifecycle handling.
+- **[Backend REST API Specification](docs/api.md)**: Server endpoint contracts, payload schemas, and server-authoritative timestamp policies.
+
 ---
 
 ## Application Versioning Policy
 
 Knightly uses strict semantic application versioning defined in `client/src/constants/version.ts`, package manifests, and displayed on the Login Screen:
 
-- **Current Version:** `v.0.1.0`
+- **Current Version:** `v.0.3.1`
 - **Feature Push:** Increment the **center digit** (`0.#.0`) and reset the last digit to 0 (e.g., `v.0.1.0` → `v.0.2.0`).
 - **Bugfix / Hotfix:** Increment the **last digit** (`0.0.#`) (e.g., `v.0.1.0` → `v.0.1.1`).
 - **Major Release:** Increment the **first digit** (`#.0.0`) when major application overhauls occur (e.g., `v.0.9.0` → `v.1.0.0`).
