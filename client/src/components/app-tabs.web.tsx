@@ -352,6 +352,7 @@ function Sidebar({ children, ...props }: SidebarProps) {
       },
     ],
     height: interpolate(expandProgress.value, [0.15, 0.7], [0, 24], Extrapolation.CLAMP),
+    width: 200,
     overflow: 'hidden',
   }));
 
@@ -389,7 +390,6 @@ function Sidebar({ children, ...props }: SidebarProps) {
           style={[
             styles.mastheadCollapsedContent,
             collapsedMastheadStyle,
-            !isAuthenticated && { opacity: 0 },
           ]}
         >
           <View style={styles.brandRowCollapsed}>
@@ -419,7 +419,6 @@ function Sidebar({ children, ...props }: SidebarProps) {
           style={[
             styles.mastheadExpandedContent,
             expandedMastheadStyle,
-            !isAuthenticated && { opacity: 0 },
           ]}
         >
           <View style={styles.mastheadTopRow}>
@@ -889,7 +888,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   tabSlidingContent: {
-    flex: 1,
+    width: 198,
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: 12,
@@ -977,7 +976,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   clubsSlidingContent: {
-    flex: 1,
+    width: 198,
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: 12,
@@ -1016,7 +1015,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   profileSlidingContent: {
-    flex: 1,
+    width: 198,
     marginLeft: 12,
     overflow: 'hidden',
   },

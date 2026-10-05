@@ -5,6 +5,15 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
+## [0.4.2] - 2026-10-05
+
+### Fixed
+- **Sidebar Tab Jumbling on Hover**: Fixed the "jumbled" text wrapping artifact during sidebar expansion by applying a rigid 198px width constraint (`width: 198`) to the inner `tabSlidingContent` containers, allowing labels and descriptions to be revealed smoothly by the expanding outer mask rather than actively relayouting and wrapping across multiple lines during the 240ms transition.
+- **Flight Handoff Duplication Artifacts**: Eliminated overlapping duplication and blurriness at the precise end of the sign-in flight animation:
+  - Addressed fractional text scaling mismatches by instantly swapping the flying `fontSize: 34` wordmark for a native `fontSize: 24` wordmark (`targetWordmarkAnimatedStyle`) the exact millisecond the flight lands, ensuring the 160ms crossfade occurs between pixel-perfect identical native layers.
+  - Stopped the underlying UI from abruptly popping in by removing the `!isAuthenticated && { opacity: 0 }` hack in `app-tabs.web.tsx`, replacing it with seamless continuous background rendering.
+  - Fixed a ghostly duplication of the collapse button by directly reading `isCollapsedLocally` from `localStorage` during the login screen flight, ensuring the preview icon perfectly matches the user's saved pinning preference (`pin` vs `sidebar.left`).
+
 ## [0.4.1] - 2026-10-05
 
 ### Added

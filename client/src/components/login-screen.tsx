@@ -55,6 +55,15 @@ export function LoginScreen() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const maskTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const [isCollapsedLocally] = useState(() => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        return window.localStorage.getItem('knightly_sidebar_collapsed') === 'true';
+      } catch {}
+    }
+    return false;
+  });
+
   // Clean up any pending password mask timer on unmount
   useEffect(() => {
     return () => {
@@ -113,6 +122,7 @@ export function LoginScreen() {
   const formOpacity = useSharedValue(1);
   const headerDetailsOpacity = useSharedValue(0);
   const wordmarkProgress = useSharedValue(0);
+  const wordmarkCrossfadeOpacity = useSharedValue(1);
 
   // Distance from hero starting center to header/sidebar destination center
   const deltaX = useSharedValue(initialDeltaX);
@@ -248,6 +258,7 @@ export function LoginScreen() {
       formOpacity.value = 1;
       headerDetailsOpacity.value = 0;
       wordmarkProgress.value = 0;
+      wordmarkCrossfadeOpacity.value = 1;
       isTransitioningRef.current = false;
     }
   }, [
@@ -261,6 +272,7 @@ export function LoginScreen() {
     formOpacity,
     headerDetailsOpacity,
     wordmarkProgress,
+    wordmarkCrossfadeOpacity,
     overlayOpacity,
     isWeb,
   ]);
@@ -341,6 +353,10 @@ export function LoginScreen() {
 
       const onFlightFinished = (finished?: boolean) => {
         if (finished) {
+          // Snap from the fractionally scaled flying wordmark to the pixel-perfect native target wordmark
+          // right before the overlay crossfades to the identically matching app-tabs beneath.
+          wordmarkCrossfadeOpacity.value = 0;
+
           // Once flight arrives at target, smoothly cross-fade overlay (160ms)
           // revealing the identical underlying UI with 100% continuous visibility
           overlayOpacity.value = withTiming(
@@ -525,6 +541,10 @@ export function LoginScreen() {
     opacity: headerDetailsOpacity.value,
   }));
 
+  const targetWordmarkAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: 1 - wordmarkCrossfadeOpacity.value,
+  }));
+
   // Wordmark translation and scaling animation:
   // Starts at progress = 0: translateX = 0, translateY = 0, scale = 1.0 (dead-center in hero)
   // Ends at progress = 1: translateX = deltaX, translateY = deltaY, scale = 28 / 34 (top-left header corner)
@@ -537,6 +557,7 @@ export function LoginScreen() {
 
     return {
       zIndex: 999,
+      opacity: wordmarkCrossfadeOpacity.value,
       transform: [
         { translateX: dX * p },
         { translateY: dY * p },
@@ -611,11 +632,11 @@ export function LoginScreen() {
             {/* Calvin Maroon Masthead Branding */}
             <View style={styles.webSidebarMasthead}>
               <View style={styles.webSidebarMastheadTopRow}>
-                {/* Invisible target placeholder for layout so collapse button sits on the right */}
-                <View style={[styles.webSidebarWordmarkRow, { opacity: 0 }]}>
+                {/* Perfect native text fades in instantly at the end of flight, preventing subpixel blur */}
+                <Animated.View style={[styles.webSidebarWordmarkRow, targetWordmarkAnimatedStyle]}>
                   <ThemedText style={styles.webSidebarBrandTitle}>Knightly</ThemedText>
                   <View style={styles.webSidebarGoldDot} />
-                </View>
+                </Animated.View>
 
                 {/* Collapse Sidebar Button Preview */}
                 <Animated.View
@@ -623,7 +644,12 @@ export function LoginScreen() {
                     styles.webSidebarCollapseToggle,
                     headerDetailsAnimatedStyle,
                   ]}>
-                  <Icon sf="sidebar.left" md="menu_open" size={17} color="rgba(255, 255, 255, 0.85)" />
+                  <Icon 
+                    sf={isCollapsedLocally ? 'pin' : 'sidebar.left'} 
+                    md={isCollapsedLocally ? 'push_pin' : 'menu_open'} 
+                    size={17} 
+                    color="rgba(255, 255, 255, 0.85)" 
+                  />
                 </Animated.View>
               </View>
 
@@ -645,16 +671,16 @@ export function LoginScreen() {
             <View style={styles.headerInner}>
               <View style={styles.headerTitleRow}>
                 <View style={styles.headerTitleGroup}>
-                  {/* Invisible target reference for measuring the header docking location */}
-                  <View
+                  {/* Perfect native text fades in instantly at the end of flight, preventing subpixel blur */}
+                  <Animated.View
                     ref={headerTargetRef}
                     onLayout={measurePositions}
-                    style={[styles.headerWordmarkRow, { opacity: 0 }]}>
+                    style={[styles.headerWordmarkRow, targetWordmarkAnimatedStyle]}>
                     <ThemedText type="title" style={styles.headerTitleText}>
                       Knightly
                     </ThemedText>
                     <View style={styles.headerGoldDot} />
-                  </View>
+                  </Animated.View>
 
                   {/* Header Subtitle */}
                   <Animated.View style={headerDetailsAnimatedStyle}>
