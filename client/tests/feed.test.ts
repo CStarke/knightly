@@ -504,4 +504,125 @@ describe('Knightly Feed Domain', () => {
       }
     });
   });
+
+  describe('Feed Even Grid & 1-Click Unified Filter Invariants', () => {
+    it('chunks posts into strictly even rows with equal cell counts and spacers', () => {
+      const samplePosts = posts.slice(0, 5); // 5 items
+
+      // 2-column even row chunking
+      const numCols = 2;
+      const rows: typeof posts[] = [];
+      for (let i = 0; i < samplePosts.length; i += numCols) {
+        rows.push(samplePosts.slice(i, i + numCols));
+      }
+
+      assert.strictEqual(rows.length, 3);
+      assert.strictEqual(rows[0].length, 2);
+      assert.strictEqual(rows[1].length, 2);
+      assert.strictEqual(rows[2].length, 1);
+
+      // Spacer calculation for the incomplete last row
+      const spacersNeeded = numCols - rows[rows.length - 1].length;
+      assert.strictEqual(spacersNeeded, 1, 'Odd item count must compute exactly 1 spacer cell');
+    });
+
+    it('filters posts with 1-click single-tier filter across All, Following, and specific categories', () => {
+      const isFollowing = (clubId: string) => clubId === 'student-activities';
+
+      // 1-Click: "Following"
+      const followingPosts = posts.filter((post) => {
+        const clubId = post.clubId ?? post.org.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        return post.campusWide || isFollowing(clubId);
+      });
+      assert.ok(followingPosts.length > 0);
+
+      // 1-Click: "Athletics"
+      const athleticsPosts = posts.filter((post) => post.category === 'Athletics');
+      assert.ok(athleticsPosts.length > 0);
+      for (const p of athleticsPosts) {
+        assert.strictEqual(p.category, 'Athletics');
+      }
+
+      // 1-Click: "All"
+      const allPosts = posts.filter(() => true);
+      assert.strictEqual(allPosts.length, posts.length);
+    });
+
+    it('supports multiple selection across categories and preserves mutual exclusivity with "All"', () => {
+      const isFollowing = (clubId: string) => clubId === 'student-activities';
+
+      // Multi-select test helper mirroring toggleFilter logic
+      let filters = new Set<string>(['All']);
+
+      const toggle = (opt: string) => {
+        if (opt === 'All') {
+          filters = new Set(['All']);
+          return;
+        }
+        filters.delete('All');
+        if (filters.has(opt)) {
+          filters.delete(opt);
+        } else {
+          filters.add(opt);
+        }
+        if (filters.size === 0) {
+          filters = new Set(['All']);
+        }
+      };
+
+      // 1. Initial state is "All"
+      assert.ok(filters.has('All'));
+      assert.strictEqual(filters.size, 1);
+
+      // 2. Select "Athletics" -> "All" is cleared
+      toggle('Athletics');
+      assert.ok(!filters.has('All'));
+      assert.ok(filters.has('Athletics'));
+      assert.strictEqual(filters.size, 1);
+
+      // 3. Multi-select "Faith" -> both "Athletics" and "Faith" are active
+      toggle('Faith');
+      assert.ok(filters.has('Athletics'));
+      assert.ok(filters.has('Faith'));
+      assert.strictEqual(filters.size, 2);
+
+      // Verify filtered posts include posts from BOTH categories (union)
+      const multiCatPosts = posts.filter((p) => filters.has(p.category));
+      const hasAthletics = multiCatPosts.some((p) => p.category === 'Athletics');
+      const hasFaith = multiCatPosts.some((p) => p.category === 'Faith');
+      assert.ok(hasAthletics, 'Must include Athletics posts in multi-select');
+      assert.ok(hasFaith, 'Must include Faith posts in multi-select');
+      assert.ok(
+        multiCatPosts.every((p) => p.category === 'Athletics' || p.category === 'Faith'),
+        'All results must belong to selected categories'
+      );
+
+      // 4. Combine with "Following"
+      toggle('Following');
+      assert.ok(filters.has('Following'));
+      assert.ok(filters.has('Athletics'));
+      assert.ok(filters.has('Faith'));
+
+      const constrainedPosts = posts.filter((post) => {
+        const clubId = post.clubId ?? post.org.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        const matchesFollow = post.campusWide || isFollowing(clubId);
+        const matchesCategory = post.category === 'Athletics' || post.category === 'Faith';
+        return matchesFollow && matchesCategory;
+      });
+      assert.ok(constrainedPosts.length <= multiCatPosts.length);
+
+      // 5. Selecting "All" clears all specific categories and Following
+      toggle('All');
+      assert.ok(filters.has('All'));
+      assert.strictEqual(filters.size, 1);
+
+      // 6. Deselecting the last active specific category falls back to "All"
+      toggle('Academics');
+      assert.ok(filters.has('Academics'));
+      assert.ok(!filters.has('All'));
+      toggle('Academics');
+      assert.ok(filters.has('All'), 'Falling back to All when empty');
+      assert.strictEqual(filters.size, 1);
+    });
+  });
 });

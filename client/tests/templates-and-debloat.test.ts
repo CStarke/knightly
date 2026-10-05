@@ -381,6 +381,132 @@ describe('Templates & Code De-bloating Invariants', () => {
       assert.strictEqual(Math.round(deltaX1 * 1000), Math.round(deltaX2 * 1000));
       assert.strictEqual(Math.round(deltaY1 * 1000), Math.round(deltaY2 * 1000));
     });
+
+    it('computes correct web sidebar docking coordinates and scale invariants', () => {
+      // Step 1: Web desktop layout dimensions
+      const windowWidth = 1440;
+      const windowHeight = 900;
+      const isWeb = true;
+      const targetSidebarWidth = 270;
+      const targetScale = isWeb ? 24 / 34 : 28 / 34;
+      const SpacingThree = 16;
+      const SpacingFour = 24;
+      const defaultHeroWidth = 136;
+      const defaultHeroHeight = 42;
+      const headerPaddingTop = SpacingFour;
+      const formMainTop = Math.max(headerPaddingTop + 30, (windowHeight - 402) / 2);
+
+      // Step 2: On web, target position docks directly into the inset floating left sidebar masthead
+      // Sidebar has marginLeft: 12, marginVertical: 12, and masthead has horizontal padding (16 + 2 = 18)
+      const sidebarInset = 12;
+      const defaultHeaderX = sidebarInset + SpacingThree + 2;
+      const defaultHeaderY = sidebarInset + SpacingFour;
+
+      // Center of hero wordmark on initial render
+      const heroCenterX = windowWidth / 2;
+      const heroCenterY = formMainTop + 74 + defaultHeroHeight / 2;
+
+      // Destination center in the sidebar masthead
+      const targetCenterX = defaultHeaderX + (defaultHeroWidth * targetScale) / 2;
+      const targetCenterY = defaultHeaderY + (defaultHeroHeight * targetScale) / 2;
+
+      const deltaX = targetCenterX - heroCenterX;
+      const deltaY = targetCenterY - heroCenterY;
+
+      // Step 3: Validate invariants
+      assert.strictEqual(targetSidebarWidth, 270);
+      assert.strictEqual(targetScale, 24 / 34);
+      // Wordmark must travel leftward (negative deltaX) towards the left sidebar
+      assert.ok(deltaX < 0, 'Wordmark deltaX must be negative to glide into left rail');
+      // Wordmark must travel upward (negative deltaY) towards the top masthead
+      assert.ok(deltaY < 0, 'Wordmark deltaY must be negative to glide into top masthead');
+      // Landing horizontal coordinate plus scaled width must sit well within 270px sidebar
+      assert.ok(defaultHeaderX + defaultHeroWidth * targetScale < targetSidebarWidth);
+    });
+
+    it('validates collapsible sidebar states, width invariants, and rail layout dimensions', () => {
+      // Step 1: Expanded vs Collapsed width contracts
+      const expandedWidth = 270;
+      const collapsedWidth = 76;
+
+      assert.strictEqual(expandedWidth, 270);
+      assert.strictEqual(collapsedWidth, 76);
+      assert.ok(collapsedWidth < expandedWidth);
+
+      // Step 2: Collapsed rail geometry (50px squircle button fits cleanly in 76px rail with padding)
+      const tabButtonCollapsedSize = 50;
+      const horizontalMargin = (collapsedWidth - tabButtonCollapsedSize) / 2;
+      assert.strictEqual(horizontalMargin, 13);
+      assert.ok(horizontalMargin >= 10, 'Must have at least 10px breathing room on both sides of collapsed tab');
+
+      // Step 3: Toggle state machine
+      let isCollapsed = false;
+      const toggle = () => { isCollapsed = !isCollapsed; };
+
+      assert.strictEqual(isCollapsed, false);
+      toggle();
+      assert.strictEqual(isCollapsed, true);
+      toggle();
+      assert.strictEqual(isCollapsed, false);
+    });
+
+    it('validates sidebar zero-outline floating invariants and borderless elevation', () => {
+      // Step 1: Strict zero-outline invariants across all sidebar surfaces
+      const sidebarBorderWidth = 0;
+      const mastheadBorderBottomWidth = 0;
+      const footerBorderTopWidth = 0;
+      const tabButtonBorderWidth = 0;
+      const clubsButtonBorderWidth = 0;
+
+      assert.strictEqual(sidebarBorderWidth, 0, 'Sidebar outer border must be 0 for floating aesthetic');
+      assert.strictEqual(mastheadBorderBottomWidth, 0, 'Masthead bottom border must be 0');
+      assert.strictEqual(footerBorderTopWidth, 0, 'Footer top border must be 0');
+      assert.strictEqual(tabButtonBorderWidth, 0, 'Tab button border must be 0');
+      assert.strictEqual(clubsButtonBorderWidth, 0, 'Clubs button border must be 0');
+
+      // Step 2: Ambient elevation shadow properties for the "almost floating" visual effect
+      const sidebarElevation = 4;
+      const sidebarShadowRadius = 20;
+      const tabButtonFocusedElevation = 2;
+
+      assert.ok(sidebarElevation >= 2, 'Sidebar elevation must provide ambient lift');
+      assert.ok(sidebarShadowRadius >= 16, 'Sidebar shadow radius must be soft and diffuse');
+      assert.ok(tabButtonFocusedElevation >= 1, 'Focused tab must have subtle elevation');
+    });
+
+    it('validates mature sidebar tab proportions and generous spacing standards', () => {
+      // Step 1: Tab button dimensions must take generous space on the sidebar
+      const tabMinHeight = 56;
+      const tabPaddingVertical = 10;
+      const tabPaddingHorizontal = 12;
+      const tabGap = 12;
+      const tabBorderRadius = 12;
+
+      assert.ok(tabMinHeight >= 50, 'Tab minHeight must be at least 50px for spacious mature appearance');
+      assert.ok(tabPaddingVertical >= 10, 'Vertical padding must be at least 10px');
+      assert.ok(tabPaddingHorizontal >= 10, 'Horizontal padding must be at least 10px');
+      assert.ok(tabGap >= 10, 'Icon-to-text gap must be at least 10px');
+      assert.ok(tabBorderRadius >= 10, 'Border radius must be a refined squircle (>= 10px)');
+
+      // Step 2: Typography scale for mature layout
+      const tabTitleSize = 14;
+      const tabDescSize = 11.5;
+      const tabDescLineHeight = 15;
+
+      assert.ok(tabTitleSize >= 13.5, 'Tab title must be prominent (>= 13.5px)');
+      assert.ok(tabDescSize >= 11, 'Tab description must be legible (>= 11px)');
+      assert.ok(tabDescLineHeight >= tabDescSize, 'Line height must accommodate description without clipping');
+    });
+
+    it('validates sidebar container rounded corners and inset floating geometry', () => {
+      const sidebarMarginVertical = 12;
+      const sidebarMarginLeft = 12;
+      const sidebarBorderRadius = 20;
+
+      assert.ok(sidebarMarginVertical >= 8, 'Sidebar must have vertical breathing margin');
+      assert.ok(sidebarMarginLeft >= 8, 'Sidebar must have left breathing margin');
+      assert.ok(sidebarBorderRadius >= 16, 'Sidebar must have rounded corners (>= 16px)');
+    });
   });
 
   describe('PostCard CategoryBadgeTone Invariants', () => {

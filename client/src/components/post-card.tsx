@@ -204,7 +204,7 @@ export function PostCard({ post, onPressOrg }: PostCardProps) {
         ) : null}
 
         {/* Step 5: Headline typography (largest, most commanding text in serif font) */}
-        <ThemedText style={styles.title}>{post.headline}</ThemedText>
+        <ThemedText style={styles.title} numberOfLines={3}>{post.headline}</ThemedText>
 
         {/* Step 6: Event logistics metadata (When & Where badges) */}
         {post.when || post.where ? (
@@ -229,7 +229,7 @@ export function PostCard({ post, onPressOrg }: PostCardProps) {
         ) : null}
 
         {/* Step 7: Body copy */}
-        <ThemedText type="small" themeColor="textSecondary" style={styles.body}>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.body} numberOfLines={4}>
           {post.body}
         </ThemedText>
 
@@ -258,10 +258,12 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: Radius.lg,
     overflow: 'hidden',
+    flex: 1,
+    height: '100%',
   },
   imageContainer: {
     width: '100%',
-    height: 195,
+    aspectRatio: 16 / 9,
     position: 'relative',
     backgroundColor: '#1C1D21',
   },
@@ -274,7 +276,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 72,
+    height: 60,
     experimental_backgroundImage:
       'linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 100%)',
   },
@@ -286,27 +288,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: Spacing.two,
+    gap: Spacing.one,
   },
   orgPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     backgroundColor: 'rgba(17, 24, 28, 0.75)',
-    paddingHorizontal: Spacing.two + 2,
-    paddingVertical: 5,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: 4,
     borderRadius: Radius.pill,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.22)',
-    maxWidth: '70%',
+    maxWidth: '68%',
+    flexShrink: 1,
   },
   overlayOrgText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.2,
+    letterSpacing: 0.1,
   },
   badgeWrapper: {
+    flexShrink: 0,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.25,
@@ -333,13 +337,16 @@ const styles = StyleSheet.create({
   content: {
     padding: Spacing.three,
     gap: Spacing.two,
+    flex: 1,
+    justifyContent: 'space-between',
   },
   title: {
     fontFamily: Fonts.serif,
-    fontSize: 22,
-    lineHeight: 28,
+    fontSize: 18,
+    lineHeight: 23,
     fontWeight: '700',
     letterSpacing: -0.3,
+    minHeight: 46,
   },
   metaSection: {
     gap: 6,
