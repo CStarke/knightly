@@ -1250,7 +1250,14 @@ function BottomBar({
   });
 
   return (
-    <Animated.View style={[styles.bottomBarWrapper, animatedStyle]}>
+    <Animated.View
+      style={[
+        styles.bottomBarWrapper,
+        {
+          backgroundColor: theme.backgroundElement,
+        },
+        animatedStyle,
+      ]}>
       {/* Signature Calvin Gold rule with 33° brand scaffolding accent separating bottom bar from the screen */}
       <View style={styles.ruleContainer}>
         <View style={styles.rule} />
@@ -1413,10 +1420,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   bottomBarWrapper: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    width: '100%',
     zIndex: 10,
   },
   ruleContainer: {
@@ -1439,6 +1443,7 @@ const styles = StyleSheet.create({
     transform: [{ skewX: '-33deg' }],
   },
   bar: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     paddingTop: Spacing.one + 2,

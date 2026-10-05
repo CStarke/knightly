@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 import type { MaterialSymbolName, SfSymbolName } from '@/components/ui/icon';
 
 export type FeedCategory =
@@ -466,3 +468,115 @@ export function getPostsByClubId(clubId: string, postList: Post[] = posts): Post
 export const followedOrgs = Array.from(
   new Set(posts.filter((post) => post.followed).map((post) => post.org))
 );
+
+/**
+ * Resolves the responsive column count for the Knightly Campus Feed.
+ *
+ * ARCHITECTURAL INVARIANT & MOBILE ERGONOMICS:
+ * - Mobile Native App (Platform.OS !== 'web'): Strictly 1 singular column (`numColumns = 1`).
+ *   Guarantees full-width readability on handheld phone displays (iOS and Android), ensuring
+ *   announcement flyers, event dates, venues, and headlines are unconstrained by cramped horizontal columns.
+ * - Web App (Platform.OS === 'web'):
+ *   - Desktop Displays (width >= 900): 3 uniform columns for widescreen monitors.
+ *   - Tablet / Responsive Web (width < 900): 2 uniform columns.
+ *
+ * @param width - The current window or viewport width in logical pixels.
+ * @param platform - Platform operating system string (defaults to Platform.OS).
+ * @returns 1 for mobile app, or 2 to 3 for web depending on viewport width.
+ */
+export function resolveFeedColumnCount(
+  width: number,
+  platform: string = Platform.OS
+): number {
+  // Step 1: Mobile native app constraint check
+  // WHY 1 COLUMN ON MOBILE APP ALONE:
+  // On mobile phone viewports (~360-430px wide), multi-column grids squeeze card headlines,
+  // badges, and 16:9 banner images into illegibly narrow strips. A singular full-width column
+  // aligns with mobile design standards (Instagram, X, Reddit) and delivers optimal vertical scrolling ergonomics.
+  if (platform !== 'web') {
+    return 1;
+  }
+
+  // Step 2: Web responsive breakpoints
+  // WHY 2-3 COLUMNS ON WEB:
+  // Desktop monitors provide generous horizontal room where a multi-column card grid
+  // prevents individual cards from stretching to excessive line lengths.
+  return width >= 900 ? 3 : 2;
+}
+
+/**
+ * Criteria for filtering posts in the Knightly Campus Feed.
+ */
+export interface FeedFilterCriteria {
+  /** Feed scope: 'All' / 'ALL CLUBS' / 'All Campus' / 'ALL CAMPUS' includes all campus announcements and clubs; 'Following' / 'FOLLOWING' filters to followed clubs + campus-wide. */
+  scope: 'All' | 'Following' | 'ALL CLUBS' | 'FOLLOWING' | 'All Campus' | 'ALL CAMPUS';
+  /** Optional array of active categories. When empty or omitted, all categories are included. */
+  categories?: (FeedCategory | 'All')[];
+  /** Optional search query needle matched against title, body, organization, category, and venue. */
+  query?: string;
+  /** Optional callback returning whether the current user follows a given club ID. */
+  isFollowing?: (clubId: string) => boolean;
+}
+
+/**
+ * Filters and chronologically sorts posts according to audience scope, topic categories, and search query.
+ *
+ * ARCHITECTURAL SPECIFICATION & RATIONALE:
+ * - Scope Independence: Decouples the primary audience scope ("All" / "All Campus" vs "Following")
+ *   from topical interest filtering. A student can browse "All Campus" events with "Athletics", or switch to
+ *   "Following" events with "Athletics".
+ * - Union Category Matching: When multiple categories are active, posts matching ANY of the active
+ *   categories pass through (set union). When no categories are selected or 'All' is present, all categories are included.
+ * - Essential Campus-Wide Invariant: Crucial university notifications (weather alerts, student senate elections)
+ *   are marked `campusWide = true` and are always delivered even in "Following" scope.
+ * - Server-Authoritative Timestamps: All results are guaranteed to return sorted newest-first using
+ *   server-assigned timestamps.
+ *
+ * @param postList - Raw list of posts to filter.
+ * @param criteria - Filtering criteria containing scope, categories, search text, and follow checker.
+ * @returns Filtered, sorted list of posts.
+ */
+export function filterFeedPosts(
+  postList: Post[],
+  criteria: FeedFilterCriteria
+): Post[] {
+  const { scope, categories = [], query = '', isFollowing } = criteria;
+  const needle = query.trim().toLowerCase();
+  const hasFollowing = scope === 'Following' || scope === 'FOLLOWING';
+  // Strip out the 'All' pseudo-category if present so it doesn't restrict specific categories
+  const cleanedCategories = categories.filter((c): c is FeedCategory => c !== 'All');
+  const hasCategoryFilter = cleanedCategories.length > 0;
+
+  // Step 1: Filter posts matching scope, categories, and keyword query
+  const filtered = postList.filter((post) => {
+    // Sub-step A: Check audience scope (Following requires followed club affiliation or campus-wide flag)
+    if (hasFollowing && isFollowing) {
+      const clubId = post.clubId ?? post.org.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const matchesFollow = post.campusWide || isFollowing(clubId);
+      if (!matchesFollow) return false;
+    }
+
+    // Sub-step B: Check category match (OR union across all active categories)
+    if (hasCategoryFilter) {
+      if (!cleanedCategories.includes(post.category)) return false;
+    }
+
+    // Sub-step C: Check keyword query across title, body, org, category, and location
+    if (needle.length > 0) {
+      const matchesQuery =
+        post.headline.toLowerCase().includes(needle) ||
+        post.body.toLowerCase().includes(needle) ||
+        post.org.toLowerCase().includes(needle) ||
+        post.category.toLowerCase().includes(needle) ||
+        (post.where ?? '').toLowerCase().includes(needle);
+      if (!matchesQuery) return false;
+    }
+
+    return true;
+  });
+
+  // Step 2: Return reverse-chronologically sorted posts
+  return sortPostsByDate(filtered);
+}
+
+
