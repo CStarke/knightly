@@ -1,5 +1,5 @@
 import type { PropsWithChildren, ReactNode } from "react";
-import { type LayoutChangeEvent, Platform, StyleSheet, View } from "react-native";
+import { type LayoutChangeEvent, Platform, type StyleProp, StyleSheet, View, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
@@ -16,6 +16,7 @@ type AppHeaderProps = PropsWithChildren<{
   subtitle?: string;
   left?: ReactNode;
   right?: ReactNode;
+  style?: StyleProp<ViewStyle>;
   onLayout?: (event: LayoutChangeEvent) => void;
 }>;
 
@@ -33,6 +34,7 @@ export function AppHeader({
   subtitle,
   left,
   right,
+  style,
   children,
   onLayout,
 }: AppHeaderProps) {
@@ -43,7 +45,7 @@ export function AppHeader({
   return (
     <View
       onLayout={onLayout}
-      style={[styles.header, { paddingTop, backgroundColor: Brand.maroon }]}
+      style={[styles.header, { paddingTop, backgroundColor: Brand.maroon }, style]}
     >
       <View style={styles.inner}>
         <View style={styles.titleRow}>
