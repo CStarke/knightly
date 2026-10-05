@@ -5,9 +5,9 @@
  * Knightly provides pre-designed collegiate solid-color banners paired with subtle
  * geometric/organic vector shape overlays, arranged in harmonic rainbow order.
  * Background colors and vector patterns are decoupled into independent layers:
- * 1. Background Color: 8 collegiate hues, each defining its own base fill and
+ * 1. Background Color: 16 collegiate hues, each defining its own base fill and
  *    matching companion accent tint (e.g. Calvin Maroon pairs with Collegiate Gold).
- * 2. Pattern Overlay: 8 vector designs (plus 'none' for clean solid colors) rendered
+ * 2. Pattern Overlay: 16 vector designs (plus 'none' for clean solid colors) rendered
  *    as transparent overlays tinted dynamically by the background's accent color.
  *
  * Storing them as pre-bundled SVGs allows expo-image to cache them in GPU memory once,
@@ -197,7 +197,7 @@ export const PRESET_COLOR_LIST: PresetColorConfig[] = [
 ];
 
 /**
- * 8 Vector Pattern overlays and mini circle logo icons, plus 'none' (solid color).
+ * 16 Vector Pattern overlays and mini circle logo icons, plus 'none' (solid color).
  */
 export const PRESET_PATTERNS: Record<PresetPatternId, PresetPatternConfig> = {
   none: {

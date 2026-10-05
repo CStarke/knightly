@@ -33,6 +33,8 @@ function categoryBadgeTone(category: string): BadgeTone {
       return 'danger';
     case 'Faith':
       return 'brand';
+    case 'Official':
+      return 'gold';
     default:
       return 'gold';
   }

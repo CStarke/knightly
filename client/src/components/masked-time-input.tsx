@@ -32,6 +32,10 @@ export type MaskedTimeInputProps = {
   onBlur?: () => void;
   /** Whether the time input is in an error state */
   hasError?: boolean;
+  /** Placeholder text shown when input is empty (e.g. "e.g. 7:00" or "e.g. 9:00") */
+  placeholder?: string;
+  /** Accessibility label for screen readers */
+  accessibilityLabel?: string;
 };
 
 export type MaskedTimeInputRef = {
@@ -60,6 +64,8 @@ export const MaskedTimeInput = forwardRef<MaskedTimeInputRef, MaskedTimeInputPro
       onFocus,
       onBlur,
       hasError = false,
+      placeholder = 'e.g. 7:00',
+      accessibilityLabel = 'Event time',
     },
     ref
   ) {
@@ -135,7 +141,7 @@ export const MaskedTimeInput = forwardRef<MaskedTimeInputRef, MaskedTimeInputPro
             caretHidden={true}
             selectionColor="transparent"
             autoCorrect={false}
-            accessibilityLabel="Event time"
+            accessibilityLabel={accessibilityLabel}
             style={styles.invisibleInput}
           />
 
@@ -146,7 +152,7 @@ export const MaskedTimeInput = forwardRef<MaskedTimeInputRef, MaskedTimeInputPro
                   <BlinkingCursor color={Brand.gold} style={styles.emptyCursorAbsolute} />
                 )}
                 <ThemedText style={[styles.maskedPlaceholderText, { color: theme.textMuted }]}>
-                  e.g. 7:00
+                  {placeholder}
                 </ThemedText>
               </View>
             ) : (

@@ -113,7 +113,7 @@ export function ModalHeader({
           <Icon
             sf={icon.sf}
             md={icon.md}
-            size={20}
+            size={18}
             color={icon.color ?? Brand.gold}
           />
         )}
@@ -176,6 +176,8 @@ const styles = StyleSheet.create({
   titleText: {
     fontSize: 18,
     fontWeight: '700',
+    includeFontPadding: false,
+    lineHeight: undefined,
   },
   closeBtn: {
     padding: 4,

@@ -5,6 +5,26 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
+## [0.4.0] - 2026-10-05
+
+### Added
+- **Calvin Events Scraper & REST API**: Live crawler (`server/services/event-scraper.js`) for `calvin.edu/events/all` with in-memory caching, category mapping, and `GET /api/events` endpoint.
+- **Offline Seed Resilience**: Pre-scraped 29-event fallback dataset (`calvin-events-seed.ts`) and sync CLI tool (`server/scripts/sync-calvin-events.js`) for zero-crash offline operation.
+- **Placeholder Image Fingerprinting**: Detects generic Calvin line-art graphics via cryptographic SHA-256 hashes and canonical paths, replacing them with category Simple Banners while preserving custom user flyers.
+- **Event Time Range Inputs**: Added optional start and end time fields with chronological range validation, period auto-sync, and formatted display ("7:00 – 9:00 PM").
+- **Form Guidance Modals**: Added inline info triggers on post creation for date/time and location guidelines.
+- **Multi-Dev & Architecture Documentation**: Added `docs/ARCHITECTURE.md`, `docs/MULTI_DEV_WORKFLOW.md`, and updated `AGENTS.md` with multi-developer Git protocols and domain standards.
+
+### Changed
+- **Standard Starfield Area Density**: Converted procedural starfield to a standard 1.3 stars per 10,000 px² benchmark with 5:3:1 astrophotography depth scaling, capped at 1,800 stars.
+- **Expo Framework Update**: Patched Expo core from `~57.0.24` to `~57.0.26`.
+
+### Fixed
+- **Label & Icon Baseline Alignment**: Fixed vertical baseline creep in guidance modals and form labels using natural flexbox centering.
+- **Dining Card Shadow Border**: Removed dark rectangular border artifact on meal swipe and dining dollar cards.
+
+---
+
 ## [0.3.0] - 2026-10-01
 
 ### Added

@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
+const { scrapeEvents } = require('./services/event-scraper');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -124,6 +125,32 @@ app.get('/api/clubs', async (req, res) => {
   }
 
   res.json(filtered);
+});
+
+// Calvin Campus Events Scraper API
+// SPRINT 1 SLO CONTEXT (SC2):
+// Serves live and cached events scraped from calvin.edu/events/all.
+// Query params:
+// - pages: pagination count (default: 3)
+// - category: filter by Knightly FeedCategory
+// - refresh: force cache refresh ('true' | 'false')
+app.get('/api/events', async (req, res) => {
+  try {
+    const pages = parseInt(req.query.pages, 10) || 3;
+    const forceRefresh = req.query.refresh === 'true';
+    const category = req.query.category;
+
+    const events = await scrapeEvents({ pages, forceRefresh });
+
+    let filtered = events;
+    if (category && category !== 'All') {
+      filtered = filtered.filter((e) => e.category.toLowerCase() === category.toLowerCase());
+    }
+
+    res.json(filtered);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch events', message: err.message });
+  }
 });
 
 // Safety Contacts

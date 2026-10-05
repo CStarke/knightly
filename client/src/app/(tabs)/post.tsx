@@ -23,8 +23,10 @@ import {
   Image as RNImage,
   Keyboard,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
+  Text,
   TextInput,
   View,
 } from 'react-native';
@@ -50,6 +52,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { FieldLabel } from '@/components/ui/field-label';
 import { Icon } from '@/components/ui/icon';
+import { ModalDialog, ModalHeader } from '@/components/ui/modal-dialog';
 import { Screen } from '@/components/ui/screen';
 import { BottomTabContentInset, Brand, Radius, Spacing } from '@/constants/theme';
 import { useClubLeadership } from '@/context/club-leadership-context';
@@ -66,8 +69,10 @@ import {
   isTimeCompleteAndValid,
   parseDateSegments,
   resolveEventTime,
+  resolveEventTimeRange,
   sanitizeTime,
   validateDate,
+  validateTimeRange,
 } from '@/utils/date-format';
 import { attachNumericDomFilters } from '@/utils/numeric-input';
 import { handleSmoothInputFocus } from '@/utils/smooth-input-focus';
@@ -347,16 +352,27 @@ export default function CreatePostScreen() {
   const [selectedDate, setSelectedDate] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // Time State
+  // Time State (Start & End Time Range)
   const timeInputRef = useRef<MaskedTimeInputRef>(null);
   const [rawTime, setRawTime] = useState('');
   const [isTimeFocused, setIsTimeFocused] = useState(false);
   const [timePeriod, setTimePeriod] = useState<'AM' | 'PM'>('PM');
 
+  const endTimeInputRef = useRef<MaskedTimeInputRef>(null);
+  const [rawEndTime, setRawEndTime] = useState('');
+  const [isEndTimeFocused, setIsEndTimeFocused] = useState(false);
+  const [endTimePeriod, setEndTimePeriod] = useState<'AM' | 'PM'>('PM');
+  const [endPeriodManuallySet, setEndPeriodManuallySet] = useState(false);
+
   // Validation error states
   const [dateError, setDateError] = useState<string | null>(null);
   const [timeError, setTimeError] = useState<string | null>(null);
-  const whenError = dateError || timeError;
+  const [endTimeError, setEndTimeError] = useState<string | null>(null);
+  const timeRangeError = useMemo(
+    () => validateTimeRange(rawTime, timePeriod, rawEndTime, endTimePeriod),
+    [rawTime, timePeriod, rawEndTime, endTimePeriod]
+  );
+  const whenError = dateError || timeError || endTimeError || timeRangeError;
 
   // Freeform mode toggle
   const [isCustomWhen, setIsCustomWhen] = useState(false);
@@ -366,20 +382,32 @@ export default function CreatePostScreen() {
   // Location State
   const [whereText, setWhereText] = useState('');
   const [isWhereFocused, setIsWhereFocused] = useState(false);
+  const [showLocationInfoModal, setShowLocationInfoModal] = useState(false);
 
   // Web-only DOM numeric filters
   useEffect(() => {
     if (Platform.OS !== 'web') return;
     const cleanupDate = attachNumericDomFilters(dateInputRef.current);
     const cleanupTime = attachNumericDomFilters(timeInputRef.current?.textInput ?? null);
+    const cleanupEndTime = attachNumericDomFilters(endTimeInputRef.current?.textInput ?? null);
     return () => {
       cleanupDate();
       cleanupTime();
+      cleanupEndTime();
     };
   }, [isCustomWhen]);
 
   const handleTogglePeriod = () => {
-    setTimePeriod((prev) => (prev === 'AM' ? 'PM' : 'AM'));
+    const next = timePeriod === 'AM' ? 'PM' : 'AM';
+    setTimePeriod(next);
+    if (!endPeriodManuallySet && !rawEndTime) {
+      setEndTimePeriod(next);
+    }
+  };
+
+  const handleToggleEndPeriod = () => {
+    setEndPeriodManuallySet(true);
+    setEndTimePeriod((prev) => (prev === 'AM' ? 'PM' : 'AM'));
   };
 
   // Success Confirmation Modal State
@@ -393,7 +421,7 @@ export default function CreatePostScreen() {
   // WHAT IT DOES:
   // Step 1: Validates that the entered date digits form a genuine calendar date.
   // Step 2: Formats the date using formatEventDate (e.g. "Tuesday, Oct 24, 2026").
-  // Step 3: Validates and formats time digits with AM/PM period (e.g. "7:00 PM").
+  // Step 3: Validates and formats time digits with AM/PM period (e.g. "7:00 PM" or "7:00 – 9:00 PM").
   // Step 4: Combines into a live formatted preview string displayed beneath the input cells.
   const eventPreview = useMemo(() => {
     // Step 1: Check date validity for preview
@@ -413,9 +441,21 @@ export default function CreatePostScreen() {
         )
       : '';
 
-    // Step 3: Resolve event time with AM/PM period
-    const isTimeValid = !timeError && isTimeCompleteAndValid(rawTime);
-    const resolvedTime = isTimeValid ? resolveEventTime(rawTime, timePeriod) : '';
+    // Step 3: Resolve event time with AM/PM period and time range support
+    const isStartValid = !timeError && isTimeCompleteAndValid(rawTime);
+    const isEndValid = !endTimeError && isTimeCompleteAndValid(rawEndTime);
+    const hasRangeError = Boolean(timeRangeError);
+
+    let resolvedTime = '';
+    if (!hasRangeError) {
+      if (rawTime && isStartValid && rawEndTime && isEndValid) {
+        resolvedTime = resolveEventTimeRange(rawTime, timePeriod, rawEndTime, endTimePeriod);
+      } else if (rawTime && isStartValid && !rawEndTime) {
+        resolvedTime = resolveEventTime(rawTime, timePeriod);
+      } else if (!rawTime && rawEndTime && isEndValid) {
+        resolvedTime = resolveEventTime(rawEndTime, endTimePeriod);
+      }
+    }
 
     // Step 4: Concatenate with dot separator
     if (formattedDate && resolvedTime) {
@@ -425,11 +465,15 @@ export default function CreatePostScreen() {
   }, [
     dateError,
     timeError,
+    endTimeError,
+    timeRangeError,
     rawDate,
     dateSegmentsState,
     dateSegments.formatted,
     rawTime,
     timePeriod,
+    rawEndTime,
+    endTimePeriod,
   ]);
 
   // Form Validation Pipeline
@@ -451,6 +495,7 @@ export default function CreatePostScreen() {
       (dateSegmentsState.year.length === 4 || dateSegmentsState.year.length === 2)
     : true;
   const isTimeValid = isTimeCompleteAndValid(rawTime);
+  const isEndTimeValid = isTimeCompleteAndValid(rawEndTime);
   const isWhereValid = whereText.length <= MAX_LOCATION_LENGTH;
   const isCustomWhenValid = !isCustomWhen || customWhenText.length <= MAX_CUSTOM_WHEN_LENGTH;
 
@@ -463,12 +508,12 @@ export default function CreatePostScreen() {
     isDescValid &&
     isWhereValid &&
     isCustomWhenValid &&
-    (isCustomWhen || (isDateValid && isTimeValid && !whenError));
+    (isCustomWhen || (isDateValid && isTimeValid && isEndTimeValid && !whenError));
 
   // Resolve Final "When" Text
   // WHAT IT DOES:
   // - In freeform mode: Returns the custom description (e.g. "Every Tuesday at sunset").
-  // - In structured mode: Formats the validated calendar date and clock time into a single string.
+  // - In structured mode: Formats the validated calendar date and clock time range into a single string.
   // - If omitted: Returns undefined so the post card simply hides the calendar badge.
   const computedWhen = useMemo(() => {
     if (isCustomWhen) return customWhenText.trim() || undefined;
@@ -484,8 +529,21 @@ export default function CreatePostScreen() {
     const formattedDate = isDateValidForWhen
       ? formatEventDate(formatDateSegments(completed).formatted)
       : undefined;
-    const isTimeValidForWhen = !timeError && isTimeCompleteAndValid(rawTime);
-    const resolvedTime = isTimeValidForWhen ? resolveEventTime(rawTime, timePeriod) : undefined;
+
+    const isStartValidForWhen = !timeError && isTimeCompleteAndValid(rawTime);
+    const isEndValidForWhen = !endTimeError && isTimeCompleteAndValid(rawEndTime);
+    const hasRangeError = Boolean(timeRangeError);
+
+    let resolvedTime: string | undefined = undefined;
+    if (!hasRangeError) {
+      if (rawTime && isStartValidForWhen && rawEndTime && isEndValidForWhen) {
+        resolvedTime = resolveEventTimeRange(rawTime, timePeriod, rawEndTime, endTimePeriod);
+      } else if (rawTime && isStartValidForWhen && !rawEndTime) {
+        resolvedTime = resolveEventTime(rawTime, timePeriod);
+      } else if (!rawTime && rawEndTime && isEndValidForWhen) {
+        resolvedTime = resolveEventTime(rawEndTime, endTimePeriod);
+      }
+    }
 
     if (!formattedDate && !resolvedTime) return undefined;
 
@@ -498,10 +556,14 @@ export default function CreatePostScreen() {
     customWhenText,
     dateError,
     timeError,
+    endTimeError,
+    timeRangeError,
     rawDate,
     dateSegmentsState,
     rawTime,
     timePeriod,
+    rawEndTime,
+    endTimePeriod,
   ]);
 
   const computedWhere = whereText.trim() || undefined;
@@ -593,6 +655,31 @@ export default function CreatePostScreen() {
     }
   };
 
+  const handleRawEndTimeChange = (raw: string) => {
+    const result = sanitizeTime(raw, rawEndTime);
+    setRawEndTime(result.digits);
+    if (result.error) {
+      setEndTimeError(result.error);
+    } else {
+      setEndTimeError(null);
+    }
+    endTimeInputRef.current?.setNativeValue(result.digits);
+  };
+
+  const handleEndTimeBlur = () => {
+    setIsEndTimeFocused(false);
+    if (!rawEndTime) {
+      setEndTimeError(null);
+      return;
+    }
+
+    const completed = completeTimeDigits(rawEndTime);
+    if (completed && completed !== rawEndTime) {
+      setRawEndTime(completed);
+      endTimeInputRef.current?.setNativeValue(completed);
+    }
+  };
+
   // Handle Publish Lifecycle
   // WHAT IT DOES:
   // Step 1: Validates form completeness against `canPublish` and ensures an active club is selected.
@@ -665,10 +752,14 @@ export default function CreatePostScreen() {
     setSelectedDate('');
     setRawTime('');
     setTimePeriod('PM');
+    setRawEndTime('');
+    setEndTimePeriod('PM');
+    setEndPeriodManuallySet(false);
     setCustomWhenText('');
     setWhereText('');
     setDateError(null);
     setTimeError(null);
+    setEndTimeError(null);
 
     // Step 6: Dismiss keyboard, scroll to top, and show celebration modal
     Keyboard.dismiss();
@@ -892,6 +983,18 @@ export default function CreatePostScreen() {
               }}
               onTimeBlur={handleTimeBlur}
               timeError={timeError}
+              endTimeInputRef={endTimeInputRef}
+              rawEndTime={rawEndTime}
+              onRawEndTimeChange={handleRawEndTimeChange}
+              endTimePeriod={endTimePeriod}
+              onToggleEndPeriod={handleToggleEndPeriod}
+              onEndTimeFocus={(e) => {
+                setIsEndTimeFocused(true);
+                scrollToInput(dateSectionY.current);
+                handleSmoothInputFocus(e, { scrollViewRef, targetY: dateSectionY.current });
+              }}
+              onEndTimeBlur={handleEndTimeBlur}
+              endTimeError={endTimeError}
               eventPreview={eventPreview}
               customWhenText={customWhenText}
               onCustomWhenTextChange={setCustomWhenText}
@@ -905,6 +1008,7 @@ export default function CreatePostScreen() {
                 setIsCustomWhenFocused(false);
                 setDateError(null);
                 setTimeError(null);
+                setEndTimeError(null);
               }}
               whenError={whenError}
               onLayout={(e) => {
@@ -920,10 +1024,24 @@ export default function CreatePostScreen() {
               }}
             >
               <FieldLabel
-                icon={<Icon sf="mappin.and.ellipse" md="place" size={16} color={Brand.gold} />}
+                icon={<Icon sf="mappin.and.ellipse" md="place" size={13} color={Brand.gold} />}
                 label="LOCATION"
                 currentLength={whereText.length}
                 maxLength={MAX_LOCATION_LENGTH}
+                infoButton={
+                  <Pressable
+                    onPress={() => setShowLocationInfoModal(true)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Location guidance"
+                    style={({ pressed }) => [
+                      styles.infoBtn,
+                      pressed && { opacity: 0.6 },
+                    ]}
+                  >
+                    <Icon sf="info.circle" md="info" size={13} color={Brand.gold} />
+                  </Pressable>
+                }
               />
               <TextInput
                 value={whereText}
@@ -988,6 +1106,46 @@ export default function CreatePostScreen() {
             }
           }}
         />
+
+        {/* Location Guidance Modal */}
+        <ModalDialog
+          visible={showLocationInfoModal}
+          onClose={() => setShowLocationInfoModal(false)}
+        >
+          <ModalHeader
+            title="Location Guide"
+            icon={{ sf: 'mappin.and.ellipse', md: 'place', color: Brand.gold }}
+            onClose={() => setShowLocationInfoModal(false)}
+          />
+          <View style={styles.infoModalBody}>
+            <View style={styles.infoRow}>
+              <View style={styles.infoIconWrapper}>
+                <Icon sf="checkmark.circle.fill" md="check_circle" size={14} color={Brand.gold} />
+              </View>
+              <ThemedText style={styles.infoText}>
+                <Text style={styles.infoBold}>Optional field.</Text> Leave blank if your event or announcement is online, location-independent, or TBA.
+              </ThemedText>
+            </View>
+
+            <View style={styles.infoRow}>
+              <View style={styles.infoIconWrapper}>
+                <Icon sf="mappin.circle" md="room" size={14} color={Brand.gold} />
+              </View>
+              <ThemedText style={styles.infoText}>
+                <Text style={styles.infoBold}>Campus or off-campus:</Text> Specify a room number, building, lawn, or address (e.g. <Text style={styles.infoItalic}>"Commons Lawn"</Text>, <Text style={styles.infoItalic}>"CFAC 222"</Text>, or <Text style={styles.infoItalic}>"Downtown Grand Rapids"</Text>).
+              </ThemedText>
+            </View>
+
+            <View style={styles.infoModalFooter}>
+              <Button
+                label="Got it"
+                variant="gold"
+                size="regular"
+                onPress={() => setShowLocationInfoModal(false)}
+              />
+            </View>
+          </View>
+        </ModalDialog>
       </Screen>
     </View>
   );
@@ -1074,5 +1232,49 @@ const styles = StyleSheet.create({
   outerContainer: {
     flex: 1,
     position: 'relative',
+  },
+  // Inline info button beside label text (hitSlop={8} gives a generous touch target)
+  infoBtn: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  infoModalBody: {
+    padding: Spacing.three,
+    gap: Spacing.two + 4,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.two,
+  },
+  // WHAT: Matches line 1's height (18px) and fixed width (18px) so flexbox centers the bullet icon on the first line.
+  // WHY: Avoids artificial translateY offsets by letting flexbox center the icon within line 1, and fixed width guarantees left-margin alignment.
+  infoIconWrapper: {
+    width: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+    includeFontPadding: false,
+  },
+  infoBold: {
+    fontWeight: '700',
+    fontSize: 13,
+    lineHeight: 18,
+    includeFontPadding: false,
+  },
+  infoItalic: {
+    fontStyle: 'italic',
+    fontSize: 13,
+    lineHeight: 18,
+    includeFontPadding: false,
+    color: Brand.gold,
+  },
+  infoModalFooter: {
+    marginTop: Spacing.one,
   },
 });

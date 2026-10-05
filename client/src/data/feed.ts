@@ -8,6 +8,7 @@ export type FeedCategory =
   | 'Faith'
   | 'Gaming'
   | 'Music'
+  | 'Official'
   | 'Outdoors'
   | 'Service'
   | 'Social'
@@ -22,6 +23,7 @@ export const feedCategories: FeedCategory[] = [
   'Faith',
   'Gaming',
   'Music',
+  'Official',
   'Outdoors',
   'Service',
   'Social',
