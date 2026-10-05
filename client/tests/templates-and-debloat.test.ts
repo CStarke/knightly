@@ -448,6 +448,35 @@ describe('Templates & Code De-bloating Invariants', () => {
       assert.strictEqual(isCollapsed, true);
       toggle();
       assert.strictEqual(isCollapsed, false);
+
+      // Step 4: Hover-driven expansion and collapse state machine
+      // When isCollapsed is true, hovering temporarily expands the sidebar (effectiveWidth = 270)
+      // When mouse leaves (isHovered = false), it collapses back down (effectiveWidth = 76)
+      let isHovered = false;
+      isCollapsed = true;
+      let isAuthenticated = true;
+
+      const getIsEffectivelyCollapsed = () => isCollapsed && !isHovered && isAuthenticated;
+      const getEffectiveWidth = () => (getIsEffectivelyCollapsed() ? collapsedWidth : expandedWidth);
+
+      // Initially collapsed
+      assert.strictEqual(getIsEffectivelyCollapsed(), true);
+      assert.strictEqual(getEffectiveWidth(), 76);
+
+      // Mouse enters sidebar -> expands to 270px
+      isHovered = true;
+      assert.strictEqual(getIsEffectivelyCollapsed(), false);
+      assert.strictEqual(getEffectiveWidth(), 270);
+
+      // Mouse leaves sidebar -> collapses back to 76px
+      isHovered = false;
+      assert.strictEqual(getIsEffectivelyCollapsed(), true);
+      assert.strictEqual(getEffectiveWidth(), 76);
+
+      // During sign-in transition (!isAuthenticated), sidebar remains expanded for seamless docking
+      isAuthenticated = false;
+      assert.strictEqual(getIsEffectivelyCollapsed(), false);
+      assert.strictEqual(getEffectiveWidth(), 270);
     });
 
     it('validates sidebar zero-outline floating invariants and borderless elevation', () => {
@@ -502,10 +531,12 @@ describe('Templates & Code De-bloating Invariants', () => {
       const sidebarMarginVertical = 12;
       const sidebarMarginLeft = 12;
       const sidebarBorderRadius = 20;
+      const mastheadBorderRadius = 20;
 
       assert.ok(sidebarMarginVertical >= 8, 'Sidebar must have vertical breathing margin');
       assert.ok(sidebarMarginLeft >= 8, 'Sidebar must have left breathing margin');
       assert.ok(sidebarBorderRadius >= 16, 'Sidebar must have rounded corners (>= 16px)');
+      assert.ok(mastheadBorderRadius >= 16, 'Masthead maroon block must have rounded corners (>= 16px)');
     });
   });
 

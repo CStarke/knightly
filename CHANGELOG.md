@@ -5,6 +5,24 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
+## [0.4.1] - 2026-10-05
+
+### Added
+- **Desktop Web Sidebar Hover Expansion & Collapse**: Integrated dynamic mouse and pointer hover expansion into `app-tabs.web.tsx`. When the sidebar is collapsed into an icon-only navigation rail (76px), hovering over the rail smoothly animates width out to 270px (`Easing.bezier(0.2, 0, 0, 1)`), revealing full navigation tab labels, descriptive captions, and student profile metadata. Moving the mouse pointer away automatically collapses the sidebar back down to 76px. Users can pin the sidebar permanently open via the masthead toggle button.
+- **Smooth Sidebar Sliding Element Transitions**: Replaced instantaneous conditional DOM switching with a unified component layout and Reanimated slide-out tray transitions driven by `expandProgress`:
+  - **Stationary Icon Geometry**: Fixed squircle tab badges (36px), clubs icon box (36px), and student avatar (36px) at a stationary horizontal position (`x = 20px`), perfectly centered in the 76px collapsed rail and remaining stationary without a single pixel of jitter during expansion.
+  - **Horizontal Slide-Out & Fade Tray**: Navigation labels, captions, trailing gold active indicator dots, "PORTAL" section heading, clubs directory description, and student profile metadata glide smoothly from left to right (`translateX: -18px -> 0px`, `opacity: 0 -> 1`) only after the container has widened sufficiently, completely eliminating squeezed, line-wrapping, or jumbled text artifacts.
+  - **Masthead Dual Overlay Crossfade**: Centered "K." collapsed monogram cleanly fades out while the expanded "Knightly." wordmark and pin toggle slide into place without layout height jumps.
+  - **Rounded Maroon Masthead Geometry**: Added 20px rounded corners (`borderRadius: 20`) to the Calvin Maroon masthead in both `app-tabs.web.tsx` and `login-screen.tsx`, sculpting the bottom corners of the maroon block with soft contours that seamlessly match the sidebar's 20px outer corner radius and eliminate sharp square dividers.
+
+### Fixed
+- **Web Sign-In Transition Smoothing & Absolute Element Deduplication**: Completely eliminated visual element duplication and jarring timing at the end of the desktop web sign-in animation (`login-screen.tsx`):
+  - **Initial Height Alignment**: Fixed desktop viewport calculation to start at `windowHeight` instead of offscreen physical monitor `screenHeight`, removing the dead lag at the start of the flight.
+  - **Fluid Animation Curve & Timing**: Tightened form fade-out to 260ms, removed artificial 100ms pauses in favor of a 30ms settle, and accelerated the flight to 900ms using a fluid cubic-bezier curve (`Easing.bezier(0.25, 0.1, 0.25, 1)`).
+  - **Fixed Masthead Geometry Anchoring**: Pinned `webSidebarContainer` to a fixed 270px width within `maroonContainer`, preventing the collapse button from stretching across the screen or sliding horizontally over feed content during flight.
+  - **Underlying Masthead Concealment**: Hidden underlying masthead content (`opacity: 0`) in `app-tabs.web.tsx` while unauthenticated (`!isAuthenticated`), guaranteeing zero duplicate collapse buttons, duplicate taglines, or duplicate wordmarks appear during flight or crossfade.
+  - **Precise Measurement Anchor**: Added collapse toggle and tagline placeholders to `webTargetMeasurementAnchor` in `login-screen.tsx`, ensuring layout measurements report the true 86px masthead height and docking deltas align with subpixel accuracy.
+
 ## [0.4.0] - 2026-10-05
 
 ### Added

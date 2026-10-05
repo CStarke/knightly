@@ -32,7 +32,15 @@ import {
 } from 'expo-router/ui';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  Extrapolation,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  type SharedValue,
+} from 'react-native-reanimated';
 
 import { HeaderAvatar } from '@/components/header-avatar';
 import { ThemedText } from '@/components/themed-text';
@@ -61,21 +69,31 @@ export {
   type TabMeta,
 };
 
+const dummySharedValue = { value: 0 } as SharedValue<number>;
+
 /**
- * Context for managing desktop sidebar expansion and collapse state.
+ * Context for managing desktop sidebar expansion, collapse, and hover state.
  */
 interface SidebarContextValue {
   isCollapsed: boolean;
+  isHovered: boolean;
+  isEffectivelyCollapsed: boolean;
+  expandProgress: SharedValue<number>;
   toggleCollapse: () => void;
+  setIsHovered: (hovered: boolean) => void;
 }
 
 const SidebarContext = createContext<SidebarContextValue>({
   isCollapsed: false,
+  isHovered: false,
+  isEffectivelyCollapsed: false,
+  expandProgress: dummySharedValue,
   toggleCollapse: () => {},
+  setIsHovered: () => {},
 });
 
 /**
- * Hook to access desktop sidebar collapse state and toggle handler.
+ * Hook to access desktop sidebar collapse, hover state, and handlers.
  */
 export function useSidebar() {
   return useContext(SidebarContext);
@@ -88,9 +106,11 @@ export function useSidebar() {
  * - Initializes tab context, navigation providers, and collapsible sidebar state.
  * - Renders a side-by-side flex layout with a collapsible sidebar on the left and TabSlot on the right.
  * - Replaces the mobile horizontal gesture pager with direct URL-driven Expo Router `<Tabs>`.
+ * - Supports hover-triggered expansion and collapse when sidebar is collapsed.
  */
 export default function AppTabs() {
   const pathname = usePathname();
+  const { isAuthenticated } = useAuth();
   const { isLeader, claimSetupState, cancelClaimSetup } = useClubLeadership();
   const translateX = useSharedValue(0);
   const scrollY = useSharedValue(0);
@@ -99,13 +119,35 @@ export default function AppTabs() {
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window !== 'undefined' && window.localStorage) {
       try {
-        return window.localStorage.getItem('knightly_sidebar_collapsed') === 'true';
+        const stored = window.localStorage.getItem('knightly_sidebar_collapsed');
+        if (stored !== null) {
+          return stored === 'true';
+        }
       } catch {
         return false;
       }
     }
     return false;
   });
+
+  // Step 2: Manage hover state for desktop mouse interaction
+  const [isHovered, setIsHovered] = useState(false);
+
+  // Step 3: Compute effective collapsed state
+  // - During sign-in animation (!isAuthenticated), sidebar remains expanded (270px) so the wordmark docks seamlessly
+  // - When authenticated: if isCollapsed is true, hovering temporarily expands the sidebar (270px), and mouse leave collapses it (76px)
+  const isEffectivelyCollapsed = isCollapsed && !isHovered && isAuthenticated;
+
+  // Step 4: Synchronized animation progress (0 = collapsed 76px rail, 1 = expanded 270px drawer)
+  // Drives simultaneous width morphing and element slide-out transitions
+  const expandProgress = useSharedValue(isEffectivelyCollapsed ? 0 : 1);
+
+  useEffect(() => {
+    expandProgress.value = withTiming(isEffectivelyCollapsed ? 0 : 1, {
+      duration: 240,
+      easing: Easing.bezier(0.2, 0, 0, 1),
+    });
+  }, [isEffectivelyCollapsed, expandProgress]);
 
   const toggleCollapse = useCallback(() => {
     setIsCollapsed((prev) => {
@@ -145,7 +187,15 @@ export default function AppTabs() {
   }), [pathname]);
 
   return (
-    <SidebarContext.Provider value={{ isCollapsed, toggleCollapse }}>
+    <SidebarContext.Provider
+      value={{
+        isCollapsed,
+        isHovered,
+        isEffectivelyCollapsed,
+        expandProgress,
+        toggleCollapse,
+        setIsHovered,
+      }}>
       <TabNavigationContext.Provider value={tabNavValue}>
         <DiningActivityProvider value={{
           isActivityOpen: false,
@@ -246,33 +296,84 @@ type SidebarProps = TabListProps;
  * - Vertically stacks spacious, mature navigation tab triggers (`SidebarTabButton`).
  * - Houses quick-access links to Campus Clubs and Student Profile in the footer.
  */
+/**
+ * Desktop navigation sidebar component rendered along the left edge of the screen.
+ *
+ * WHAT IT DOES:
+ * - Renders Calvin Maroon masthead branding with collapsible toggle button.
+ * - Animates width smoothly between 270px (expanded) and 76px (collapsed).
+ * - Vertically stacks spacious, mature navigation tab triggers (`SidebarTabButton`).
+ * - Houses quick-access links to Campus Clubs and Student Profile in the footer.
+ *
+ * WHY UNIFIED RENDERING INSTEAD OF CONDITIONAL DOM SWAPPING:
+ * Previously, swapping between collapsed and expanded DOM trees immediately on hover caused
+ * expanded text to render inside a 76px container before the width animation finished, resulting
+ * in squeezed multi-line text wrapping and visual jumbling. Unified rendering keeps icons stationary
+ * at x = 20px and uses shared animation progress to slide text elements out smoothly without layout thrashing.
+ */
 function Sidebar({ children, ...props }: SidebarProps) {
   const theme = useTheme();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { openClubsDirectory } = useClubsNavigation();
-  const { isCollapsed, toggleCollapse } = useSidebar();
+  const { isCollapsed, toggleCollapse, setIsHovered, expandProgress } = useSidebar();
 
   // Student profile display fallbacks
   const displayName = user?.fullName ?? `${student.firstName} ${student.lastName}`;
   const displayMajor = user?.major ?? student.major;
 
-  // Animated sidebar width transition (glides smoothly between 270px expanded and 76px collapsed)
-  const sidebarWidth = useSharedValue(isCollapsed ? 76 : 270);
-
-  useEffect(() => {
-    sidebarWidth.value = withTiming(isCollapsed ? 76 : 270, {
-      duration: 240,
-      easing: Easing.bezier(0.2, 0, 0, 1),
-    });
-  }, [isCollapsed, sidebarWidth]);
-
+  // Step 1: Animated sidebar width driven directly by synchronized expandProgress
   const animatedSidebarStyle = useAnimatedStyle(() => ({
-    width: sidebarWidth.value,
+    width: interpolate(expandProgress.value, [0, 1], [76, 270], Extrapolation.CLAMP),
+  }));
+
+  // Step 2: Collapsed masthead overlay fade (visible when collapsed, fades out early on expansion)
+  const collapsedMastheadStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(expandProgress.value, [0, 0.25], [1, 0], Extrapolation.CLAMP),
+    pointerEvents: (expandProgress.value < 0.2 ? 'auto' : 'none') as any,
+  }));
+
+  // Step 3: Expanded masthead overlay slide & fade (slides smoothly from left to right as drawer opens)
+  const expandedMastheadStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(expandProgress.value, [0.35, 0.85], [0, 1], Extrapolation.CLAMP),
+    transform: [
+      {
+        translateX: interpolate(expandProgress.value, [0.25, 1], [-20, 0], Extrapolation.CLAMP),
+      },
+    ],
+    pointerEvents: (expandProgress.value > 0.6 ? 'auto' : 'none') as any,
+  }));
+
+  // Step 4: Sliding PORTAL section heading transition
+  const slidingHeadingStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(expandProgress.value, [0.4, 0.9], [0, 1], Extrapolation.CLAMP),
+    transform: [
+      {
+        translateX: interpolate(expandProgress.value, [0.3, 1], [-16, 0], Extrapolation.CLAMP),
+      },
+    ],
+    height: interpolate(expandProgress.value, [0.15, 0.7], [0, 24], Extrapolation.CLAMP),
+    overflow: 'hidden',
+  }));
+
+  // Step 5: Footer tray slide-out transition for clubs and profile meta
+  const slidingContentStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(expandProgress.value, [0.35, 0.85], [0, 1], Extrapolation.CLAMP),
+    transform: [
+      {
+        translateX: interpolate(expandProgress.value, [0.25, 1], [-18, 0], Extrapolation.CLAMP),
+      },
+    ],
   }));
 
   return (
     <Animated.View
       {...props}
+      {...(Platform.OS === 'web'
+        ? ({
+            onMouseEnter: () => setIsHovered(true),
+            onMouseLeave: () => setIsHovered(false),
+          } as any)
+        : {})}
       style={[
         styles.sidebar,
         animatedSidebarStyle,
@@ -282,34 +383,15 @@ function Sidebar({ children, ...props }: SidebarProps) {
       ]}
     >
       {/* Step 1: Calvin Maroon Masthead Branding */}
-      {!isCollapsed ? (
-        <View style={styles.masthead}>
-          <View style={styles.mastheadTopRow}>
-            <View style={styles.brandRow}>
-              <ThemedText style={styles.brandTitle}>Knightly</ThemedText>
-              <View style={styles.goldDot} />
-            </View>
-
-            {/* Collapse Sidebar Button */}
-            <Pressable
-              onPress={toggleCollapse}
-              accessibilityRole="button"
-              accessibilityLabel="Collapse sidebar"
-              accessibilityHint="Shrinks sidebar into an icon-only navigation rail"
-              {...Platform.select({ web: { title: 'Collapse sidebar' } as any })}
-              style={({ pressed }) => [
-                styles.collapseToggle,
-                pressed && styles.togglePressed,
-              ]}
-            >
-              <Icon sf="sidebar.left" md="menu_open" size={17} color="rgba(255, 255, 255, 0.85)" />
-            </Pressable>
-          </View>
-
-          <ThemedText style={styles.mastheadTagline}>CALVIN UNIVERSITY</ThemedText>
-        </View>
-      ) : (
-        <View style={[styles.masthead, styles.mastheadCollapsed]}>
+      <View style={styles.masthead}>
+        {/* Collapsed Masthead Overlay: Centered "K." brand mark and expand toggle */}
+        <Animated.View
+          style={[
+            styles.mastheadCollapsedContent,
+            collapsedMastheadStyle,
+            !isAuthenticated && { opacity: 0 },
+          ]}
+        >
           <View style={styles.brandRowCollapsed}>
             <ThemedText style={styles.brandTitleCollapsed}>K</ThemedText>
             <View style={styles.goldDotCollapsed} />
@@ -330,58 +412,117 @@ function Sidebar({ children, ...props }: SidebarProps) {
           >
             <Icon sf="sidebar.right" md="menu" size={16} color="rgba(255, 255, 255, 0.85)" />
           </Pressable>
-        </View>
-      )}
+        </Animated.View>
+
+        {/* Expanded Masthead Overlay: "Knightly." brand title, pin toggle, and "CALVIN UNIVERSITY" tagline */}
+        <Animated.View
+          style={[
+            styles.mastheadExpandedContent,
+            expandedMastheadStyle,
+            !isAuthenticated && { opacity: 0 },
+          ]}
+        >
+          <View style={styles.mastheadTopRow}>
+            <View style={styles.brandRow}>
+              <ThemedText style={styles.brandTitle}>Knightly</ThemedText>
+              <View style={styles.goldDot} />
+            </View>
+
+            {/* Collapse / Pin Sidebar Button */}
+            <Pressable
+              onPress={toggleCollapse}
+              accessibilityRole="button"
+              accessibilityLabel={isCollapsed ? 'Pin sidebar open' : 'Collapse sidebar'}
+              accessibilityHint="Toggles whether sidebar stays expanded or collapses on mouse leave"
+              {...Platform.select({ web: { title: isCollapsed ? 'Pin sidebar open' : 'Collapse sidebar' } as any })}
+              style={({ pressed }) => [
+                styles.collapseToggle,
+                pressed && styles.togglePressed,
+              ]}
+            >
+              <Icon
+                sf={isCollapsed ? 'pin' : 'sidebar.left'}
+                md={isCollapsed ? 'push_pin' : 'menu_open'}
+                size={17}
+                color="rgba(255, 255, 255, 0.85)"
+              />
+            </Pressable>
+          </View>
+
+          <ThemedText style={styles.mastheadTagline}>
+            CALVIN UNIVERSITY
+          </ThemedText>
+        </Animated.View>
+      </View>
 
       {/* Step 2: Main Navigation Links */}
-      <View style={[styles.navSection, isCollapsed && styles.navSectionCollapsed]}>
-        {!isCollapsed && (
-          <View style={styles.sectionHeadingRow}>
-            <ThemedText
-              type="caption"
-              style={[styles.sectionHeading, { color: theme.textMuted }]}
-            >
-              PORTAL
-            </ThemedText>
-          </View>
-        )}
+      <View style={styles.navSection}>
+        <Animated.View style={[styles.sectionHeadingRow, slidingHeadingStyle]}>
+          <ThemedText
+            type="caption"
+            style={[styles.sectionHeading, { color: theme.textMuted }]}
+          >
+            PORTAL
+          </ThemedText>
+        </Animated.View>
         {children}
       </View>
 
       {/* Step 3: Sidebar Quick Action Footer */}
-      {!isCollapsed ? (
-        <View style={styles.footer}>
-          {/* Campus Clubs Directory Quick Link Button */}
-          <Pressable
-            onPress={openClubsDirectory}
-            accessibilityRole="button"
-            accessibilityLabel="Open Campus Clubs Directory - Student organizations and communities"
-            {...Platform.select({ web: { title: 'Open Campus Clubs Directory' } as any })}
-            style={({ pressed }) => [
-              styles.clubsButton,
-              {
-                backgroundColor: theme.backgroundSelected,
-              },
-              pressed && styles.pressed,
-            ]}
-          >
-            <View style={styles.clubsIconBox}>
-              <Icon sf="person.2.badge.gearshape" md="group" size={16} color={Brand.gold} />
-            </View>
+      <View style={styles.footer}>
+        {/* Campus Clubs Directory Quick Link Button */}
+        <Pressable
+          onPress={openClubsDirectory}
+          accessibilityRole="button"
+          accessibilityLabel="Open Campus Clubs Directory - Student organizations and communities"
+          {...Platform.select({ web: { title: 'Campus Clubs Directory — Student orgs & communities' } as any })}
+          style={({ pressed }) => [
+            styles.clubsButton,
+            {
+              backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundSelected,
+            },
+            pressed && styles.pressed,
+          ]}
+        >
+          {/* Stationary 36px Icon Box centered in 76px rail */}
+          <View style={styles.clubsIconBox}>
+            <Icon sf="person.2.badge.gearshape" md="group" size={17} color={Brand.gold} />
+          </View>
+
+          {/* Smooth Sliding Content: Title, Subtitle, Chevron */}
+          <Animated.View style={[styles.clubsSlidingContent, slidingContentStyle]}>
             <View style={styles.clubsCol}>
-              <ThemedText style={[styles.clubsButtonTitle, { color: theme.text }]}>
+              <ThemedText
+                type="smallBold"
+                numberOfLines={1}
+                style={[styles.clubsButtonTitle, { color: theme.text }]}
+              >
                 Campus Clubs Directory
               </ThemedText>
-              <ThemedText style={[styles.clubsButtonSubtitle, { color: theme.textMuted }]}>
+              <ThemedText
+                type="caption"
+                numberOfLines={1}
+                style={[styles.clubsButtonSubtitle, { color: theme.textMuted }]}
+              >
                 Student orgs & communities
               </ThemedText>
             </View>
             <Icon sf="chevron.right" md="chevron_right" size={14} color={theme.textMuted} />
-          </Pressable>
+          </Animated.View>
+        </Pressable>
 
-          {/* Authenticated Student Profile Strip */}
-          <View style={styles.profileRow}>
+        {/* Authenticated Student Profile Strip */}
+        <View
+          style={styles.profileRow}
+          {...Platform.select({ web: { title: `${displayName} • ${displayMajor}` } as any })}
+        >
+          {/* Stationary 36px Avatar Box centered in 76px rail */}
+          <View style={styles.profileAvatarBox}>
             <HeaderAvatar />
+          </View>
+
+          {/* Smooth Sliding Student Meta: Name and Major */}
+          <Animated.View style={[styles.profileSlidingContent, slidingContentStyle]}>
             <View style={styles.profileMeta}>
               <ThemedText
                 type="smallBold"
@@ -398,36 +539,9 @@ function Sidebar({ children, ...props }: SidebarProps) {
                 {displayMajor}
               </ThemedText>
             </View>
-          </View>
+          </Animated.View>
         </View>
-      ) : (
-        <View style={[styles.footer, styles.footerCollapsed]}>
-          {/* Collapsed Campus Clubs Directory Quick Link Button */}
-          <Pressable
-            onPress={openClubsDirectory}
-            accessibilityRole="button"
-            accessibilityLabel="Open Campus Clubs Directory"
-            {...Platform.select({ web: { title: 'Campus Clubs Directory — Student orgs & communities' } as any })}
-            style={({ pressed }) => [
-              styles.clubsButtonCollapsed,
-              {
-                backgroundColor: pressed ? theme.backgroundSelected : 'rgba(232, 176, 25, 0.1)',
-              },
-              pressed && styles.pressed,
-            ]}
-          >
-            <Icon sf="person.2.badge.gearshape" md="group" size={18} color={Brand.gold} />
-          </Pressable>
-
-          {/* Collapsed Student Avatar */}
-          <View
-            style={styles.profileCollapsed}
-            {...Platform.select({ web: { title: `${displayName} • ${displayMajor}` } as any })}
-          >
-            <HeaderAvatar />
-          </View>
-        </View>
-      )}
+      </View>
     </Animated.View>
   );
 }
@@ -445,6 +559,11 @@ type SidebarTabButtonProps = TabTriggerSlotProps & {
 /**
  * Single navigation row button within the desktop sidebar.
  * Automatically receives `isFocused` and `onPress` from Expo Router's `<TabTrigger asChild>`.
+ *
+ * WHAT IT DOES:
+ * - Houses stationary 36px squircle badge aligned at x = 20px in both collapsed and expanded states.
+ * - Slides label, caption, and trailing Calvin Gold active indicator out smoothly on expansion.
+ * - Fades collapsed active dot cleanly to prevent visual overlap during transition.
  */
 function SidebarTabButton({
   label,
@@ -455,47 +574,32 @@ function SidebarTabButton({
   ...props
 }: SidebarTabButtonProps) {
   const theme = useTheme();
-  const { isCollapsed } = useSidebar();
+  const { expandProgress } = useSidebar();
 
-  if (isCollapsed) {
-    return (
-      <Pressable
-        {...props}
-        accessibilityRole="button"
-        accessibilityLabel={`${label}: ${description ?? ''}`}
-        accessibilityState={{ selected: !!isFocused }}
-        {...Platform.select({
-          web: { title: `${label}${description ? ` — ${description}` : ''}` } as any,
-        })}
-        style={({ pressed }) => [
-          styles.tabButtonCollapsed,
-          isFocused && [
-            styles.tabButtonCollapsedFocused,
-            {
-              backgroundColor: theme.tintSoft,
-            },
-          ],
-          pressed && !isFocused && {
-            backgroundColor: theme.backgroundSelected,
-          },
-        ]}
-      >
-        <Icon
-          sf={sf}
-          md={md}
-          size={20}
-          color={isFocused ? (theme.tint ?? Brand.maroon) : theme.textMuted}
-        />
-        {isFocused && <View style={styles.activeDotCollapsed} />}
-      </Pressable>
-    );
-  }
+  // Slide and fade transition for label, caption, and trailing active dot
+  const slidingTextStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(expandProgress.value, [0.35, 0.85], [0, 1], Extrapolation.CLAMP),
+    transform: [
+      {
+        translateX: interpolate(expandProgress.value, [0.25, 1], [-18, 0], Extrapolation.CLAMP),
+      },
+    ],
+  }));
+
+  // Collapsed active indicator dot fade (only visible when collapsed)
+  const collapsedDotStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(expandProgress.value, [0, 0.2], [1, 0], Extrapolation.CLAMP),
+  }));
 
   return (
     <Pressable
       {...props}
       accessibilityRole="button"
+      accessibilityLabel={`${label}: ${description ?? ''}`}
       accessibilityState={{ selected: !!isFocused }}
+      {...Platform.select({
+        web: { title: `${label}${description ? ` — ${description}` : ''}` } as any,
+      })}
       style={({ pressed }) => [
         styles.tabButton,
         isFocused && [
@@ -512,7 +616,7 @@ function SidebarTabButton({
         ],
       ]}
     >
-      {/* Mature Squircle Icon Badge */}
+      {/* Mature Squircle Icon Badge - Stationary at x = 20px */}
       <View
         style={[
           styles.tabIconBadge,
@@ -531,39 +635,47 @@ function SidebarTabButton({
         />
       </View>
 
-      {/* Label and Caption */}
-      <View style={styles.tabTextCol}>
-        <ThemedText
-          type="smallBold"
-          style={[
-            styles.tabLabel,
-            {
-              color: isFocused ? theme.text : theme.text,
-              fontWeight: isFocused ? '700' : '600',
-            },
-          ]}
-        >
-          {label}
-        </ThemedText>
-        {description ? (
+      {/* Subtle Dot when Collapsed and Active */}
+      {isFocused && (
+        <Animated.View style={[styles.activeDotCollapsed, collapsedDotStyle]} />
+      )}
+
+      {/* Smooth Sliding Content: Label, Caption, and Trailing Gold Dot */}
+      <Animated.View style={[styles.tabSlidingContent, slidingTextStyle]}>
+        <View style={styles.tabTextCol}>
           <ThemedText
-            type="caption"
+            type="smallBold"
+            numberOfLines={1}
             style={[
-              styles.tabDescription,
+              styles.tabLabel,
               {
-                color: isFocused ? theme.textSecondary : theme.textMuted,
-                opacity: isFocused ? 0.95 : 0.75,
+                color: theme.text,
+                fontWeight: isFocused ? '700' : '600',
               },
             ]}
-            numberOfLines={1}
           >
-            {description}
+            {label}
           </ThemedText>
-        ) : null}
-      </View>
+          {description ? (
+            <ThemedText
+              type="caption"
+              style={[
+                styles.tabDescription,
+                {
+                  color: isFocused ? theme.textSecondary : theme.textMuted,
+                  opacity: isFocused ? 0.95 : 0.75,
+                },
+              ]}
+              numberOfLines={1}
+            >
+              {description}
+            </ThemedText>
+          ) : null}
+        </View>
 
-      {/* Subtle Trailing Calvin Gold Active Indicator Dot */}
-      {isFocused && <View style={styles.activeDot} />}
+        {/* Subtle Trailing Calvin Gold Active Indicator Dot */}
+        {isFocused && <View style={styles.activeDot} />}
+      </Animated.View>
     </Pressable>
   );
 }
@@ -601,12 +713,10 @@ const styles = StyleSheet.create({
   },
   masthead: {
     backgroundColor: Brand.maroon,
-    paddingTop: Spacing.four,
-    paddingHorizontal: Spacing.three + 2,
-    paddingBottom: Spacing.three,
+    height: 86,
     position: 'relative',
     overflow: 'hidden',
-    gap: 4,
+    borderRadius: 20,
     borderBottomWidth: 0,
     // Soft elevation shadow separating the maroon masthead from the navigation list without harsh lines
     shadowColor: Brand.maroonDark,
@@ -614,6 +724,28 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 2,
+  },
+  mastheadCollapsedContent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: 76,
+    height: 86,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  mastheadExpandedContent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: 270,
+    height: 86,
+    paddingTop: Spacing.four,
+    paddingHorizontal: Spacing.three + 2,
+    paddingBottom: Spacing.three,
+    justifyContent: 'center',
+    gap: 4,
   },
   mastheadCollapsed: {
     paddingHorizontal: Spacing.two,
@@ -715,12 +847,13 @@ const styles = StyleSheet.create({
   tabButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
     paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     borderRadius: 12,
     borderWidth: 0,
     minHeight: 56,
+    overflow: 'hidden',
+    position: 'relative',
   },
   tabButtonFocused: {
     shadowColor: Brand.maroon,
@@ -750,10 +883,18 @@ const styles = StyleSheet.create({
   tabIconBadge: {
     width: 36,
     height: 36,
-    borderRadius: 9,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+  },
+  tabSlidingContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 12,
+    paddingRight: 4,
+    overflow: 'hidden',
   },
   tabTextCol: {
     flex: 1,
@@ -780,13 +921,14 @@ const styles = StyleSheet.create({
   activeDotCollapsed: {
     position: 'absolute',
     bottom: 4,
+    left: 26,
     width: 4,
     height: 4,
     borderRadius: 2,
     backgroundColor: Brand.gold,
   },
   footer: {
-    paddingHorizontal: Spacing.two + 4,
+    paddingHorizontal: 10,
     paddingVertical: Spacing.three,
     borderTopWidth: 0,
     gap: Spacing.two + 2,
@@ -800,11 +942,11 @@ const styles = StyleSheet.create({
   clubsButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
     paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     borderRadius: 12,
     borderWidth: 0,
+    overflow: 'hidden',
     // Ambient soft elevation shadow for floating pill appearance
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
@@ -834,6 +976,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
+  clubsSlidingContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 12,
+    overflow: 'hidden',
+  },
   clubsCol: {
     flex: 1,
     gap: 1,
@@ -850,17 +999,28 @@ const styles = StyleSheet.create({
   profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingTop: 4,
-    paddingHorizontal: 2,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    overflow: 'hidden',
   },
   profileCollapsed: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: 2,
   },
-  profileMeta: {
+  profileAvatarBox: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  profileSlidingContent: {
     flex: 1,
+    marginLeft: 12,
+    overflow: 'hidden',
+  },
+  profileMeta: {
     gap: 1,
   },
   profileName: {
