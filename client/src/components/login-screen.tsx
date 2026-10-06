@@ -55,6 +55,15 @@ export function LoginScreen() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const maskTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const [isCollapsedLocally] = useState(() => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        return window.localStorage.getItem('knightly_sidebar_collapsed') === 'true';
+      } catch {}
+    }
+    return false;
+  });
+
   // Clean up any pending password mask timer on unmount
   useEffect(() => {
     return () => {
@@ -79,6 +88,9 @@ export function LoginScreen() {
 
   // Exact height of the AppHeader on the home page (for mobile)
   const targetHeaderHeight = getAppHeaderHeight(insets.top);
+  // Exact height of the Calvin Maroon Masthead at the top of the desktop sidebar
+  const defaultMastheadHeight = 86;
+  const mastheadHeight = useSharedValue(defaultMastheadHeight);
   const headerPaddingTop =
     isWeb ? Spacing.four : insets.top + Spacing.one;
 
@@ -102,13 +114,15 @@ export function LoginScreen() {
     defaultHeaderY + (defaultHeroHeight * targetScale) / 2 - (formMainTop + 74 + defaultHeroHeight / 2);
 
   // Shared animation values
+  const initialHeight = isWeb ? windowHeight : screenHeight;
   const overlayOpacity = useSharedValue(1);
-  const headerHeight = useSharedValue(screenHeight);
+  const headerHeight = useSharedValue(initialHeight);
   const headerWidth = useSharedValue(windowWidth);
   const sidebarMorphProgress = useSharedValue(0);
   const formOpacity = useSharedValue(1);
   const headerDetailsOpacity = useSharedValue(0);
   const wordmarkProgress = useSharedValue(0);
+  const wordmarkCrossfadeOpacity = useSharedValue(1);
 
   // Distance from hero starting center to header/sidebar destination center
   const deltaX = useSharedValue(initialDeltaX);
@@ -238,16 +252,18 @@ export function LoginScreen() {
   useEffect(() => {
     if (!isTransitioning) {
       overlayOpacity.value = 1;
-      headerHeight.value = screenHeight;
+      headerHeight.value = isWeb ? windowHeight : screenHeight;
       headerWidth.value = windowWidth;
       sidebarMorphProgress.value = 0;
       formOpacity.value = 1;
       headerDetailsOpacity.value = 0;
       wordmarkProgress.value = 0;
+      wordmarkCrossfadeOpacity.value = 1;
       isTransitioningRef.current = false;
     }
   }, [
     screenHeight,
+    windowHeight,
     windowWidth,
     isTransitioning,
     headerHeight,
@@ -256,7 +272,9 @@ export function LoginScreen() {
     formOpacity,
     headerDetailsOpacity,
     wordmarkProgress,
+    wordmarkCrossfadeOpacity,
     overlayOpacity,
+    isWeb,
   ]);
 
   const canSubmit = username.trim().length > 0 && password.trim().length > 0;
@@ -310,19 +328,19 @@ export function LoginScreen() {
     // during the 380ms form fade-out, avoiding any JS/CPU contention when the flight begins.
     setAppMounted(true);
 
-    // Symmetric ease-in-out curve for flight and shrink
-    const smoothSlideCurve = Easing.bezier(0.42, 0, 0.25, 1);
-    const ANIMATION_DURATION = 1250;
+    // Fluid ease-in-out slide curve for flight and shrink
+    const smoothSlideCurve = Easing.bezier(0.25, 0.1, 0.25, 1);
+    const ANIMATION_DURATION = 900;
 
     const startFlightAnimation = () => {
       // Permanently freeze measurements so no layout shifts or late callbacks can touch delta
       isTransitioningRef.current = true;
 
-      // Fade in the header subtitle and avatar
+      // Fade in the header details (avatar on mobile, tagline and collapse on web)
       headerDetailsOpacity.value = withDelay(
-        420,
+        isWeb ? 460 : 380,
         withTiming(1, {
-          duration: 750,
+          duration: isWeb ? 340 : 450,
           easing: Easing.out(Easing.quad),
         })
       );
@@ -335,13 +353,17 @@ export function LoginScreen() {
 
       const onFlightFinished = (finished?: boolean) => {
         if (finished) {
-          // Once flight arrives at target, smoothly cross-fade overlay (150ms)
+          // Snap from the fractionally scaled flying wordmark to the pixel-perfect native target wordmark
+          // right before the overlay crossfades to the identically matching app-tabs beneath.
+          wordmarkCrossfadeOpacity.value = 0;
+
+          // Once flight arrives at target, smoothly cross-fade overlay (160ms)
           // revealing the identical underlying UI with 100% continuous visibility
           overlayOpacity.value = withTiming(
             0,
             {
-              duration: 150,
-              easing: Easing.linear,
+              duration: 160,
+              easing: Easing.out(Easing.quad),
             },
             (crossfadeDone) => {
               if (crossfadeDone) {
@@ -354,9 +376,10 @@ export function LoginScreen() {
 
       if (isWeb) {
         // WHY INSET MORPH ON WEB:
-        // Desktop web layout uses an inset, rounded floating sidebar (left: 12, top: 12, width: 270, height: windowHeight - 24, borderRadius: 20).
+        // Desktop web layout uses an inset, rounded floating sidebar with a Calvin Maroon masthead
+        // (left: 12, top: 12, width: 270, height: targetMastheadHeight, borderRadius: 20).
         // Animating sidebarMorphProgress glides the maroon container from full-screen width/height
-        // directly into the exact inset geometry, rounded contour, and ambient elevation of the menu bar.
+        // directly into the exact inset geometry, rounded contour, and ambient elevation of the masthead.
         sidebarMorphProgress.value = withTiming(
           1,
           {
@@ -383,18 +406,17 @@ export function LoginScreen() {
       // while the wordmark is still 100% stationary.
       measurePositions();
 
-      // Clean 100ms beat so the user distinctly perceives the clean fade completion
-      // and any async measurements finish before flight begins.
+      // Brief 30ms settle so layout has settled and the flight smoothly initiates
       if (transitionTimerRef.current) {
         clearTimeout(transitionTimerRef.current);
       }
       transitionTimerRef.current = setTimeout(() => {
         startFlightAnimation();
-      }, 100);
+      }, 30);
     };
 
     // Phase 1: Smoothly fade out the rest of the sign in page completely
-    const FADE_OUT_DURATION = 380;
+    const FADE_OUT_DURATION = 260;
     formOpacity.value = withTiming(
       0,
       {
@@ -482,10 +504,11 @@ export function LoginScreen() {
   const maroonBackgroundStyle = useAnimatedStyle(() => {
     if (isWeb) {
       const p = sidebarMorphProgress.value;
+      const startH = windowHeight;
       const currentWidth = windowWidth + (targetSidebarWidth - windowWidth) * p;
       const currentLeft = 12 * p;
       const currentTop = 12 * p;
-      const currentHeight = windowHeight - 24 * p;
+      const currentHeight = startH + (mastheadHeight.value - startH) * p;
       const currentRadius = 20 * p;
 
       return {
@@ -496,12 +519,12 @@ export function LoginScreen() {
         height: currentHeight,
         borderRadius: currentRadius,
         overflow: 'hidden',
-        // Ambient soft elevation shadow blooming during flight to match the floating menu bar
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 6 * p },
-        shadowOpacity: 0.08 * p,
-        shadowRadius: 20 * p,
-        elevation: 4 * p,
+        // Ambient soft elevation shadow blooming during flight to match the masthead
+        shadowColor: Brand.maroonDark,
+        shadowOffset: { width: 0, height: 2 * p },
+        shadowOpacity: 0.15 * p,
+        shadowRadius: 4 * p,
+        elevation: 2 * p,
       };
     }
     return {
@@ -518,8 +541,8 @@ export function LoginScreen() {
     opacity: headerDetailsOpacity.value,
   }));
 
-  const webSidebarContainerAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: headerDetailsOpacity.value,
+  const targetWordmarkAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: 1 - wordmarkCrossfadeOpacity.value,
   }));
 
   // Wordmark translation and scaling animation:
@@ -534,6 +557,7 @@ export function LoginScreen() {
 
     return {
       zIndex: 999,
+      opacity: wordmarkCrossfadeOpacity.value,
       transform: [
         { translateX: dX * p },
         { translateY: dY * p },
@@ -566,39 +590,53 @@ export function LoginScreen() {
         <View
           pointerEvents="none"
           style={styles.webTargetMeasurementAnchor}>
-          <View style={styles.webSidebarMasthead}>
+          <View
+            onLayout={(e) => {
+              const h = e.nativeEvent.layout.height;
+              if (h > 0) {
+                mastheadHeight.value = h;
+              }
+              measurePositions();
+            }}
+            style={styles.webSidebarMasthead}>
             <View style={styles.webSidebarMastheadTopRow}>
               <View
                 ref={headerTargetRef}
                 onLayout={measurePositions}
-                style={styles.webSidebarWordmarkRow}>
+                style={[styles.webSidebarWordmarkRow, { opacity: 0 }]}>
                 <ThemedText style={styles.webSidebarBrandTitle}>Knightly</ThemedText>
                 <View style={styles.webSidebarGoldDot} />
               </View>
+
+              {/* Collapse button placeholder to ensure identical flex layout */}
+              <View style={[styles.webSidebarCollapseToggle, { opacity: 0 }]} />
             </View>
+
+            {/* Tagline placeholder to ensure identical layout height */}
+            <ThemedText style={[styles.webSidebarMastheadTagline, { opacity: 0 }]}>
+              CALVIN UNIVERSITY
+            </ThemedText>
           </View>
         </View>
       )}
 
       {/* 1. Maroon Background Container:
-          - Web: Horizontally and vertically glides into inset floating rounded sidebar rail
+          - Web: Horizontally and vertically glides into inset floating rounded sidebar masthead
           - Mobile: Vertically shrinks from screenHeight down to targetHeaderHeight */}
       <Animated.View style={[styles.maroonContainer, maroonBackgroundStyle]}>
         {isWeb ? (
-          /* Web Sidebar Layout Container */
-          <Animated.View
+          /* Web Sidebar Masthead Layout Container */
+          <View
             pointerEvents="none"
-            style={[
-              styles.webSidebarContainer,
-              webSidebarContainerAnimatedStyle,
-            ]}>
-            {/* Step 1: Calvin Maroon Masthead Branding */}
+            style={styles.webSidebarContainer}>
+            {/* Calvin Maroon Masthead Branding */}
             <View style={styles.webSidebarMasthead}>
               <View style={styles.webSidebarMastheadTopRow}>
-                <View style={styles.webSidebarWordmarkRow}>
+                {/* Perfect native text fades in instantly at the end of flight, preventing subpixel blur */}
+                <Animated.View style={[styles.webSidebarWordmarkRow, targetWordmarkAnimatedStyle]}>
                   <ThemedText style={styles.webSidebarBrandTitle}>Knightly</ThemedText>
                   <View style={styles.webSidebarGoldDot} />
-                </View>
+                </Animated.View>
 
                 {/* Collapse Sidebar Button Preview */}
                 <Animated.View
@@ -606,7 +644,12 @@ export function LoginScreen() {
                     styles.webSidebarCollapseToggle,
                     headerDetailsAnimatedStyle,
                   ]}>
-                  <Icon sf="sidebar.left" md="menu_open" size={17} color="rgba(255, 255, 255, 0.85)" />
+                  <Icon 
+                    sf={isCollapsedLocally ? 'pin' : 'sidebar.left'} 
+                    md={isCollapsedLocally ? 'push_pin' : 'menu_open'} 
+                    size={17} 
+                    color="rgba(255, 255, 255, 0.85)" 
+                  />
                 </Animated.View>
               </View>
 
@@ -616,134 +659,7 @@ export function LoginScreen() {
                 </ThemedText>
               </Animated.View>
             </View>
-
-            {/* Step 2: Main Navigation Links Preview */}
-            <Animated.View
-              style={[
-                styles.webSidebarNavSection,
-                { backgroundColor: theme.backgroundElement },
-                headerDetailsAnimatedStyle,
-              ]}>
-              <ThemedText
-                type="caption"
-                style={[styles.webSidebarSectionHeading, { color: theme.textMuted }]}>
-                PORTAL
-              </ThemedText>
-
-              {/* Knightly Tab (Active) */}
-              <View
-                style={[
-                  styles.webSidebarTabButton,
-                  {
-                    backgroundColor: theme.tintSoft,
-                    shadowColor: Brand.maroon,
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.09,
-                    shadowRadius: 8,
-                    elevation: 2,
-                  },
-                ]}>
-                <View
-                  style={[
-                    styles.webSidebarTabBadge,
-                    { backgroundColor: Brand.maroon },
-                  ]}>
-                  <Icon sf="sparkles" md="auto_awesome" size={17} color="#FFFFFF" />
-                </View>
-                <View style={styles.webSidebarTextCol}>
-                  <ThemedText style={[styles.webSidebarTabLabel, { color: theme.text, fontWeight: '700' }]}>
-                    Knightly
-                  </ThemedText>
-                  <ThemedText style={[styles.webSidebarTabDesc, { color: theme.textSecondary }]}>
-                    Campus events & feed
-                  </ThemedText>
-                </View>
-                <View style={styles.webSidebarActiveDot} />
-              </View>
-
-              {/* Dining Tab */}
-              <View style={styles.webSidebarTabButton}>
-                <View style={[styles.webSidebarTabBadge, { backgroundColor: theme.backgroundSelected }]}>
-                  <Icon sf="fork.knife" md="restaurant" size={17} color={theme.textSecondary} />
-                </View>
-                <View style={styles.webSidebarTextCol}>
-                  <ThemedText style={[styles.webSidebarTabLabel, { color: theme.text }]}>
-                    Dining
-                  </ThemedText>
-                  <ThemedText style={[styles.webSidebarTabDesc, { color: theme.textMuted }]}>
-                    Menus & meal plan
-                  </ThemedText>
-                </View>
-              </View>
-
-              {/* Safety Tab */}
-              <View style={styles.webSidebarTabButton}>
-                <View style={[styles.webSidebarTabBadge, { backgroundColor: theme.backgroundSelected }]}>
-                  <Icon sf="shield" md="shield" size={17} color={theme.textSecondary} />
-                </View>
-                <View style={styles.webSidebarTextCol}>
-                  <ThemedText style={[styles.webSidebarTabLabel, { color: theme.text }]}>
-                    Safety
-                  </ThemedText>
-                  <ThemedText style={[styles.webSidebarTabDesc, { color: theme.textMuted }]}>
-                    Campus safety & alerts
-                  </ThemedText>
-                </View>
-              </View>
-
-              {/* Directory Tab */}
-              <View style={styles.webSidebarTabButton}>
-                <View style={[styles.webSidebarTabBadge, { backgroundColor: theme.backgroundSelected }]}>
-                  <Icon sf="person.2" md="people" size={17} color={theme.textSecondary} />
-                </View>
-                <View style={styles.webSidebarTextCol}>
-                  <ThemedText style={[styles.webSidebarTabLabel, { color: theme.text }]}>
-                    Directory
-                  </ThemedText>
-                  <ThemedText style={[styles.webSidebarTabDesc, { color: theme.textMuted }]}>
-                    Students, faculty & staff
-                  </ThemedText>
-                </View>
-              </View>
-            </Animated.View>
-
-            {/* Step 3: Sidebar Quick Action Footer Preview */}
-            <Animated.View
-              style={[
-                styles.webSidebarFooter,
-                {
-                  backgroundColor: theme.backgroundElement,
-                },
-                headerDetailsAnimatedStyle,
-              ]}>
-              <View style={styles.webSidebarClubsButton}>
-                <View style={styles.webSidebarClubsIconBox}>
-                  <Icon sf="person.2.badge.gearshape" md="group" size={16} color={Brand.gold} />
-                </View>
-                <View style={styles.webSidebarClubsCol}>
-                  <ThemedText style={styles.webSidebarClubsTitle}>Campus Clubs Directory</ThemedText>
-                  <ThemedText style={styles.webSidebarClubsSubtitle}>Student orgs & communities</ThemedText>
-                </View>
-                <Icon sf="chevron.right" md="chevron_right" size={14} color="rgba(217, 155, 38, 0.7)" />
-              </View>
-
-              <View style={styles.webSidebarProfileRow}>
-                <View style={styles.webSidebarAvatar}>
-                  <ThemedText type="smallBold" style={styles.webSidebarAvatarText}>
-                    {activeInitials}
-                  </ThemedText>
-                </View>
-                <View style={styles.webSidebarProfileCol}>
-                  <ThemedText style={styles.webSidebarProfileName} numberOfLines={1}>
-                    {user?.fullName ?? `${student.firstName} ${student.lastName}`}
-                  </ThemedText>
-                  <ThemedText style={styles.webSidebarProfileMajor} numberOfLines={1}>
-                    {user?.major ?? student.major}
-                  </ThemedText>
-                </View>
-              </View>
-            </Animated.View>
-          </Animated.View>
+          </View>
         ) : (
           /* Mobile AppHeader Shrinking Container */
           <Animated.View
@@ -755,16 +671,16 @@ export function LoginScreen() {
             <View style={styles.headerInner}>
               <View style={styles.headerTitleRow}>
                 <View style={styles.headerTitleGroup}>
-                  {/* Invisible target reference for measuring the header docking location */}
-                  <View
+                  {/* Perfect native text fades in instantly at the end of flight, preventing subpixel blur */}
+                  <Animated.View
                     ref={headerTargetRef}
                     onLayout={measurePositions}
-                    style={[styles.headerWordmarkRow, { opacity: 0 }]}>
+                    style={[styles.headerWordmarkRow, targetWordmarkAnimatedStyle]}>
                     <ThemedText type="title" style={styles.headerTitleText}>
                       Knightly
                     </ThemedText>
                     <View style={styles.headerGoldDot} />
-                  </View>
+                  </Animated.View>
 
                   {/* Header Subtitle */}
                   <Animated.View style={headerDetailsAnimatedStyle}>
@@ -995,32 +911,6 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     backgroundColor: Brand.maroon,
-    overflow: 'hidden',
-  },
-  webTargetMeasurementAnchor: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    width: 270,
-    opacity: 0,
-    pointerEvents: 'none',
-    zIndex: -1,
-  },
-  webSidebarContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 20,
-    borderWidth: 0,
-    overflow: 'hidden',
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-    zIndex: 10,
-  },
-  webSidebarMasthead: {
-    backgroundColor: Brand.maroon,
     paddingTop: Spacing.four,
     paddingHorizontal: Spacing.three + 2,
     paddingBottom: Spacing.three,
@@ -1210,6 +1100,82 @@ const styles = StyleSheet.create({
   webSidebarProfileMajor: {
     color: 'rgba(255, 255, 255, 0.65)',
     fontSize: 11,
+  },
+  webTargetMeasurementAnchor: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    width: 270,
+    opacity: 0,
+    pointerEvents: 'none',
+    zIndex: -1,
+  },
+  webSidebarContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 270,
+    borderRadius: 20,
+    borderWidth: 0,
+    overflow: 'hidden',
+    zIndex: 10,
+  },
+  webSidebarMasthead: {
+    backgroundColor: Brand.maroon,
+    paddingTop: Spacing.four,
+    paddingHorizontal: Spacing.three + 2,
+    paddingBottom: Spacing.three,
+    position: 'relative',
+    overflow: 'hidden',
+    borderRadius: 20,
+    gap: 4,
+    borderBottomWidth: 0,
+    shadowColor: Brand.maroonDark,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  webSidebarMastheadTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  webSidebarCollapseToggle: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  webSidebarWordmarkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+  },
+  webSidebarBrandTitle: {
+    color: '#FFFFFF',
+    fontFamily: Fonts.serif,
+    fontSize: 24,
+    lineHeight: 28,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  webSidebarGoldDot: {
+    width: 5.5,
+    height: 5.5,
+    borderRadius: 2.75,
+    backgroundColor: Brand.gold,
+    marginBottom: 4,
+  },
+  webSidebarMastheadTagline: {
+    color: 'rgba(255, 255, 255, 0.65)',
+    fontFamily: Fonts.sans,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   shrinkingHeaderContent: {
     position: 'absolute',

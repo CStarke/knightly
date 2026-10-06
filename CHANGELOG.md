@@ -5,6 +5,48 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
+## [0.4.4] - 2026-10-05
+
+### Added
+- **Mobile Feed Scope Toggle & Decoupled Category Filtering**: In the mobile app alone (`Platform.OS !== 'web'`), refined the scope toggle to feature "Following" on the left side and "All Campus" on the right side. On the "Following" toggle, the search bar is cleanly hidden for a streamlined feed. On the "All Campus" toggle, the search bar pops up directly below the toggle bar and above the filter banner, with full container tap-to-focus invoking the native soft keyboard.
+- **Streamlined Mobile Following Subheader**: On the mobile app alone, simplified the context subheader underneath the filter banner by removing the leading star icon and the parenthetical "(tap to browse clubs)" hint, displaying a clean, minimal status string (`Following X clubs · campus-wide events included`).
+- **"All" Category Option & Edge-to-Edge Filter Banner**: Added "All" as an active filter option in the mobile category strip, allowing students to easily reset or inspect all categories while retaining edge-to-edge horizontal scrolling (`marginHorizontal: -Spacing.three`, `paddingHorizontal: Spacing.three`).
+- **Centralized Feed Filter Pipeline Domain Helper**: Added and exported `filterFeedPosts` and `FeedFilterCriteria` in `client/src/data/feed.ts` with comprehensive unit test invariants verifying scope independence, multi-category matching, query search, and chronological sorting across "All", "Following", "All Campus", "ALL CAMPUS", and legacy aliases.
+
+### Fixed
+- **Toggle Responsiveness & Low-End Mobile Performance**: Completely eliminated the severe synchronous rendering lag experienced when toggling between "All Campus" and "Following" scopes on the mobile app. Integrated React 18 `useDeferredValue` for all feed filtering state to prioritize immediate 60fps toggle highlighting while computing search arrays in the background. Upgraded the mobile feed renderer from a raw `Array.map` to a custom `ScreenFlatList` component (`Animated.FlatList`) decoupled from desktop layouts. Enforced mobile-specific list virtualization (`initialNumToRender: 5`, `removeClippedSubviews: true`) strictly ensuring smooth scrolling and memory efficiency on low-end hardware without breaking the global starfield parallax effect.
+- **Mobile Bottom Navigation Bar Grounding & Anti-Bleed Anchoring**: Fixed the bottom tab bar on the mobile app alone (`client/src/components/app-tabs.tsx`, `Platform.OS !== 'web'`) to dock cleanly at the bottom in normal layout flow with full-width anchoring and solid Calvin theme background (`backgroundColor: theme.backgroundElement`). By placing the bar in normal layout flow rather than an unanchored floating absolute overlay without a background, screen viewports stop precisely at the top gold rule of the bar, completely preventing cards, text, and other screen elements from scrolling behind the nav bar or peeking out underneath.
+- **Mobile Campus Feed Singular Column Layout**: Fixed the Knightly feed (`client/src/app/(tabs)/index.tsx`) on the mobile app alone (`Platform.OS !== 'web'`) to render in strictly one singular full-width column (`numColumns = 1`). Handheld mobile displays (iOS and Android) now feature an uncompressed, distraction-free vertical reading stream where card headlines, category badges, event logistics, and 16:9 hero artwork have full horizontal breathing room. Preserved the multi-column even-row grid layout on web displays (3 columns on desktop monitors `width >= 900`, 2 columns on tablet/responsive web).
+- **Mobile Campus Feed Card Margins**: In the mobile app alone (`Platform.OS !== 'web'`), added comfortable `Spacing.three` (16px) horizontal margins (`mobileCardRow: { paddingHorizontal: Spacing.three }`) to the feed post card rows. This prevents cards from touching the physical screen edges edge-to-edge, perfectly showcases the card corner radii (`Radius.lg`), and aligns post boundaries with the top search field and empty state containers.
+- **Column Count Resolution Domain Helper**: Exported `resolveFeedColumnCount(width, platform)` in `client/src/data/feed.ts` with comprehensive unit test invariants verifying singular column resolution across mobile device widths and multi-column responsive rules on web.
+
+## [0.4.2] - 2026-10-05
+
+### Fixed
+- **Sidebar Tab Jumbling on Hover**: Fixed the "jumbled" text wrapping artifact during sidebar expansion by applying a rigid 198px width constraint (`width: 198`) to the inner `tabSlidingContent` containers, allowing labels and descriptions to be revealed smoothly by the expanding outer mask rather than actively relayouting and wrapping across multiple lines during the 240ms transition.
+- **Flight Handoff Duplication Artifacts**: Eliminated overlapping duplication and blurriness at the precise end of the sign-in flight animation:
+  - Addressed fractional text scaling mismatches by instantly swapping the flying `fontSize: 34` wordmark for a native `fontSize: 24` wordmark (`targetWordmarkAnimatedStyle`) the exact millisecond the flight lands, ensuring the 160ms crossfade occurs between pixel-perfect identical native layers.
+  - Stopped the underlying UI from abruptly popping in by removing the `!isAuthenticated && { opacity: 0 }` hack in `app-tabs.web.tsx`, replacing it with seamless continuous background rendering.
+  - Fixed a ghostly duplication of the collapse button by directly reading `isCollapsedLocally` from `localStorage` during the login screen flight, ensuring the preview icon perfectly matches the user's saved pinning preference (`pin` vs `sidebar.left`).
+
+## [0.4.1] - 2026-10-05
+
+### Added
+- **Desktop Web Sidebar Hover Expansion & Collapse**: Integrated dynamic mouse and pointer hover expansion into `app-tabs.web.tsx`. When the sidebar is collapsed into an icon-only navigation rail (76px), hovering over the rail smoothly animates width out to 270px (`Easing.bezier(0.2, 0, 0, 1)`), revealing full navigation tab labels, descriptive captions, and student profile metadata. Moving the mouse pointer away automatically collapses the sidebar back down to 76px. Users can pin the sidebar permanently open via the masthead toggle button.
+- **Smooth Sidebar Sliding Element Transitions**: Replaced instantaneous conditional DOM switching with a unified component layout and Reanimated slide-out tray transitions driven by `expandProgress`:
+  - **Stationary Icon Geometry**: Fixed squircle tab badges (36px), clubs icon box (36px), and student avatar (36px) at a stationary horizontal position (`x = 20px`), perfectly centered in the 76px collapsed rail and remaining stationary without a single pixel of jitter during expansion.
+  - **Horizontal Slide-Out & Fade Tray**: Navigation labels, captions, trailing gold active indicator dots, "PORTAL" section heading, clubs directory description, and student profile metadata glide smoothly from left to right (`translateX: -18px -> 0px`, `opacity: 0 -> 1`) only after the container has widened sufficiently, completely eliminating squeezed, line-wrapping, or jumbled text artifacts.
+  - **Masthead Dual Overlay Crossfade**: Centered "K." collapsed monogram cleanly fades out while the expanded "Knightly." wordmark and pin toggle slide into place without layout height jumps.
+  - **Rounded Maroon Masthead Geometry**: Added 20px rounded corners (`borderRadius: 20`) to the Calvin Maroon masthead in both `app-tabs.web.tsx` and `login-screen.tsx`, sculpting the bottom corners of the maroon block with soft contours that seamlessly match the sidebar's 20px outer corner radius and eliminate sharp square dividers.
+
+### Fixed
+- **Web Sign-In Transition Smoothing & Absolute Element Deduplication**: Completely eliminated visual element duplication and jarring timing at the end of the desktop web sign-in animation (`login-screen.tsx`):
+  - **Initial Height Alignment**: Fixed desktop viewport calculation to start at `windowHeight` instead of offscreen physical monitor `screenHeight`, removing the dead lag at the start of the flight.
+  - **Fluid Animation Curve & Timing**: Tightened form fade-out to 260ms, removed artificial 100ms pauses in favor of a 30ms settle, and accelerated the flight to 900ms using a fluid cubic-bezier curve (`Easing.bezier(0.25, 0.1, 0.25, 1)`).
+  - **Fixed Masthead Geometry Anchoring**: Pinned `webSidebarContainer` to a fixed 270px width within `maroonContainer`, preventing the collapse button from stretching across the screen or sliding horizontally over feed content during flight.
+  - **Underlying Masthead Concealment**: Hidden underlying masthead content (`opacity: 0`) in `app-tabs.web.tsx` while unauthenticated (`!isAuthenticated`), guaranteeing zero duplicate collapse buttons, duplicate taglines, or duplicate wordmarks appear during flight or crossfade.
+  - **Precise Measurement Anchor**: Added collapse toggle and tagline placeholders to `webTargetMeasurementAnchor` in `login-screen.tsx`, ensuring layout measurements report the true 86px masthead height and docking deltas align with subpixel accuracy.
+
 ## [0.4.0] - 2026-10-05
 
 ### Added

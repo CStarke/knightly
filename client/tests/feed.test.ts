@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { feedCategories, followedOrgs, posts, searchPosts, type FeedCategory } from '@/data/feed';
+import { feedCategories, filterFeedPosts, followedOrgs, posts, resolveFeedColumnCount, searchPosts, type FeedCategory, type Post } from '@/data/feed';
 import { formatRelativeTime } from '@/utils/date-format';
 
 describe('Knightly Feed Domain', () => {
@@ -506,12 +506,57 @@ describe('Knightly Feed Domain', () => {
   });
 
   describe('Feed Even Grid & 1-Click Unified Filter Invariants', () => {
-    it('chunks posts into strictly even rows with equal cell counts and spacers', () => {
+    it('resolves strictly 1 singular column on mobile app (iOS & Android) regardless of screen width', () => {
+      // Handheld phone screen widths
+      assert.strictEqual(resolveFeedColumnCount(320, 'ios'), 1);
+      assert.strictEqual(resolveFeedColumnCount(375, 'ios'), 1);
+      assert.strictEqual(resolveFeedColumnCount(390, 'ios'), 1);
+      assert.strictEqual(resolveFeedColumnCount(428, 'ios'), 1);
+
+      // Android phones and foldables
+      assert.strictEqual(resolveFeedColumnCount(360, 'android'), 1);
+      assert.strictEqual(resolveFeedColumnCount(412, 'android'), 1);
+      assert.strictEqual(resolveFeedColumnCount(800, 'android'), 1);
+      assert.strictEqual(resolveFeedColumnCount(1080, 'android'), 1);
+    });
+
+    it('resolves responsive multi-column layout on web alone (3 for desktop >=900, 2 for tablet <900)', () => {
+      // Desktop widescreen monitor
+      assert.strictEqual(resolveFeedColumnCount(900, 'web'), 3);
+      assert.strictEqual(resolveFeedColumnCount(1200, 'web'), 3);
+      assert.strictEqual(resolveFeedColumnCount(1920, 'web'), 3);
+
+      // Narrow / tablet web displays
+      assert.strictEqual(resolveFeedColumnCount(899, 'web'), 2);
+      assert.strictEqual(resolveFeedColumnCount(768, 'web'), 2);
+      assert.strictEqual(resolveFeedColumnCount(400, 'web'), 2);
+    });
+
+    it('chunks posts into strictly 1 singular column with 0 spacers on mobile app', () => {
+      const samplePosts = posts.slice(0, 5); // 5 items
+      const numCols = resolveFeedColumnCount(390, 'ios');
+      assert.strictEqual(numCols, 1);
+
+      const rows: Post[][] = [];
+      for (let i = 0; i < samplePosts.length; i += numCols) {
+        rows.push(samplePosts.slice(i, i + numCols));
+      }
+
+      // 5 posts in 1 column yields 5 rows, each containing exactly 1 post
+      assert.strictEqual(rows.length, 5);
+      for (const row of rows) {
+        assert.strictEqual(row.length, 1);
+        const spacersNeeded: number = numCols - row.length;
+        assert.strictEqual(spacersNeeded, 0, 'Singular column must never generate spacer cells');
+      }
+    });
+
+    it('chunks posts into strictly even rows with equal cell counts and spacers on web', () => {
       const samplePosts = posts.slice(0, 5); // 5 items
 
       // 2-column even row chunking
       const numCols = 2;
-      const rows: typeof posts[] = [];
+      const rows: Post[][] = [];
       for (let i = 0; i < samplePosts.length; i += numCols) {
         rows.push(samplePosts.slice(i, i + numCols));
       }
@@ -522,7 +567,7 @@ describe('Knightly Feed Domain', () => {
       assert.strictEqual(rows[2].length, 1);
 
       // Spacer calculation for the incomplete last row
-      const spacersNeeded = numCols - rows[rows.length - 1].length;
+      const spacersNeeded: number = numCols - rows[rows.length - 1].length;
       assert.strictEqual(spacersNeeded, 1, 'Odd item count must compute exactly 1 spacer cell');
     });
 
@@ -625,4 +670,185 @@ describe('Knightly Feed Domain', () => {
       assert.strictEqual(filters.size, 1);
     });
   });
+
+  describe('Mobile Feed Scope Toggle & Independent Category Filters', () => {
+    const isFollowing = (clubId: string) => clubId === 'student-activities';
+
+    it('returns all posts when mobile scope is "All" and no categories are selected', () => {
+      const results = filterFeedPosts(posts, {
+        scope: 'All',
+        categories: [],
+        query: '',
+        isFollowing,
+      });
+
+      assert.strictEqual(results.length, posts.length);
+    });
+
+    it('filters to followed clubs and campus-wide notices when mobile scope is "Following" with no categories', () => {
+      const results = filterFeedPosts(posts, {
+        scope: 'Following',
+        categories: [],
+        query: '',
+        isFollowing,
+      });
+
+      assert.ok(results.length > 0);
+      assert.ok(results.length < posts.length);
+      for (const p of results) {
+        const clubId = p.clubId ?? p.org.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        assert.ok(p.campusWide || isFollowing(clubId), 'Post must be campusWide or from a followed club');
+      }
+    });
+
+    it('filters by category under "All" scope without requiring followed affiliation', () => {
+      const athleticsResults = filterFeedPosts(posts, {
+        scope: 'All',
+        categories: ['Athletics'],
+        query: '',
+        isFollowing,
+      });
+
+      assert.ok(athleticsResults.length > 0);
+      for (const p of athleticsResults) {
+        assert.strictEqual(p.category, 'Athletics');
+      }
+    });
+
+    it('combines "Following" scope and category selection independently', () => {
+      // "Following" + "Social" (Student Activities is Social)
+      const followingSocial = filterFeedPosts(posts, {
+        scope: 'Following',
+        categories: ['Social'],
+        query: '',
+        isFollowing,
+      });
+
+      assert.ok(followingSocial.length > 0);
+      for (const p of followingSocial) {
+        const clubId = p.clubId ?? p.org.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        assert.ok(p.campusWide || isFollowing(clubId));
+        assert.strictEqual(p.category, 'Social');
+      }
+    });
+
+    it('supports multiple category selection union under mobile scope', () => {
+      const multiCat = filterFeedPosts(posts, {
+        scope: 'All',
+        categories: ['Athletics', 'The Arts'],
+        query: '',
+        isFollowing,
+      });
+
+      assert.ok(multiCat.length > 0);
+      assert.ok(multiCat.some((p) => p.category === 'Athletics'));
+      assert.ok(multiCat.some((p) => p.category === 'The Arts'));
+      assert.ok(multiCat.every((p) => p.category === 'Athletics' || p.category === 'The Arts'));
+    });
+
+    it('combines mobile scope, category filters, and search query', () => {
+      const searched = filterFeedPosts(posts, {
+        scope: 'All',
+        categories: ['Social'],
+        query: 'Airband',
+        isFollowing,
+      });
+
+      assert.strictEqual(searched.length, 1);
+      assert.strictEqual(searched[0].headline, 'Airband is back');
+    });
+
+    it('preserves selected categories when switching mobile scope between "All" and "Following"', () => {
+      const activeCategories: FeedCategory[] = ['Athletics'];
+
+      // Scope: "All"
+      const allScope = filterFeedPosts(posts, {
+        scope: 'All',
+        categories: activeCategories,
+        query: '',
+        isFollowing,
+      });
+
+      // Scope: "Following"
+      const followingScope = filterFeedPosts(posts, {
+        scope: 'Following',
+        categories: activeCategories,
+        query: '',
+        isFollowing,
+      });
+
+      // Both must strictly match category "Athletics"
+      assert.ok(allScope.every((p) => p.category === 'Athletics'));
+      assert.ok(followingScope.every((p) => p.category === 'Athletics'));
+      // Following is a subset of All
+      assert.ok(followingScope.length <= allScope.length);
+    });
+
+    it('supports "ALL CLUBS" scope and "FOLLOWING" scope uppercase aliases', () => {
+      const allClubsResults = filterFeedPosts(posts, {
+        scope: 'ALL CLUBS',
+        categories: [],
+        query: '',
+        isFollowing,
+      });
+      assert.strictEqual(allClubsResults.length, posts.length);
+
+      const followingResults = filterFeedPosts(posts, {
+        scope: 'FOLLOWING',
+        categories: [],
+        query: '',
+        isFollowing,
+      });
+      assert.ok(followingResults.length > 0);
+      assert.ok(followingResults.length < posts.length);
+      for (const p of followingResults) {
+        const clubId = p.clubId ?? p.org.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        assert.ok(p.campusWide || isFollowing(clubId));
+      }
+    });
+
+    it('supports "All Campus" scope and "Following" scope on mobile', () => {
+      const allCampusResults = filterFeedPosts(posts, {
+        scope: 'All Campus',
+        categories: [],
+        query: '',
+        isFollowing,
+      });
+      assert.strictEqual(allCampusResults.length, posts.length);
+
+      const followingResults = filterFeedPosts(posts, {
+        scope: 'Following',
+        categories: [],
+        query: '',
+        isFollowing,
+      });
+      assert.ok(followingResults.length > 0);
+      assert.ok(followingResults.length < posts.length);
+      for (const p of followingResults) {
+        const clubId = p.clubId ?? p.org.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        assert.ok(p.campusWide || isFollowing(clubId));
+      }
+    });
+
+    it('handles "All" category chip selection without restricting categories', () => {
+      const resultsWithAll = filterFeedPosts(posts, {
+        scope: 'All Campus',
+        categories: ['All'],
+        query: '',
+        isFollowing,
+      });
+      assert.strictEqual(resultsWithAll.length, posts.length);
+
+      // When "All" is selected with a search query
+      const searchedWithAll = filterFeedPosts(posts, {
+        scope: 'All Campus',
+        categories: ['All'],
+        query: 'Airband',
+        isFollowing,
+      });
+      assert.strictEqual(searchedWithAll.length, 1);
+      assert.strictEqual(searchedWithAll[0].headline, 'Airband is back');
+    });
+  });
 });
+
