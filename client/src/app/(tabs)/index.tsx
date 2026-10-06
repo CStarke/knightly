@@ -38,6 +38,7 @@ import { Chip } from "@/components/ui/chip";
 import { Icon } from "@/components/ui/icon";
 import { Screen, ScreenFlatList } from "@/components/ui/screen";
 import { SearchField } from "@/components/ui/search-field";
+import { Segmented } from "@/components/ui/segmented";
 import { Brand, Radius, Spacing } from "@/constants/theme";
 import { useClubFollow } from "@/context/club-follow-context";
 import { useClubsNavigation } from "@/context/clubs-navigation-context";
