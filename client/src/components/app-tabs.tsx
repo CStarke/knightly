@@ -1420,7 +1420,10 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   bottomBarWrapper: {
-    width: '100%',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     zIndex: 10,
   },
   ruleContainer: {

@@ -798,7 +798,83 @@ describe('Templates & Code De-bloating Invariants', () => {
       assert.ok(!bannerCode.includes("preset.id === 'amber' ?"), 'amber preset should not have divergent selection markup');
     });
   });
+
+  describe('Web and Mobile Layout Platform Isolation Invariants', () => {
+    const srcDir = path.resolve(__dirname, '../src');
+    const readSrc = (relPath: string) => fs.readFileSync(path.join(srcDir, relPath), 'utf-8').replace(/\r\n/g, '\n');
+
+    it('verifies mobile BottomBar is strictly anchored with absolute positioning', () => {
+      const tabsCode = readSrc('components/app-tabs.tsx');
+
+      // Native bottom navigation bar must anchor absolutely to bottom edge
+      assert.ok(tabsCode.includes("bottomBarWrapper: {\n    position: 'absolute',\n    bottom: 0,\n    left: 0,\n    right: 0,\n    zIndex: 10,"),
+        'app-tabs.tsx bottomBarWrapper must preserve absolute positioning at bottom: 0');
+    });
+
+    it('verifies LoginScreen maroonContainer mobile styles are clean and non-colliding', () => {
+      const loginCode = readSrc('components/login-screen.tsx');
+
+      // Mobile header maroonContainer must have clean absolute positioning
+      assert.ok(loginCode.includes("maroonContainer: {\n    position: 'absolute',\n    top: 0,\n    left: 0,\n    right: 0,\n    backgroundColor: Brand.maroon,\n    overflow: 'hidden',\n  },"),
+        'login-screen.tsx maroonContainer must be absolute top:0 left:0 right:0');
+
+      // Web sidebar masthead must be cleanly isolated and not merged into maroonContainer
+      assert.ok(loginCode.includes("webSidebarMasthead: {"), 'webSidebarMasthead must be defined');
+      assert.ok(loginCode.includes("borderRadius: 20"), 'webSidebarMasthead must have borderRadius: 20');
+    });
+
+    it('verifies PostCard isolates mobile typography and body from desktop web grid constraints', () => {
+      const cardCode = readSrc('components/post-card.tsx');
+
+      // Mobile headline must preserve 22px serif font without height or line constraints
+      assert.ok(cardCode.includes("title: {\n    fontFamily: Fonts.serif,\n    fontSize: 22,\n    lineHeight: 28,\n    fontWeight: '700',\n    letterSpacing: -0.3,\n  },"),
+        'post-card.tsx title must have 22px serif styling on mobile');
+
+      // Web grid constraints must be isolated in webTitle
+      assert.ok(cardCode.includes("webTitle: {\n    fontSize: 18,\n    lineHeight: 23,\n    minHeight: 46,\n  },"),
+        'post-card.tsx webTitle must isolate 18px and minHeight: 46 for web grid');
+
+      // Mobile post card container must not force flex: 1 or height: 100%
+      assert.ok(cardCode.includes("card: {\n    borderRadius: Radius.lg,\n    overflow: 'hidden',\n  },"),
+        'post-card.tsx card container must not force flex: 1 or height: 100% on mobile');
+
+      // Web card container isolates flex: 1 and height: 100%
+      assert.ok(cardCode.includes("webCard: {\n    flex: 1,\n    height: '100%',\n  },"),
+        'post-card.tsx webCard must isolate flex: 1 and height: 100%');
+
+      // Line clamping must be conditional on isWeb
+      assert.ok(cardCode.includes("numberOfLines={isWeb ? 3 : undefined}"),
+        'post-card.tsx headline must only clamp lines on web');
+      assert.ok(cardCode.includes("numberOfLines={isWeb ? 4 : undefined}"),
+        'post-card.tsx body must only clamp lines on web');
+    });
+
+    it('verifies FeedScreen (tabs)/index.tsx is a lightweight platform router delegating to FeedWebView and FeedMobileView', () => {
+      const indexCode = readSrc('app/(tabs)/index.tsx');
+
+      // (tabs)/index.tsx must not be a monolithic component (under 50 lines)
+      const lines = indexCode.split('\n');
+      assert.ok(lines.length <= 50, `(tabs)/index.tsx should be a concise modular router (got ${lines.length} lines)`);
+
+      // Must import and delegate cleanly to FeedMobileView and FeedWebView
+      assert.ok(indexCode.includes('import { FeedMobileView } from "@/components/feed-mobile-view";'),
+        'index.tsx must import FeedMobileView');
+      assert.ok(indexCode.includes('import { FeedWebView } from "@/components/feed-web-view";'),
+        'index.tsx must import FeedWebView');
+      assert.ok(indexCode.includes('Platform.OS === "web" ? <FeedWebView /> : <FeedMobileView />') ||
+        (indexCode.includes('if (Platform.OS === "web")') && indexCode.includes('<FeedWebView />') && indexCode.includes('<FeedMobileView />')),
+        'index.tsx must delegate based on Platform.OS');
+
+      // Both component files must exist and export their respective views
+      const mobileCode = readSrc('components/feed-mobile-view.tsx');
+      assert.ok(mobileCode.includes('export function FeedMobileView()'), 'FeedMobileView component must be exported');
+
+      const webCode = readSrc('components/feed-web-view.tsx');
+      assert.ok(webCode.includes('export function FeedWebView()'), 'FeedWebView component must be exported');
+    });
+  });
 });
+
 
 
 

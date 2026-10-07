@@ -69,6 +69,50 @@ export {
   type TabMeta,
 };
 
+const BASE_TABS: TabMeta[] = [
+  {
+    name: 'index',
+    href: '/',
+    label: 'Knightly',
+    sf: 'sparkles',
+    md: 'auto_awesome',
+  },
+  {
+    name: 'dining',
+    href: '/dining',
+    label: 'Dining',
+    sf: 'fork.knife',
+    md: 'restaurant',
+  },
+  {
+    name: 'safety',
+    href: '/safety',
+    label: 'Safety',
+    sf: 'shield',
+    md: 'shield',
+  },
+  {
+    name: 'directory',
+    href: '/directory',
+    label: 'Directory',
+    sf: 'person.2',
+    md: 'people',
+  },
+];
+
+const LEADER_TABS: TabMeta[] = [
+  ...BASE_TABS,
+  {
+    name: 'post',
+    href: '/post',
+    label: 'Post',
+    sf: 'plus.circle',
+    sfActive: 'plus.circle.fill',
+    md: 'add_circle',
+    mdActive: 'add_circle',
+  },
+];
+
 const dummySharedValue = { value: 0 } as SharedValue<number>;
 
 /**
@@ -183,8 +227,8 @@ export default function AppTabs() {
       const href = targetHref || '/';
       router.navigate(href as any);
     },
-    tabs: [],
-  }), [pathname]);
+    tabs: isLeader ? LEADER_TABS : BASE_TABS,
+  }), [pathname, isLeader]);
 
   return (
     <SidebarContext.Provider

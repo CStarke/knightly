@@ -1,6 +1,8 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
+
+const isWeb = Platform.OS === 'web';
 
 import { ThemedText } from '@/components/themed-text';
 import { Badge, type BadgeTone } from '@/components/ui/badge';
@@ -71,7 +73,7 @@ function OrgBadge({
       accessibilityRole="button"
       accessibilityLabel={`View ${org} club page`}
       style={({ pressed }) => [
-        isOverlay ? styles.orgPill : styles.noImageOrgRow,
+        isOverlay ? (isWeb ? [styles.orgPill, styles.webOrgPill] : styles.orgPill) : styles.noImageOrgRow,
         pressed && styles.pressedPill,
       ]}
     >
@@ -86,7 +88,7 @@ function OrgBadge({
       ) : null}
       <ThemedText
         type={isOverlay ? undefined : 'smallBold'}
-        style={isOverlay ? styles.overlayOrgText : styles.noImageOrgText}
+        style={isOverlay ? (isWeb ? [styles.overlayOrgText, styles.webOverlayOrgText] : styles.overlayOrgText) : styles.noImageOrgText}
         numberOfLines={isOverlay ? 1 : undefined}
       >
         {org}
@@ -151,7 +153,7 @@ export function PostCard({ post, onPressOrg }: PostCardProps) {
   const presetDetails = isPreset ? getPresetBannerDetails(post.image) : null;
 
   return (
-    <Card flush style={styles.card}>
+    <Card flush style={[styles.card, isWeb && styles.webCard]}>
       {/* Step 3: Top Banner Image Container (when image is present) */}
       {post.image ? (
         <View style={styles.imageContainer}>
@@ -182,7 +184,7 @@ export function PostCard({ post, onPressOrg }: PostCardProps) {
             />
           )}
           {/* Subtle top scrim ensuring overlay badges contrast cleanly against bright photos */}
-          <View style={styles.scrim} />
+          <View style={[styles.scrim, isWeb && styles.webScrim]} />
 
           <View style={styles.overlayBar}>
             <OrgBadge org={post.org} followed={followed} isOverlay onPress={handlePressOrg} />
@@ -194,7 +196,7 @@ export function PostCard({ post, onPressOrg }: PostCardProps) {
         </View>
       ) : null}
 
-      <View style={styles.content}>
+      <View style={[styles.content, isWeb && styles.webContent]}>
         {/* Step 4: Editorial header strip for posts without an image */}
         {!post.image ? (
           <View style={styles.noImageHeader}>
@@ -204,7 +206,9 @@ export function PostCard({ post, onPressOrg }: PostCardProps) {
         ) : null}
 
         {/* Step 5: Headline typography (largest, most commanding text in serif font) */}
-        <ThemedText style={styles.title} numberOfLines={3}>{post.headline}</ThemedText>
+        <ThemedText style={[styles.title, isWeb && styles.webTitle]} numberOfLines={isWeb ? 3 : undefined}>
+          {post.headline}
+        </ThemedText>
 
         {/* Step 6: Event logistics metadata (When & Where badges) */}
         {post.when || post.where ? (
@@ -229,7 +233,7 @@ export function PostCard({ post, onPressOrg }: PostCardProps) {
         ) : null}
 
         {/* Step 7: Body copy */}
-        <ThemedText type="small" themeColor="textSecondary" style={styles.body} numberOfLines={4}>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.body} numberOfLines={isWeb ? 4 : undefined}>
           {post.body}
         </ThemedText>
 
@@ -258,6 +262,8 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: Radius.lg,
     overflow: 'hidden',
+  },
+  webCard: {
     flex: 1,
     height: '100%',
   },
@@ -276,9 +282,12 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 60,
+    height: 72,
     experimental_backgroundImage:
       'linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 100%)',
+  },
+  webScrim: {
+    height: 60,
   },
   overlayBar: {
     position: 'absolute',
@@ -295,18 +304,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 5,
     backgroundColor: 'rgba(17, 24, 28, 0.75)',
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 4,
+    paddingHorizontal: Spacing.two + 2,
+    paddingVertical: 5,
     borderRadius: Radius.pill,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.22)',
-    maxWidth: '68%',
+    maxWidth: '70%',
     flexShrink: 1,
+  },
+  webOrgPill: {
+    paddingHorizontal: Spacing.two,
+    paddingVertical: 4,
+    maxWidth: '68%',
   },
   overlayOrgText: {
     color: '#FFFFFF',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  webOverlayOrgText: {
+    fontSize: 11,
     letterSpacing: 0.1,
   },
   badgeWrapper: {
@@ -337,15 +355,21 @@ const styles = StyleSheet.create({
   content: {
     padding: Spacing.three,
     gap: Spacing.two,
+  },
+  webContent: {
     flex: 1,
     justifyContent: 'space-between',
   },
   title: {
     fontFamily: Fonts.serif,
-    fontSize: 18,
-    lineHeight: 23,
+    fontSize: 22,
+    lineHeight: 28,
     fontWeight: '700',
     letterSpacing: -0.3,
+  },
+  webTitle: {
+    fontSize: 18,
+    lineHeight: 23,
     minHeight: 46,
   },
   metaSection: {

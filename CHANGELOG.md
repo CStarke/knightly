@@ -5,6 +5,17 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
+## [0.4.5] - 2026-10-07
+
+### Fixed
+- **LoginScreen TypeScript Compilation & Style Deduplication**: Resolved 7 `TS1117` object literal duplicate property errors in `client/src/components/login-screen.tsx`. Cleanly separated mobile `styles.maroonContainer` from desktop `webSidebarMasthead`, and purged obsolete duplicate style definitions.
+- **Mobile Bottom Navigation Bar Grounding**: Restored strict absolute positioning (`position: 'absolute'`, `bottom: 0`, `left: 0`, `right: 0`) to `styles.bottomBarWrapper` in `client/src/components/app-tabs.tsx`, fixing native bottom tab bar layout across handheld screens.
+- **Mobile Editorial Typography & Grid Platform Isolation**: Isolated desktop web multi-column grid constraints (`webCard`, `webContent`, `webTitle`) from mobile in `client/src/components/post-card.tsx`. Restored 22px serif headline typography (`fontSize: 22, lineHeight: 28`) and unconstrained body text on mobile while preserving equal-height multi-column grid alignment and line limits (`numberOfLines={3}`, `numberOfLines={4}`) on desktop web.
+- **Anti-Monolith Feed Modularization**: Disentangled the 600-line cross-platform monolith in `client/src/app/(tabs)/index.tsx` into dedicated, cleanly decoupled components: `client/src/components/feed-mobile-view.tsx` (singular column, animated scope toggle, and direct-post virtualization) and `client/src/components/feed-web-view.tsx` (multi-column balanced grid, single-tier filter pills, and equal-height stretched rows with trailing spacers). Reduced `index.tsx` to a lightweight platform router delegating cleanly between them.
+- **Feed Key Extractor & Empty View Null Guard**: Switched mobile feed `ScreenFlatList` keyExtractor from index-based string to stable post ID, eliminating list re-render artifacts. Cleaned `listEmpty` to return `null` when posts are visible rather than rendering an empty DOM container on web.
+- **Web Tab Navigation Context Metadata**: Defined `BASE_TABS` and `LEADER_TABS` in `app-tabs.web.tsx`, accurately supplying tab navigation metadata through `useTabNavigation()` on web.
+- **Platform Isolation Test Invariants**: Added test suite `Web and Mobile Layout Platform Isolation Invariants` in `client/tests/templates-and-debloat.test.ts` to prevent layout regressions across shared components.
+
 ## [0.4.4] - 2026-10-05
 
 ### Added
