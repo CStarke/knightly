@@ -473,35 +473,35 @@ export const followedOrgs = Array.from(
  * Resolves the responsive column count for the Knightly Campus Feed.
  *
  * ARCHITECTURAL INVARIANT & MOBILE ERGONOMICS:
- * - Mobile Native App (Platform.OS !== 'web'): Strictly 1 singular column (`numColumns = 1`).
+ * - Mobile Phones (< 768px): Strictly 1 singular column (`numColumns = 1`) on both native app and mobile web.
  *   Guarantees full-width readability on handheld phone displays (iOS and Android), ensuring
  *   announcement flyers, event dates, venues, and headlines are unconstrained by cramped horizontal columns.
- * - Web App (Platform.OS === 'web'):
- *   - Desktop Displays (width >= 900): 3 uniform columns for widescreen monitors.
- *   - Tablet / Responsive Web (width < 900): 2 uniform columns.
+ * - Tablet / Responsive Web (768px - 899px): 2 uniform columns.
+ * - Standard Desktop (900px - 1399px): 3 uniform columns.
+ * - Wide Desktop (1400px - 1799px): 4 uniform columns.
+ * - Extra-Wide / Ultrawide Monitors (>= 1800px): 5 uniform columns (strictly capped at 5).
  *
  * @param width - The current window or viewport width in logical pixels.
  * @param platform - Platform operating system string (defaults to Platform.OS).
- * @returns 1 for mobile app, or 2 to 3 for web depending on viewport width.
+ * @returns 1 for mobile viewports, or 2 to 5 for web displays depending on width.
  */
 export function resolveFeedColumnCount(
   width: number,
   platform: string = Platform.OS
 ): number {
-  // Step 1: Mobile native app constraint check
-  // WHY 1 COLUMN ON MOBILE APP ALONE:
-  // On mobile phone viewports (~360-430px wide), multi-column grids squeeze card headlines,
-  // badges, and 16:9 banner images into illegibly narrow strips. A singular full-width column
-  // aligns with mobile design standards (Instagram, X, Reddit) and delivers optimal vertical scrolling ergonomics.
-  if (platform !== 'web') {
+  // Mobile phones on both native app and mobile web strictly use 1 singular column
+  if (platform !== 'web' || width < 768) {
     return 1;
   }
 
-  // Step 2: Web responsive breakpoints
-  // WHY 2-3 COLUMNS ON WEB:
-  // Desktop monitors provide generous horizontal room where a multi-column card grid
-  // prevents individual cards from stretching to excessive line lengths.
-  return width >= 900 ? 3 : 2;
+  // Extra-wide / ultrawide monitors (capped at 5)
+  if (width >= 1800) return 5;
+  // Wide desktop monitors
+  if (width >= 1400) return 4;
+  // Standard desktop / laptop screens
+  if (width >= 900) return 3;
+  // Tablet and narrow split-screen web
+  return 2;
 }
 
 /**

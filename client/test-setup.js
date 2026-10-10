@@ -19,6 +19,12 @@ Module._resolveFilename = function (request, parent, isMain, options) {
   if (request === 'expo-router') {
     return require.resolve('./__mocks__/mock-expo-router.js');
   }
+  if (request === 'expo-image-picker') {
+    return require.resolve('./__mocks__/mock-expo-image-picker.js');
+  }
+  if (request === 'expo-image-manipulator') {
+    return require.resolve('./__mocks__/mock-expo-image-manipulator.js');
+  }
   if (request === 'react-native-gesture-handler') {
     return require.resolve('./__mocks__/mock-react-native-gesture-handler.js');
   }

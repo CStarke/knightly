@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Modal,
+  Keyboard,
   Pressable,
   StyleSheet,
   View,
@@ -8,6 +8,7 @@ import {
 
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
+import { ModalDialog, ModalHeader } from '@/components/ui/modal-dialog';
 import { Brand, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -63,6 +64,7 @@ export function DatePickerModal({
   onSelectDate,
 }: DatePickerModalProps) {
   const theme = useTheme();
+
   const today = new Date();
   const initialParsed = useMemo(() => parseDateOrDefault(selectedDate), [selectedDate]);
   const [currentYear, setCurrentYear] = useState(initialParsed.year);
@@ -73,6 +75,13 @@ export function DatePickerModal({
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December',
   ];
+
+  // Dismiss keyboard immediately upon opening
+  useEffect(() => {
+    if (visible) {
+      Keyboard.dismiss();
+    }
+  }, [visible]);
 
   // Sync state when modal opens or selectedDate changes
   useEffect(() => {
@@ -145,49 +154,27 @@ export function DatePickerModal({
   if (!visible) return null;
 
   return (
-    <Modal
+    <ModalDialog
       visible={visible}
-      transparent
-      animationType="fade"
-      statusBarTranslucent
-      navigationBarTranslucent
-      onRequestClose={onClose}
+      onClose={onClose}
+      cardStyle={[
+        datePickerStyles.card,
+        {
+          top: verticalShift,
+        },
+      ]}
     >
-      <Pressable style={datePickerStyles.backdrop} onPress={onClose}>
-        <Pressable
-          style={[
-            datePickerStyles.card,
-            {
-              backgroundColor: theme.backgroundElement,
-              borderColor: theme.border,
-              transform: [{ translateY: verticalShift }],
-            },
-          ]}
-          onPress={(e) => e.stopPropagation()}
-        >
-          {/* Modal Header */}
-          <View style={datePickerStyles.modalHeader}>
-            <View style={datePickerStyles.headerTitleRow}>
-              <Icon sf="calendar" md="event" size={20} color={Brand.gold} />
-              <ThemedText type="headline" style={datePickerStyles.headerTitle}>
-                Select Event Date
-              </ThemedText>
-            </View>
-            <Pressable
-              onPress={onClose}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-              style={datePickerStyles.closeButton}
-            >
-              <Icon sf="xmark" md="close" size={18} color={theme.textMuted} />
-            </Pressable>
-          </View>
+      {/* Modal Header */}
+      <ModalHeader
+        title="Select Event Date"
+        icon={{ sf: 'calendar', md: 'event', color: Brand.gold }}
+        onClose={onClose}
+      />
 
-          {/* Calendar Body */}
-          <View style={datePickerStyles.body}>
-            {/* Month & Year Navigation */}
-            <View style={datePickerStyles.header}>
+      {/* Calendar Body */}
+      <View style={datePickerStyles.body}>
+        {/* Month & Year Navigation */}
+        <View style={datePickerStyles.header}>
               <View style={datePickerStyles.navGroup}>
                 <Pressable
                   onPress={isPrevYearDisabled ? undefined : handlePrevYear}
@@ -318,22 +305,11 @@ export function DatePickerModal({
               })}
             </View>
           </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
+    </ModalDialog>
   );
 }
 
 const datePickerStyles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.four,
-  },
   card: {
     width: '100%',
     maxWidth: 360,
@@ -344,27 +320,6 @@ const datePickerStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.35,
     shadowRadius: 16,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.three + 4,
-    paddingVertical: Spacing.two + 4,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  headerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  closeButton: {
-    padding: 4,
   },
   body: {
     padding: Spacing.three + 4,

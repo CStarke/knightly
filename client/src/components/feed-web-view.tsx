@@ -265,15 +265,19 @@ export function FeedWebView() {
     </View>
   ) : null;
 
+  // Dynamically expand container maxWidth on wide and extra-wide/ultrawide displays
+  // so 4 and 5 columns retain comfortable ~320-350px card breathing room
+  const maxContentWidth = numColumns >= 5 ? 1880 : numColumns >= 4 ? 1520 : 1200;
+
   return (
-    <Screen style={styles.screenInner}>
+    <Screen style={[styles.screenInner, { maxWidth: maxContentWidth }]}>
       {listHeader}
       <View style={styles.evenGrid}>
         {evenRows.map((row, rowIdx) => (
           <View key={`grid-row-${rowIdx}`} style={styles.evenGridRow}>
             {row.map((post) => (
               <View key={post.id} style={styles.evenGridCell}>
-                <PostCard post={post} />
+                <PostCard post={post} variant="grid" />
               </View>
             ))}
             {row.length < numColumns &&

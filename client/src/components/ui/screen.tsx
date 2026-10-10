@@ -50,7 +50,7 @@ export function Screen({ children, style, header, scroll = true, scrollViewRef }
           <View style={[styles.inner, style]}>{children}</View>
         </Animated.ScrollView>
       ) : (
-        <View style={styles.fill}>{children}</View>
+        <View style={[styles.fill, style]}>{children}</View>
       )}
     </View>
   );

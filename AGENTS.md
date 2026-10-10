@@ -70,6 +70,11 @@ Multiple developers work in parallel against `origin`. To prevent merge conflict
 - Keep `events-api.ts` gracefully wrapped in try/catch with timeout fallback to `CALVIN_EVENTS_SEED`.
 - Use `node server/scripts/sync-calvin-events.js` to refresh seed snapshots.
 
+### 4.5 Template-Level Feature Implementation & Inheritance
+- Cross-cutting behaviors intended across every modal, screen, or club view (e.g. software keyboard avoidance/elevation, edge-to-edge status/navigation bar translucency, backdrop dismissal, accessibility boundaries) **must strictly be implemented at the template level** (`client/src/components/ui/modal-dialog.tsx`, `client/src/components/ui/screen.tsx`).
+- Leaf components (`SuccessModal`, `DatePickerModal`, `ClaimClubModal`, `LocationInfoModal`, etc.) **must inherit these features by default without duplicated code**.
+- Never implement ad-hoc keyboard listeners, manual elevation math, custom `<Modal>` tags, or duplicate backdrops inside leaf components.
+
 ---
 
 ## 5. Non-Negotiable Domain Invariants
@@ -77,6 +82,7 @@ Multiple developers work in parallel against `origin`. To prevent merge conflict
 | Invariant | Strict Rule & Rationale | Guarded By |
 | :--- | :--- | :--- |
 | **Feed Taxonomy** | Standard 13 categories: `Faith`, `Academics`, `Athletics`, `Music`, `The Arts`, `Career`, `Outdoors`, `Service`, `Wellness`, `Social`, `Culture`, `Official`, `Gaming`. | `client/src/data/feed.ts`<br>`server/services/category-mapper.js` |
+| **Template-Level Feature Inheritance** | Cross-cutting features across all modals, pages, or views **must be implemented at the template level** (`ModalDialog`, `Screen`) so child views inherit them automatically by default (`avoidKeyboard = true`). Never write duplicate `<Modal>` wrappers or per-component keyboard listeners. | `client/src/components/ui/modal-dialog.tsx`<br>`client/tests/modal-edge-to-edge.test.ts`<br>`client/tests/templates-and-debloat.test.ts` |
 | **Server-Authoritative Timestamps** | Post creation timestamps (`postedAt` ISO 8601 string and `createdAt` UTC epoch ms) **must be generated server-side** (e.g. `DEFAULT NOW()`). Never accept client creation timestamps, preventing clock manipulation feed tampering. | `server/server.js`<br>`docs/api.md` |
 | **Placeholder Fingerprinting & Same-Filename Immunity** | Generic Calvin Drupal line-art placeholders are identified by exact canonical paths (`/sites/default/files/2025-10/{name}.png`) and cryptographic SHA-256 hashes (`athletics.png` = `f8cecb98...`). **Never replace custom user photos even if they share the exact same filename**. | `server/services/image-fingerprint.js`<br>`client/src/utils/image-fingerprint.ts` |
 | **Pure React Native SVG** | Simple banners and vector icons **must strictly avoid `<defs>` and `<use>` tags**. Use direct `<path>`, `<circle>`, `<rect>`, and `<polygon>` elements to prevent native GPU cache blackouts on iOS/Android. | `client/src/constants/preset-banners.ts`<br>`client/src/components/post-card.tsx` |

@@ -55,6 +55,7 @@ export interface PostDateTimeSectionProps {
   onCustomWhenFocus: (e: any) => void;
   onCustomWhenBlur: () => void;
   whenError: string | null;
+  flat?: boolean;
   onLayout?: (e: LayoutChangeEvent) => void;
 }
 
@@ -90,10 +91,13 @@ export function PostDateTimeSection({
   onCustomWhenFocus,
   onCustomWhenBlur,
   whenError,
+  flat = false,
   onLayout,
 }: PostDateTimeSectionProps) {
   const theme = useTheme();
   const [showInfoModal, setShowInfoModal] = useState(false);
+
+  const SubCardContainer = flat ? View : Card;
 
   return (
     <View style={styles.section} onLayout={onLayout}>
@@ -116,7 +120,7 @@ export function PostDateTimeSection({
         }
       />
 
-      <Card style={styles.eventSubCard}>
+      <SubCardContainer style={flat ? styles.eventSubCardFlat : styles.eventSubCard}>
         {/* Segmented Mode Selector: Standard Time vs Custom Text */}
         <Segmented
           options={['Standard Time', 'Custom Text'] as const}
@@ -237,7 +241,7 @@ export function PostDateTimeSection({
             </ThemedText>
           </View>
         ) : null}
-      </Card>
+      </SubCardContainer>
 
       {/* Date & Time Guidance Modal */}
       <ModalDialog
@@ -306,6 +310,10 @@ const styles = StyleSheet.create({
   },
   eventSubCard: {
     padding: Spacing.two + 2,
+    gap: Spacing.two,
+  },
+  eventSubCardFlat: {
+    padding: 0,
     gap: Spacing.two,
   },
   dateBlock: {

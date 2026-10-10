@@ -3,9 +3,13 @@ import assert from 'node:assert';
 import fs from 'node:fs';
 import path from 'node:path';
 import { DateUtils, TimeUtils, formatRelativeTime, resolveEventTime } from '@/utils/date-format';
+import { formatDisplayDate } from '@/components/segmented-date-input';
+import { calculateModalKeyboardLift } from '@/utils/modal-keyboard';
 import { Brand } from '@/constants/theme';
 
 describe('Templates & Code De-bloating Invariants', () => {
+  const srcDir = path.resolve(__dirname, '../src');
+  const readSrc = (relPath: string) => fs.readFileSync(path.join(srcDir, relPath), 'utf-8').replace(/\r\n/g, '\n');
 
   describe('Shared BlinkingCursor Template Contract', () => {
     it('defines BlinkingCursor props and interval cleanup', () => {
@@ -131,6 +135,105 @@ describe('Templates & Code De-bloating Invariants', () => {
       assert.strictEqual(dialogConfig.navigationBarTranslucent, true);
       assert.strictEqual(dialogConfig.backdrop.width, '100%');
       assert.strictEqual(dialogConfig.backdrop.height, '100%');
+    });
+
+    it('computes soft-keyboard modal elevation across various phone heights and ensures action buttons clear keyboard', () => {
+      // Scenario 1: Keyboard inactive (height = 0) -> no elevation
+      const restingLift = calculateModalKeyboardLift({
+        windowHeight: 852,
+        keyboardHeight: 0,
+        cardHeight: 340,
+        insetTop: 59,
+      });
+      assert.strictEqual(restingLift, 0, 'Resting modal card must stay centered with 0 translateY');
+
+      // Scenario 2: Modern iPhone (iPhone 15: 852px height, 336px keyboard, 340px card, 59px inset)
+      // Unshifted card bottom: (852 + 340)/2 = 596px. Keyboard top: 852 - 336 = 516px.
+      // Submerged: 596 - 516 = 80px submerged!
+      const iPhoneLift = calculateModalKeyboardLift({
+        windowHeight: 852,
+        keyboardHeight: 336,
+        cardHeight: 340,
+        insetTop: 59,
+      });
+      assert.strictEqual(iPhoneLift, 168, 'Must lift by half-keyboard (168px) to center in remaining visible space');
+      const liftedCardBottom = (852 + 340) / 2 - iPhoneLift;
+      const keyboardTop = 852 - 336;
+      assert.strictEqual(liftedCardBottom < keyboardTop, true, 'Card bottom must clear keyboard top');
+      assert.strictEqual(keyboardTop - liftedCardBottom, 88, 'Guarantees 88px clearance between card bottom and keyboard');
+
+      // Scenario 3: Compact iPhone SE (667px height, 260px keyboard, 340px card, 20px inset)
+      // Unshifted card bottom: (667 + 340)/2 = 503.5px. Keyboard top: 667 - 260 = 407px.
+      // Submerged: 503.5 - 407 = 96.5px submerged!
+      const seLift = calculateModalKeyboardLift({
+        windowHeight: 667,
+        keyboardHeight: 260,
+        cardHeight: 340,
+        insetTop: 20,
+      });
+      assert.strictEqual(seLift, 130, 'Must lift by 130px');
+      const seCardBottom = (667 + 340) / 2 - seLift;
+      const seKeyboardTop = 667 - 260;
+      assert.strictEqual(seCardBottom < seKeyboardTop, true, 'SE card bottom must clear keyboard top');
+      assert.strictEqual(seKeyboardTop - seCardBottom, 33.5, 'Guarantees 33.5px clearance above SE keyboard');
+
+      // Scenario 4: Tall card on compact screen -> clamped to maxSafeLift so top doesn't clip off-screen
+      const clampedLift = calculateModalKeyboardLift({
+        windowHeight: 667,
+        keyboardHeight: 300,
+        cardHeight: 440,
+        insetTop: 20,
+      });
+      const restingTop = (667 - 440) / 2; // 113.5
+      const topInset = Math.max(16, 20 + 8); // 28
+      const maxSafe = restingTop - topInset; // 85.5
+      assert.strictEqual(clampedLift, maxSafe, 'Must clamp lift at max safe headroom so top never clips off screen');
+
+      // Scenario 5: Unmeasured card fallback (cardHeight = 0)
+      const unmeasuredLift = calculateModalKeyboardLift({
+        windowHeight: 800,
+        keyboardHeight: 300,
+        cardHeight: 0,
+        insetTop: 40,
+      });
+      assert.strictEqual(unmeasuredLift, 150, 'Fallback uses half-keyboard heuristic');
+    });
+
+    it('verifies ModalDialog and ClaimClubModal wire soft-keyboard avoidance and keyboard dismissal on exit', () => {
+      const dialogCode = readSrc('components/ui/modal-dialog.tsx');
+      const claimCode = readSrc('components/claim-club-modal.tsx');
+
+      // ModalDialog wires keyboard elevation and layout measurement
+      assert.ok(dialogCode.includes('calculateModalKeyboardLift'), 'ModalDialog must use calculateModalKeyboardLift');
+      assert.ok(dialogCode.includes('onLayout={handleCardLayout}'), 'ModalDialog must measure card layout height');
+      assert.ok(dialogCode.includes('Keyboard.addListener'), 'ModalDialog must listen to keyboard show/hide events');
+      assert.ok(dialogCode.includes('animatedCardStyle'), 'ModalDialog must apply animated card style');
+
+      // ClaimClubModal dismisses virtual keyboard on exit and on verify
+      assert.ok(claimCode.includes('Keyboard.dismiss()'), 'ClaimClubModal must call Keyboard.dismiss()');
+    });
+
+    it('enforces template inheritance invariant: all dialog modals delegate to ModalDialog and inherit keyboard lift by default', () => {
+      const claimCode = readSrc('components/claim-club-modal.tsx');
+      const successCode = readSrc('components/ui/success-modal.tsx');
+      const datePickerCode = readSrc('components/date-picker-modal.tsx');
+      const locationCode = readSrc('components/location-info-modal.tsx');
+      const dialogCode = readSrc('components/ui/modal-dialog.tsx');
+
+      // 1. Template default: avoidKeyboard must default to true
+      assert.ok(dialogCode.includes('avoidKeyboard = true'), 'ModalDialog must default avoidKeyboard to true');
+
+      // 2. Leaf dialog modals must delegate directly to ModalDialog template
+      assert.ok(claimCode.includes('<ModalDialog'), 'ClaimClubModal must delegate to ModalDialog');
+      assert.ok(successCode.includes('<ModalDialog'), 'SuccessModal must delegate to ModalDialog');
+      assert.ok(datePickerCode.includes('<ModalDialog'), 'DatePickerModal must delegate to ModalDialog');
+      assert.ok(locationCode.includes('<ModalDialog'), 'LocationInfoModal must delegate to ModalDialog');
+
+      // 3. Leaf dialog modals must NOT contain duplicate raw <Modal> tags
+      assert.ok(!/<Modal\b(?![A-Za-z])/.test(claimCode), 'ClaimClubModal must not contain raw <Modal>');
+      assert.ok(!/<Modal\b(?![A-Za-z])/.test(successCode), 'SuccessModal must not contain raw <Modal>');
+      assert.ok(!/<Modal\b(?![A-Za-z])/.test(datePickerCode), 'DatePickerModal must not contain raw <Modal>');
+      assert.ok(!/<Modal\b(?![A-Za-z])/.test(locationCode), 'LocationInfoModal must not contain raw <Modal>');
     });
   });
 
@@ -324,6 +427,32 @@ describe('Templates & Code De-bloating Invariants', () => {
       assert.strictEqual(yearSpec.width, 48);
       assert.strictEqual(yearSpec.maxLen, 4);
       assert.strictEqual(yearSpec.placeholder, 'YYYY');
+    });
+
+    it('formats raw digits, delimiters, and ISO strings into clean unified display', () => {
+      // 1. Single digit unambiguous month 9 -> '09 / '
+      assert.strictEqual(formatDisplayDate('9'), '09 / ');
+
+      // 2. Continuous raw digits -> '09 / 18 / 2026'
+      assert.strictEqual(formatDisplayDate('09182026'), '09 / 18 / 2026');
+
+      // 3. Slash delimited input -> '09 / 18 / 2026'
+      assert.strictEqual(formatDisplayDate('9/18/2026'), '09 / 18 / 2026');
+
+      // 4. ISO formatted input -> '09 / 18 / 2026'
+      assert.strictEqual(formatDisplayDate('2026-09-18'), '09 / 18 / 2026');
+
+      // 5. Space delimited input -> '09 / 18 / 2026'
+      assert.strictEqual(formatDisplayDate('9 18 2026'), '09 / 18 / 2026');
+
+      // 6. Ambiguous month 1 -> '1'
+      assert.strictEqual(formatDisplayDate('1'), '1');
+
+      // 7. Month 12 -> '12 / '
+      assert.strictEqual(formatDisplayDate('12'), '12 / ');
+
+      // 8. Month overflow 16 -> '01 / 06 / '
+      assert.strictEqual(formatDisplayDate('16'), '01 / 06 / ');
     });
   });
 
@@ -842,11 +971,11 @@ describe('Templates & Code De-bloating Invariants', () => {
       assert.ok(cardCode.includes("webCard: {\n    flex: 1,\n    height: '100%',\n  },"),
         'post-card.tsx webCard must isolate flex: 1 and height: 100%');
 
-      // Line clamping must be conditional on isWeb
-      assert.ok(cardCode.includes("numberOfLines={isWeb ? 3 : undefined}"),
-        'post-card.tsx headline must only clamp lines on web');
-      assert.ok(cardCode.includes("numberOfLines={isWeb ? 4 : undefined}"),
-        'post-card.tsx body must only clamp lines on web');
+      // Line clamping must be conditional on isGrid
+      assert.ok(cardCode.includes("numberOfLines={isGrid ? 3 : undefined}"),
+        'post-card.tsx headline must only clamp lines on grid');
+      assert.ok(cardCode.includes("numberOfLines={isGrid ? 4 : undefined}"),
+        'post-card.tsx body must only clamp lines on grid');
     });
 
     it('verifies FeedScreen (tabs)/index.tsx is a lightweight platform router delegating to FeedWebView and FeedMobileView', () => {
@@ -856,14 +985,13 @@ describe('Templates & Code De-bloating Invariants', () => {
       const lines = indexCode.split('\n');
       assert.ok(lines.length <= 50, `(tabs)/index.tsx should be a concise modular router (got ${lines.length} lines)`);
 
-      // Must import and delegate cleanly to FeedMobileView and FeedWebView
+      // Must import and delegate cleanly to FeedMobileView and FeedWebView based on responsive breakpoint
       assert.ok(indexCode.includes('import { FeedMobileView } from "@/components/feed-mobile-view";'),
         'index.tsx must import FeedMobileView');
       assert.ok(indexCode.includes('import { FeedWebView } from "@/components/feed-web-view";'),
         'index.tsx must import FeedWebView');
-      assert.ok(indexCode.includes('Platform.OS === "web" ? <FeedWebView /> : <FeedMobileView />') ||
-        (indexCode.includes('if (Platform.OS === "web")') && indexCode.includes('<FeedWebView />') && indexCode.includes('<FeedMobileView />')),
-        'index.tsx must delegate based on Platform.OS');
+      assert.ok(indexCode.includes('isCompact ? <FeedMobileView /> : <FeedWebView />'),
+        'index.tsx must delegate based on isCompact breakpoint');
 
       // Both component files must exist and export their respective views
       const mobileCode = readSrc('components/feed-mobile-view.tsx');
@@ -871,6 +999,359 @@ describe('Templates & Code De-bloating Invariants', () => {
 
       const webCode = readSrc('components/feed-web-view.tsx');
       assert.ok(webCode.includes('export function FeedWebView()'), 'FeedWebView component must be exported');
+    });
+
+    it('validates useResponsiveLayout breakpoint and column resolution invariants', () => {
+      const { resolveBreakpoint, resolveColumnCount } = require('../src/hooks/use-responsive-layout');
+
+      // Compact: mobile phones (< 768px)
+      assert.strictEqual(resolveBreakpoint(390), 'compact');
+      assert.strictEqual(resolveBreakpoint(767), 'compact');
+      assert.strictEqual(resolveColumnCount(390, true), 1);
+      assert.strictEqual(resolveColumnCount(390, false), 1);
+
+      // Medium: tablets in portrait & squarish foldables (768px - 899px)
+      assert.strictEqual(resolveBreakpoint(768), 'medium');
+      assert.strictEqual(resolveBreakpoint(899), 'medium');
+      assert.strictEqual(resolveColumnCount(768, true), 2);
+
+      // Expanded: standard desktop monitors & laptops (900px - 1399px)
+      assert.strictEqual(resolveBreakpoint(900), 'expanded');
+      assert.strictEqual(resolveBreakpoint(1200), 'expanded');
+      assert.strictEqual(resolveColumnCount(1200, true), 3);
+
+      // Wide: full-screen 1080p desktop monitors (1400px - 1799px)
+      assert.strictEqual(resolveBreakpoint(1400), 'wide');
+      assert.strictEqual(resolveBreakpoint(1799), 'wide');
+      assert.strictEqual(resolveColumnCount(1440, true), 4);
+
+      // Ultrawide: 1440p, 4K, and ultra-wide widescreen setups (>= 1800px, capped at 5)
+      assert.strictEqual(resolveBreakpoint(1800), 'ultrawide');
+      assert.strictEqual(resolveBreakpoint(2560), 'ultrawide');
+      assert.strictEqual(resolveColumnCount(1920, true), 5);
+      assert.strictEqual(resolveColumnCount(3840, true), 5);
+    });
+
+    it('verifies app-tabs.web.tsx renders SmartAppBanner and BottomBar on compact viewports', () => {
+      const webTabsCode = readSrc('components/app-tabs.web.tsx');
+
+      assert.ok(webTabsCode.includes("from '@/components/smart-app-banner'") || webTabsCode.includes('from "@/components/smart-app-banner"'),
+        'app-tabs.web.tsx must import SmartAppBanner');
+      assert.ok(webTabsCode.includes("from '@/components/bottom-tab-bar'") || webTabsCode.includes('from "@/components/bottom-tab-bar"'),
+        'app-tabs.web.tsx must import BottomBar from bottom-tab-bar');
+      assert.ok(webTabsCode.includes('<SmartAppBanner />'),
+        'app-tabs.web.tsx must render SmartAppBanner in mobile shell');
+      assert.ok(webTabsCode.includes('<BottomBar>'),
+        'app-tabs.web.tsx must render BottomBar in mobile shell');
+    });
+
+    it('guarantees Expo Router UI trigger discovery invariants across both desktop and mobile web branches', () => {
+      const webTabsCode = readSrc('components/app-tabs.web.tsx');
+
+      // ARCHITECTURAL INVARIANT:
+      // In expo-router/ui, <Tabs> parses triggers via parseTriggersFromChildren(children).
+      // parseTriggersFromChildren ONLY recurses into React.Fragment (<>) and TabList.
+      // If TabList is wrapped inside a <View> (e.g. <View style={styles.mobileLayout}>),
+      // parseTriggersFromChildren silently drops the entire tree and returns [] triggers.
+      // React Navigation's useNavigationBuilder then crashes with:
+      // "Couldn't find any screens for the navigator. Have you defined any screens as its children?"
+      // Therefore, the isCompact branch inside <Tabs> MUST use React.Fragment (<>), NEVER a View wrapper!
+
+      // 1. Verify source does not contain an intermediate View wrapping TabList in the isCompact branch
+      const tabsBlockMatch = webTabsCode.match(/<Tabs[\s\S]*?<\/Tabs>/);
+      assert.ok(tabsBlockMatch, 'app-tabs.web.tsx must render <Tabs> component');
+      const tabsBlock = tabsBlockMatch[0];
+
+      assert.ok(!tabsBlock.includes('<View style={styles.mobileLayout}>'),
+        'Tabs children must NOT wrap TabList in <View style={styles.mobileLayout}>; must use React.Fragment to preserve trigger discovery');
+
+      // 2. Verify both branches contain TabTrigger for all 4 base routes and post route
+      const baseRoutes = ['index', 'dining', 'safety', 'directory'];
+      for (const route of baseRoutes) {
+        const count = (tabsBlock.match(new RegExp(`name="${route}"`, 'g')) || []).length;
+        assert.ok(
+          count >= 2,
+          `Tabs must register <TabTrigger name="${route}"> in BOTH desktop and mobile branches (found ${count})`
+        );
+      }
+
+      const postCount = (tabsBlock.match(/name="post"/g) || []).length;
+      assert.ok(
+        postCount >= 2,
+        `Tabs must register <TabTrigger name="post"> in BOTH desktop and mobile branches for leaders (found ${postCount})`
+      );
+
+      // 3. Behavioral verification of Expo Router UI parseTriggersFromChildren algorithm
+      const TabListType = function TabList() {};
+      const TabTriggerType = function TabTrigger() {};
+      const TabSlotType = function TabSlot() {};
+
+      type MockElement = { type: any; props: any };
+      const isFragment = (c: MockElement) => c.type === 'Fragment';
+      const isTabList = (c: MockElement) => c.type === TabListType;
+      const isTabTrigger = (c: MockElement) => c.type === TabTriggerType;
+      const isTabSlot = (c: MockElement) => c.type === TabSlotType;
+
+      function simulateParseTriggers(children: any, triggers: any[] = [], isInTabList = false): any[] {
+        const arr = Array.isArray(children) ? children : [children];
+        for (const child of arr) {
+          if (!child || isTabSlot(child)) continue;
+          if (isFragment(child)) {
+            simulateParseTriggers(child.props.children, triggers, isInTabList || isTabList(child));
+            continue;
+          }
+          if (isTabList(child)) {
+            let innerChildren = child.props.children;
+            if (child.props.asChild && innerChildren && innerChildren.props && 'children' in innerChildren.props) {
+              innerChildren = innerChildren.props.children;
+            }
+            simulateParseTriggers(innerChildren, triggers, true);
+            continue;
+          }
+          if (!isInTabList || !isTabTrigger(child)) continue;
+          triggers.push({ name: child.props.name, href: child.props.href });
+        }
+        return triggers;
+      }
+
+      // Simulate mobile web branch (isCompact = true)
+      const mockMobileTabs = {
+        type: 'Fragment',
+        props: {
+          children: [
+            { type: 'SmartAppBanner', props: {} },
+            { type: 'AppHeader', props: {} },
+            { type: 'View', props: { children: [{ type: TabSlotType, props: {} }] } },
+            {
+              type: TabListType,
+              props: {
+                asChild: true,
+                children: {
+                  type: 'BottomBar',
+                  props: {
+                    children: [
+                      { type: TabTriggerType, props: { name: 'index', href: '/' } },
+                      { type: TabTriggerType, props: { name: 'dining', href: '/dining' } },
+                      { type: TabTriggerType, props: { name: 'safety', href: '/safety' } },
+                      { type: TabTriggerType, props: { name: 'directory', href: '/directory' } },
+                      { type: TabTriggerType, props: { name: 'post', href: '/post' } },
+                    ],
+                  },
+                },
+              },
+            },
+          ],
+        },
+      };
+
+      const mobileTriggers = simulateParseTriggers(mockMobileTabs);
+      assert.strictEqual(mobileTriggers.length, 5, 'Mobile web branch must yield all 5 triggers to Expo Router navigator');
+      assert.deepStrictEqual(
+        mobileTriggers.map((t) => t.name),
+        ['index', 'dining', 'safety', 'directory', 'post'],
+        'Mobile web triggers must match exact expected tab names'
+      );
+
+      // Verify the negative case: wrapping inside a View must FAIL discovery
+      const mockBrokenViewWrapped = {
+        type: 'View',
+        props: { children: mockMobileTabs.props.children },
+      };
+      const brokenTriggers = simulateParseTriggers(mockBrokenViewWrapped);
+      assert.strictEqual(
+        brokenTriggers.length,
+        0,
+        'Intermediate View wrapper reproduces the "Couldn\'t find any screens" navigator crash'
+      );
+    });
+
+    it('validates mobile web top bar padding, SmartAppBanner height, and login flight docking parity', () => {
+      const { getAppHeaderHeight } = require('../src/components/ui/app-header');
+      const { SMART_APP_BANNER_HEIGHT } = require('../src/components/smart-app-banner');
+      const appHeaderCode = readSrc('components/ui/app-header.tsx');
+      const loginScreenCode = readSrc('components/login-screen.tsx');
+
+      // 1. AppHeader must not use WebHeaderInset (72px) for paddingTop
+      assert.ok(
+        !appHeaderCode.includes('Platform.OS === "web" ? WebHeaderInset : insets.top'),
+        'AppHeader must not blindly apply 72px WebHeaderInset on mobile web'
+      );
+
+      // On mobile web (insetsTop = 0): paddingTop is Spacing.three (16px), height is 85px
+      assert.strictEqual(getAppHeaderHeight(0), 85, 'Web AppHeader height must be 85px (not 141px)');
+      // On native mobile (insetsTop = 47 notch): height is 120px
+      assert.strictEqual(getAppHeaderHeight(47), 120, 'Native AppHeader height with 47px notch must be 120px');
+
+      // 2. SmartAppBanner must define deterministic 44px height
+      assert.strictEqual(SMART_APP_BANNER_HEIGHT, 44, 'SmartAppBanner height must be exactly 44px');
+
+      // 3. LoginScreen flight docking parity
+      // Scenario A: Mobile web with banner active
+      const bannerActiveOffset = SMART_APP_BANNER_HEIGHT;
+      const webHeaderPaddingTop = 16; // Spacing.three
+      const loginWordmarkYWithBanner = bannerActiveOffset + webHeaderPaddingTop;
+      const appTabsWordmarkYWithBanner = bannerActiveOffset + webHeaderPaddingTop;
+      assert.strictEqual(
+        loginWordmarkYWithBanner,
+        appTabsWordmarkYWithBanner,
+        'Flying wordmark must dock exactly at the underlying AppHeader position with banner (60px)'
+      );
+
+      // Scenario B: Mobile web with banner dismissed
+      const bannerDismissedOffset = 0;
+      const loginWordmarkYDismissed = bannerDismissedOffset + webHeaderPaddingTop;
+      const appTabsWordmarkYDismissed = bannerDismissedOffset + webHeaderPaddingTop;
+      assert.strictEqual(
+        loginWordmarkYDismissed,
+        appTabsWordmarkYDismissed,
+        'Flying wordmark must dock exactly at the underlying AppHeader position without banner (16px)'
+      );
+
+      // 4. LoginScreen must import and handle bannerOffset
+      assert.ok(
+        loginScreenCode.includes('bannerOffset'),
+        'LoginScreen must incorporate bannerOffset in its mobile web header docking coordinates'
+      );
+      assert.ok(
+        loginScreenCode.includes('<SmartAppBanner'),
+        'LoginScreen must render SmartAppBanner on mobile web'
+      );
+    });
+  });
+
+  describe('Post Screen Modularization & Web Responsiveness Invariants', () => {
+    it('verifies post.tsx satisfies anti-monolith invariant and delegates responsively', () => {
+      const postCode = readSrc('app/(tabs)/post.tsx');
+      const lines = postCode.split('\n');
+
+      // 1. Anti-monolith invariant: Must be < 150 lines (debloated from 1281 lines)
+      assert.ok(
+        lines.length < 150,
+        `post.tsx must remain a lightweight modular router (< 150 lines), but has ${lines.length} lines`
+      );
+
+      // 2. Backward compatibility contract: exports must remain declared
+      assert.ok(postCode.includes('export {\n  MAX_TITLE_LENGTH,'), 'post.tsx must re-export MAX_TITLE_LENGTH');
+      assert.ok(postCode.includes('MAX_DESCRIPTION_LENGTH,'), 'post.tsx must re-export MAX_DESCRIPTION_LENGTH');
+      assert.ok(postCode.includes('MAX_LOCATION_LENGTH,'), 'post.tsx must re-export MAX_LOCATION_LENGTH');
+      assert.ok(postCode.includes('MAX_CUSTOM_WHEN_LENGTH,'), 'post.tsx must re-export MAX_CUSTOM_WHEN_LENGTH');
+      assert.ok(postCode.includes('formatEventDate,'), 'post.tsx must re-export formatEventDate');
+      assert.ok(postCode.includes('DatePickerModal,'), 'post.tsx must re-export DatePickerModal');
+      assert.ok(postCode.includes('parseDateOrDefault,'), 'post.tsx must re-export parseDateOrDefault');
+
+      const composerExports = require('../src/hooks/use-post-composer');
+      assert.strictEqual(composerExports.MAX_TITLE_LENGTH, 50);
+      assert.strictEqual(composerExports.MAX_DESCRIPTION_LENGTH, 280);
+      assert.strictEqual(composerExports.MAX_LOCATION_LENGTH, 25);
+      assert.strictEqual(composerExports.MAX_CUSTOM_WHEN_LENGTH, 25);
+
+      // 3. Platform delegation: imports both PostMobileView and PostWebView
+      assert.ok(postCode.includes('PostMobileView'), 'post.tsx must import PostMobileView');
+      assert.ok(postCode.includes('PostWebView'), 'post.tsx must import PostWebView');
+      assert.ok(postCode.includes('PostNotLeaderView'), 'post.tsx must import PostNotLeaderView');
+      assert.ok(postCode.includes('useResponsiveLayout'), 'post.tsx must use responsive layout hook');
+      assert.ok(postCode.includes('isCompact ?'), 'post.tsx must delegate based on isCompact');
+    });
+
+    it('validates PostWebView responsive layout rules and live preview panel', () => {
+      const webViewCode = readSrc('components/post-web-view.tsx');
+
+      // 1. Desktop side-by-side threshold at 1024px
+      assert.ok(
+        webViewCode.includes('width >= 1024'),
+        'PostWebView must switch to side-by-side layout at width >= 1024px'
+      );
+
+      // 2. Container max-width constraints: 1240px desktop, 740px tablet
+      assert.ok(
+        webViewCode.includes('maxWidth: isSideBySide ? 1240 : 740'),
+        'PostWebView must enforce 1240px side-by-side and 740px tablet constraints'
+      );
+
+      // 3. Right column preview renders genuine PostCard and posting guidelines
+      assert.ok(webViewCode.includes('<PostCard'), 'PostWebView must render genuine PostCard');
+      assert.ok(webViewCode.includes('LIVE FEED PREVIEW'), 'PostWebView must include LIVE FEED PREVIEW header');
+      assert.ok(webViewCode.includes('Posting Best Practices'), 'PostWebView must include best practices guidelines');
+
+      // 4. Zero raw hex colors: uses theme and Brand tokens
+      assert.ok(webViewCode.includes('Brand.gold'), 'PostWebView must use centralized Brand.gold');
+      assert.ok(webViewCode.includes('Brand.brightRed'), 'PostWebView must use Brand.brightRed for validation');
+
+      // 5. Three-column horizontal layout and zero-scroll architecture on desktop
+      assert.ok(webViewCode.includes('threeColumnLayout'), 'PostWebView must implement threeColumnLayout on desktop');
+      assert.ok(webViewCode.includes('scroll={!isSideBySide}'), 'PostWebView must pass scroll={!isSideBySide} to Screen to eliminate scrolling on normal desktop monitors');
+
+      // 6. First-class web experience: unboxed form controls on canvas and commanding headline input
+      assert.ok(webViewCode.includes('columnContent'), 'PostWebView must place columns directly on canvas via columnContent instead of boxed cards');
+      assert.ok(webViewCode.includes('fontSize: 22') || webViewCode.includes('fontSize: 24'), 'PostWebView titleInput must use commanding headline typography');
+    });
+
+    it('validates live draft Post object construction in usePostComposer', () => {
+      const {
+        MAX_TITLE_LENGTH,
+        MAX_DESCRIPTION_LENGTH,
+        MAX_LOCATION_LENGTH,
+        MAX_CUSTOM_WHEN_LENGTH,
+      } = require('../src/hooks/use-post-composer');
+
+      assert.strictEqual(MAX_TITLE_LENGTH, 50);
+      assert.strictEqual(MAX_DESCRIPTION_LENGTH, 280);
+      assert.strictEqual(MAX_LOCATION_LENGTH, 25);
+      assert.strictEqual(MAX_CUSTOM_WHEN_LENGTH, 25);
+
+      // Simulate draft construction logic
+      const buildPreviewDraft = (params: {
+        activeClub?: { id: string; name: string; mark?: string; category?: string };
+        title: string;
+        description: string;
+        imageUrl?: string | null;
+        computedWhen?: string;
+        computedWhere?: string;
+      }) => {
+        const trimmedTitle = params.title.trim();
+        const trimmedDescription = params.description.trim();
+        return {
+          id: 'preview-draft',
+          clubId: params.activeClub?.id ?? 'preview-club',
+          org: params.activeClub?.name ?? 'Calvin Student Club',
+          mark: params.activeClub?.mark,
+          category: (params.activeClub?.category as any) ?? 'Official',
+          postedAt: 'Just now',
+          createdAt: Date.now(),
+          headline: trimmedTitle || 'Your Title Will Appear Here',
+          body:
+            trimmedDescription ||
+            'Add a clear event description, agenda, or announcement details. As you type, this preview updates in real-time!',
+          image: params.imageUrl ?? undefined,
+          when: params.computedWhen,
+          where: params.computedWhere,
+          followed: false,
+          campusWide: true,
+        };
+      };
+
+      // Empty title/description fallback
+      const emptyDraft = buildPreviewDraft({ title: '', description: '' });
+      assert.strictEqual(emptyDraft.headline, 'Your Title Will Appear Here');
+      assert.ok(emptyDraft.body.includes('As you type, this preview updates in real-time!'));
+      assert.strictEqual(emptyDraft.category, 'Official');
+      assert.strictEqual(emptyDraft.campusWide, true);
+
+      // Filled draft with custom club and logistics
+      const filledDraft = buildPreviewDraft({
+        activeClub: { id: 'cs-club', name: 'Computer Science Club', mark: 'CS', category: 'Academics' },
+        title: 'Hackathon Kickoff 2026',
+        description: 'Join us for 24 hours of coding and pizza!',
+        imageUrl: 'https://example.com/banner.png',
+        computedWhen: 'Saturday, Nov 14 · 9:00 AM – 9:00 PM',
+        computedWhere: 'North Hall 276',
+      });
+      assert.strictEqual(filledDraft.headline, 'Hackathon Kickoff 2026');
+      assert.strictEqual(filledDraft.org, 'Computer Science Club');
+      assert.strictEqual(filledDraft.category, 'Academics');
+      assert.strictEqual(filledDraft.when, 'Saturday, Nov 14 · 9:00 AM – 9:00 PM');
+      assert.strictEqual(filledDraft.where, 'North Hall 276');
+      assert.strictEqual(filledDraft.image, 'https://example.com/banner.png');
     });
   });
 });

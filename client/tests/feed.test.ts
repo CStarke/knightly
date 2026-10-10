@@ -520,16 +520,29 @@ describe('Knightly Feed Domain', () => {
       assert.strictEqual(resolveFeedColumnCount(1080, 'android'), 1);
     });
 
-    it('resolves responsive multi-column layout on web alone (3 for desktop >=900, 2 for tablet <900)', () => {
-      // Desktop widescreen monitor
+    it('resolves responsive multi-column layout on web (1 for mobile <768, 2 for tablet, 3 for desktop, 4 for wide, 5 for ultrawide capped at 5)', () => {
+      // Mobile phone on web browser (< 768px strictly 1 column)
+      assert.strictEqual(resolveFeedColumnCount(400, 'web'), 1);
+      assert.strictEqual(resolveFeedColumnCount(767, 'web'), 1);
+
+      // Narrow / tablet web displays (768px - 899px)
+      assert.strictEqual(resolveFeedColumnCount(768, 'web'), 2);
+      assert.strictEqual(resolveFeedColumnCount(899, 'web'), 2);
+
+      // Standard desktop monitors & laptops (900px - 1399px)
       assert.strictEqual(resolveFeedColumnCount(900, 'web'), 3);
       assert.strictEqual(resolveFeedColumnCount(1200, 'web'), 3);
-      assert.strictEqual(resolveFeedColumnCount(1920, 'web'), 3);
+      assert.strictEqual(resolveFeedColumnCount(1399, 'web'), 3);
 
-      // Narrow / tablet web displays
-      assert.strictEqual(resolveFeedColumnCount(899, 'web'), 2);
-      assert.strictEqual(resolveFeedColumnCount(768, 'web'), 2);
-      assert.strictEqual(resolveFeedColumnCount(400, 'web'), 2);
+      // Wide desktop displays (1400px - 1799px)
+      assert.strictEqual(resolveFeedColumnCount(1400, 'web'), 4);
+      assert.strictEqual(resolveFeedColumnCount(1799, 'web'), 4);
+
+      // Extra-wide and ultrawide monitors (>= 1800px, capped at 5)
+      assert.strictEqual(resolveFeedColumnCount(1800, 'web'), 5);
+      assert.strictEqual(resolveFeedColumnCount(1920, 'web'), 5);
+      assert.strictEqual(resolveFeedColumnCount(2560, 'web'), 5);
+      assert.strictEqual(resolveFeedColumnCount(3840, 'web'), 5);
     });
 
     it('chunks posts into strictly 1 singular column with 0 spacers on mobile app', () => {

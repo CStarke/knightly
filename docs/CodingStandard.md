@@ -58,6 +58,13 @@ Always consult the versioned Expo documentation at [https://docs.expo.dev/versio
 - When handling external intent returns (such as `expo-image-picker` or camera dialogs on Android), protect tab navigators against spurious root intent (`/`) drops using custom intent filtering (`+native-intent.tsx`).
 - Preserve user state and scroll positions during OS activity pausing and foreground resumption.
 
+### 3.5 Template-Level Feature Inheritance & Anti-Duplication
+- **Core Principle**: When adding functionality intended across every modal dialog, screen layout, or club view (e.g. soft-keyboard avoidance/elevation, edge-to-edge status/navigation bar translucency, backdrop dismissal, accessibility handling), **always implement the capability at the template level** (`client/src/components/ui/modal-dialog.tsx`, `client/src/components/ui/screen.tsx`).
+- **Zero-Boilerplate Leaf Components**: Leaf components (`SuccessModal`, `DatePickerModal`, `ClaimClubModal`, `LocationInfoModal`, etc.) delegate directly to template primitives and inherit cross-cutting features by default.
+- **Strict Prohibitions**:
+  - Never duplicate `<Modal>` tags, raw backdrop pressables, or platform keyboard listeners in individual modal screens.
+  - Never maintain per-screen manual `keyboardLift` state or layout math; rely on `ModalDialog`'s dynamic `onLayout` measurement and Reanimated translation engine (`avoidKeyboard = true`).
+
 ---
 
 ## 4. Code Commenting Standards

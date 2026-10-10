@@ -124,6 +124,7 @@ export function ClaimClubModal() {
    * ensures the active visual state remains intact until the modal is completely off-screen.
    */
   const handleClose = () => {
+    Keyboard.dismiss();
     if (transitionTimerRef.current) {
       clearTimeout(transitionTimerRef.current);
       transitionTimerRef.current = null;

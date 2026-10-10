@@ -43,23 +43,15 @@ describe('Modal Edge-to-Edge Android Invariants & Backdrop Stretch', () => {
       }
     });
 
-    it('verifies SuccessModal configures statusBarTranslucent and navigationBarTranslucent', () => {
+    it('verifies SuccessModal delegates edge-to-edge to the ModalDialog template', () => {
       const code = readSrc('components/ui/success-modal.tsx');
-      const modalMatches = code.match(/<Modal[\s\S]*?>/g) || [];
-      assert.strictEqual(modalMatches.length, 1, 'success-modal.tsx should contain exactly 1 Modal element');
-
-      const modalTag = modalMatches[0];
       assert.ok(
-        modalTag.includes('statusBarTranslucent'),
-        'SuccessModal must specify statusBarTranslucent'
+        code.includes('<ModalDialog'),
+        'success-modal must use the ModalDialog template for edge-to-edge guarantees'
       );
       assert.ok(
-        modalTag.includes('navigationBarTranslucent'),
-        'SuccessModal must specify navigationBarTranslucent'
-      );
-      assert.ok(
-        modalTag.includes('transparent'),
-        'SuccessModal must specify transparent'
+        code.includes("from '@/components/ui/modal-dialog'"),
+        'success-modal must import from modal-dialog'
       );
     });
 
@@ -83,23 +75,15 @@ describe('Modal Edge-to-Edge Android Invariants & Backdrop Stretch', () => {
       );
     });
 
-    it('verifies DatePickerModal configures statusBarTranslucent and navigationBarTranslucent', () => {
+    it('verifies DatePickerModal delegates edge-to-edge to the ModalDialog template', () => {
       const code = readSrc('components/date-picker-modal.tsx');
-      const modalMatches = code.match(/<Modal[\s\S]*?>/g) || [];
-      assert.strictEqual(modalMatches.length, 1, 'date-picker-modal.tsx should contain exactly 1 Modal element');
-
-      const modalTag = modalMatches[0];
       assert.ok(
-        modalTag.includes('statusBarTranslucent'),
-        'DatePickerModal must specify statusBarTranslucent'
+        code.includes('<ModalDialog'),
+        'date-picker-modal must use the ModalDialog template for edge-to-edge guarantees'
       );
       assert.ok(
-        modalTag.includes('navigationBarTranslucent'),
-        'DatePickerModal must specify navigationBarTranslucent'
-      );
-      assert.ok(
-        modalTag.includes('transparent'),
-        'DatePickerModal must specify transparent'
+        code.includes("from '@/components/ui/modal-dialog'"),
+        'date-picker-modal must import from modal-dialog'
       );
     });
   });
@@ -122,12 +106,14 @@ describe('Modal Edge-to-Edge Android Invariants & Backdrop Stretch', () => {
       assert.match(dialogCode, /backdrop:\s*\{[^}]+flex:\s*1/);
     });
 
-    it('ensures success-modal backdrop covers full width and height edge-to-edge', () => {
+    it('ensures success-modal backdrop is covered by ModalDialog template', () => {
       const code = readSrc('components/ui/success-modal.tsx');
-      assert.ok(code.includes("backdrop:"), 'success-modal must define backdrop');
-      assert.match(code, /backdrop:\s*\{[^}]+width:\s*'100%'/);
-      assert.match(code, /backdrop:\s*\{[^}]+height:\s*'100%'/);
-      assert.match(code, /backdrop:\s*\{[^}]+flex:\s*1/);
+      const dialogCode = readSrc('components/ui/modal-dialog.tsx');
+      assert.ok(code.includes('<ModalDialog'), 'success-modal must delegate to ModalDialog');
+      assert.ok(dialogCode.includes('backdrop:'), 'modal-dialog must define backdrop');
+      assert.match(dialogCode, /backdrop:\s*\{[^}]+width:\s*'100%'/);
+      assert.match(dialogCode, /backdrop:\s*\{[^}]+height:\s*'100%'/);
+      assert.match(dialogCode, /backdrop:\s*\{[^}]+flex:\s*1/);
     });
 
     it('ensures header-avatar overlay covers full width and height edge-to-edge with safe-area padding', () => {
@@ -142,12 +128,14 @@ describe('Modal Edge-to-Edge Android Invariants & Backdrop Stretch', () => {
       );
     });
 
-    it('ensures datePickerStyles backdrop in date-picker-modal covers full width and height edge-to-edge', () => {
+    it('ensures date-picker-modal backdrop is covered by ModalDialog template', () => {
       const code = readSrc('components/date-picker-modal.tsx');
-      assert.ok(code.includes("backdrop:"), 'datePickerStyles must define backdrop');
-      assert.match(code, /backdrop:\s*\{[^}]+width:\s*'100%'/);
-      assert.match(code, /backdrop:\s*\{[^}]+height:\s*'100%'/);
-      assert.match(code, /backdrop:\s*\{[^}]+flex:\s*1/);
+      const dialogCode = readSrc('components/ui/modal-dialog.tsx');
+      assert.ok(code.includes('<ModalDialog'), 'date-picker-modal must delegate to ModalDialog');
+      assert.ok(dialogCode.includes('backdrop:'), 'modal-dialog must define backdrop');
+      assert.match(dialogCode, /backdrop:\s*\{[^}]+width:\s*'100%'/);
+      assert.match(dialogCode, /backdrop:\s*\{[^}]+height:\s*'100%'/);
+      assert.match(dialogCode, /backdrop:\s*\{[^}]+flex:\s*1/);
     });
   });
 

@@ -21,10 +21,11 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { SmartAppBanner, isSmartAppBannerDismissed, SMART_APP_BANNER_HEIGHT } from '@/components/smart-app-banner';
 import { ThemedText } from '@/components/themed-text';
 import { getAppHeaderHeight } from '@/components/ui/app-header';
 import { Icon } from '@/components/ui/icon';
-import { Brand, Fonts, MaxContentWidth, Radius, Spacing, WebHeaderInset } from '@/constants/theme';
+import { Brand, Fonts, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { APP_VERSION } from '@/constants/version';
 import { useAuth } from '@/context/auth-context';
 import { student } from '@/data/student';
@@ -83,8 +84,13 @@ export function LoginScreen() {
   const transitionTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const isWeb = Platform.OS === 'web';
+  const isDesktopWeb = isWeb && windowWidth >= 768;
+  const [isBannerDismissed, setIsBannerDismissed] = useState(() => isSmartAppBannerDismissed());
+  const showBanner = isWeb && !isDesktopWeb && !isBannerDismissed;
+  const bannerOffset = showBanner ? SMART_APP_BANNER_HEIGHT : 0;
+
   const targetSidebarWidth = 270;
-  const targetScale = isWeb ? 24 / 34 : 28 / 34;
+  const targetScale = isDesktopWeb ? 24 / 34 : 28 / 34;
 
   // Exact height of the AppHeader on the home page (for mobile)
   const targetHeaderHeight = getAppHeaderHeight(insets.top);
@@ -92,29 +98,29 @@ export function LoginScreen() {
   const defaultMastheadHeight = 86;
   const mastheadHeight = useSharedValue(defaultMastheadHeight);
   const headerPaddingTop =
-    isWeb ? Spacing.four : insets.top + Spacing.one;
+    isDesktopWeb ? Spacing.four : (insets.top > 0 ? insets.top + Spacing.one : Spacing.three);
 
   const scrollViewRef = useRef<ScrollView>(null);
   const heroWordmarkRef = useRef<View>(null);
   const headerTargetRef = useRef<View>(null);
 
   // Analytical fallbacks for initial frame before onLayout measurements
-  // On web, target position docks into the left sidebar masthead (x: 12 + Spacing.three + 2, y: 12 + Spacing.four)
-  // On mobile, target position docks into the centered AppHeader
-  const defaultHeaderX = isWeb
+  // On desktop web, target position docks into the left sidebar masthead (x: 12 + Spacing.three + 2, y: 12 + Spacing.four)
+  // On mobile (native or mobile web), target position docks into the centered AppHeader
+  const defaultHeaderX = isDesktopWeb
     ? 12 + Spacing.three + 2
     : (windowWidth > MaxContentWidth ? (windowWidth - MaxContentWidth) / 2 : 0) + Spacing.three;
-  const defaultHeaderY = isWeb ? 12 + Spacing.four : headerPaddingTop;
+  const defaultHeaderY = isDesktopWeb ? 12 + Spacing.four : bannerOffset + headerPaddingTop;
   const defaultHeroWidth = 136;
   const defaultHeroHeight = 42;
-  const formMainTop = Math.max(headerPaddingTop + 30, (windowHeight - 402) / 2);
+  const formMainTop = Math.max(bannerOffset + headerPaddingTop + 30, (windowHeight - 402) / 2);
 
   const initialDeltaX = defaultHeaderX + (defaultHeroWidth * targetScale) / 2 - windowWidth / 2;
   const initialDeltaY =
     defaultHeaderY + (defaultHeroHeight * targetScale) / 2 - (formMainTop + 74 + defaultHeroHeight / 2);
 
   // Shared animation values
-  const initialHeight = isWeb ? windowHeight : screenHeight;
+  const initialHeight = isDesktopWeb ? windowHeight : (isWeb ? windowHeight - bannerOffset : screenHeight);
   const overlayOpacity = useSharedValue(1);
   const headerHeight = useSharedValue(initialHeight);
   const headerWidth = useSharedValue(windowWidth);
@@ -230,7 +236,7 @@ export function LoginScreen() {
         }
       });
     });
-  }, [deltaX, deltaY, targetScale]);
+  }, [deltaX, deltaY, targetScale, bannerOffset]);
 
   // Measure on mount, window resize, and layout changes
   useEffect(() => {
@@ -252,7 +258,7 @@ export function LoginScreen() {
   useEffect(() => {
     if (!isTransitioning) {
       overlayOpacity.value = 1;
-      headerHeight.value = isWeb ? windowHeight : screenHeight;
+      headerHeight.value = isDesktopWeb ? windowHeight : (isWeb ? windowHeight - bannerOffset : screenHeight);
       headerWidth.value = windowWidth;
       sidebarMorphProgress.value = 0;
       formOpacity.value = 1;
@@ -274,7 +280,9 @@ export function LoginScreen() {
     wordmarkProgress,
     wordmarkCrossfadeOpacity,
     overlayOpacity,
+    isDesktopWeb,
     isWeb,
+    bannerOffset,
   ]);
 
   const canSubmit = username.trim().length > 0 && password.trim().length > 0;
@@ -338,9 +346,9 @@ export function LoginScreen() {
 
       // Fade in the header details (avatar on mobile, tagline and collapse on web)
       headerDetailsOpacity.value = withDelay(
-        isWeb ? 460 : 380,
+        isDesktopWeb ? 460 : 380,
         withTiming(1, {
-          duration: isWeb ? 340 : 450,
+          duration: isDesktopWeb ? 340 : 450,
           easing: Easing.out(Easing.quad),
         })
       );
@@ -374,7 +382,7 @@ export function LoginScreen() {
         }
       };
 
-      if (isWeb) {
+      if (isDesktopWeb) {
         // WHY INSET MORPH ON WEB:
         // Desktop web layout uses an inset, rounded floating sidebar with a Calvin Maroon masthead
         // (left: 12, top: 12, width: 270, height: targetMastheadHeight, borderRadius: 20).
@@ -502,7 +510,7 @@ export function LoginScreen() {
   }));
 
   const maroonBackgroundStyle = useAnimatedStyle(() => {
-    if (isWeb) {
+    if (isDesktopWeb) {
       const p = sidebarMorphProgress.value;
       const startH = windowHeight;
       const currentWidth = windowWidth + (targetSidebarWidth - windowWidth) * p;
@@ -528,6 +536,7 @@ export function LoginScreen() {
       };
     }
     return {
+      top: bannerOffset,
       height: headerHeight.value,
       width: '100%',
     };
@@ -586,7 +595,7 @@ export function LoginScreen() {
       style={[styles.rootOverlay, rootOverlayAnimatedStyle]}
       pointerEvents={isTransitioning ? 'none' : 'auto'}>
       {/* Static measurement anchor for Desktop Web docking coordinates */}
-      {isWeb && (
+      {isDesktopWeb && (
         <View
           pointerEvents="none"
           style={styles.webTargetMeasurementAnchor}>
@@ -620,11 +629,16 @@ export function LoginScreen() {
         </View>
       )}
 
+      {/* Smart App Banner on mobile web */}
+      {showBanner ? (
+        <SmartAppBanner onDismiss={() => setIsBannerDismissed(true)} />
+      ) : null}
+
       {/* 1. Maroon Background Container:
           - Web: Horizontally and vertically glides into inset floating rounded sidebar masthead
           - Mobile: Vertically shrinks from screenHeight down to targetHeaderHeight */}
       <Animated.View style={[styles.maroonContainer, maroonBackgroundStyle]}>
-        {isWeb ? (
+        {isDesktopWeb ? (
           /* Web Sidebar Masthead Layout Container */
           <View
             pointerEvents="none"
@@ -703,7 +717,7 @@ export function LoginScreen() {
       </Animated.View>
 
       {/* 2. Login Form Screen: Sits unclipped on top of maroonContainer */}
-      <View style={styles.formContainer}>
+      <View style={[styles.formContainer, bannerOffset > 0 && { top: bannerOffset }]}>
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <View
             style={styles.keyboardView}

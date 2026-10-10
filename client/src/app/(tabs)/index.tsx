@@ -11,14 +11,12 @@
  * prevent merge conflicts across parallel contributors, and maintain clean separation of concerns.
  */
 
-import { Platform } from "react-native";
+import { useResponsiveLayout } from "@/hooks/use-responsive-layout";
 
 import { FeedMobileView } from "@/components/feed-mobile-view";
 import { FeedWebView } from "@/components/feed-web-view";
 
 export default function FeedScreen() {
-  if (Platform.OS === "web") {
-    return <FeedWebView />;
-  }
-  return <FeedMobileView />;
+  const { isCompact } = useResponsiveLayout();
+  return isCompact ? <FeedMobileView /> : <FeedWebView />;
 }
