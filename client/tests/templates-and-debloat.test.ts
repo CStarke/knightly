@@ -771,6 +771,68 @@ describe('Templates & Code De-bloating Invariants', () => {
     });
   });
 
+  describe('FormTextInput Template Contract & Web/Mobile Parity Invariants', () => {
+    it('enforces web outline suppression and Calvin Gold caret styling in FormTextInput', () => {
+      const formInputCode = readSrc('components/ui/form-text-input.tsx');
+
+      // 1. Web outline suppression
+      assert.ok(
+        formInputCode.includes("outlineStyle: 'none'") || formInputCode.includes('outlineStyle: "none"'),
+        'FormTextInput must specify outlineStyle: none on web to suppress native browser focus rectangles'
+      );
+
+      // 2. Cross-platform Calvin Gold caret
+      assert.ok(
+        formInputCode.includes('caretColor: Brand.gold'),
+        'FormTextInput must specify caretColor: Brand.gold for web browsers'
+      );
+      assert.ok(
+        formInputCode.includes('cursorColor={Brand.gold}'),
+        'FormTextInput must specify cursorColor={Brand.gold} for native mobile'
+      );
+
+      // 3. Dynamic border transitions
+      assert.ok(
+        formInputCode.includes('Brand.brightRed'),
+        'FormTextInput must highlight error borders with Brand.brightRed'
+      );
+      assert.ok(
+        formInputCode.includes('Brand.gold'),
+        'FormTextInput must highlight focus borders with Brand.gold'
+      );
+    });
+
+    it('guarantees PostWebView, PostMobileView, and PostDateTimeSection use FormTextInput and shared sections for unified field parity', () => {
+      const webViewCode = readSrc('components/post-web-view.tsx');
+      const mobileViewCode = readSrc('components/post-mobile-view.tsx');
+      const dateTimeCode = readSrc('components/post-date-time-section.tsx');
+      const formSectionsCode = readSrc('components/post-form-sections.tsx');
+
+      // Shared templates must consume FormTextInput
+      assert.ok(formSectionsCode.includes('FormTextInput'), 'post-form-sections must consume FormTextInput');
+      assert.ok(dateTimeCode.includes('FormTextInput'), 'PostDateTimeSection must consume FormTextInput');
+
+      // Both views must consume PostTitleSection, PostDescriptionSection, and PostLocationSection
+      assert.ok(webViewCode.includes('PostTitleSection'), 'PostWebView must consume PostTitleSection');
+      assert.ok(webViewCode.includes('PostDescriptionSection'), 'PostWebView must consume PostDescriptionSection');
+      assert.ok(webViewCode.includes('PostLocationSection'), 'PostWebView must consume PostLocationSection');
+
+      assert.ok(mobileViewCode.includes('PostTitleSection'), 'PostMobileView must consume PostTitleSection');
+      assert.ok(mobileViewCode.includes('PostDescriptionSection'), 'PostMobileView must consume PostDescriptionSection');
+      assert.ok(mobileViewCode.includes('PostLocationSection'), 'PostMobileView must consume PostLocationSection');
+
+      // Single source of truth: field placeholders declared once in post-form-sections
+      assert.ok(
+        formSectionsCode.includes('placeholder="What\'s the event?"'),
+        'Post title placeholder must be declared once in post-form-sections as "What\'s the event?"'
+      );
+      assert.ok(
+        formSectionsCode.includes('placeholder="e.g. North Hall 276"'),
+        'Post location placeholder must be declared once in post-form-sections'
+      );
+    });
+  });
+
   describe('DiningSubMeter Contract', () => {
     it('formats label, count ratio, and color consistently', () => {
       const formatSubMeter = (label: string, remaining: number, total: number, color: string) => ({
@@ -1275,7 +1337,12 @@ describe('Templates & Code De-bloating Invariants', () => {
 
       // 4. Zero raw hex colors: uses theme and Brand tokens
       assert.ok(webViewCode.includes('Brand.gold'), 'PostWebView must use centralized Brand.gold');
-      assert.ok(webViewCode.includes('Brand.brightRed'), 'PostWebView must use Brand.brightRed for validation');
+      assert.ok(
+        webViewCode.includes('Brand.brightRed') ||
+          webViewCode.includes('hasError') ||
+          readSrc('components/post-form-sections.tsx').includes('hasError'),
+        'Post composer must handle validation error styling via Brand.brightRed or FormTextInput hasError'
+      );
 
       // 5. Three-column horizontal layout and zero-scroll architecture on desktop
       assert.ok(webViewCode.includes('threeColumnLayout'), 'PostWebView must implement threeColumnLayout on desktop');

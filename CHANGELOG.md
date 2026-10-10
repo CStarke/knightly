@@ -5,6 +5,25 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
+## [0.5.0] - 2026-10-10
+
+### Added
+- **Reusable Template Text Input Primitive (`FormTextInput`)**: Created `client/src/components/ui/form-text-input.tsx` to serve as the unified template primitive for all text input fields:
+  - Suppresses web browser focus rectangles via `outlineStyle: 'none'`, `outlineWidth: 0`, and `outlineColor: 'transparent'`.
+  - Injects Calvin Gold text carets cross-platform (`caretColor: Brand.gold` on web, `cursorColor={Brand.gold}` and `selectionColor={Brand.gold}` on native mobile).
+  - Handles dynamic Calvin Gold borders on focus (`Brand.gold`), Calvin Bright Red on validation error (`Brand.brightRed`), and `theme.border` by default.
+  - Supports `standard`, `headline`, `small`, and `multiline` typography and density variants.
+- **Shared Consolidated Post Form Sections (`post-form-sections.tsx`)**: Created `client/src/components/post-form-sections.tsx` containing `PostTitleSection`, `PostDescriptionSection`, and `PostLocationSection` as the single authoritative point of truth for post form controls across both mobile and web:
+  - Changes to labels, length limits, icons, or placeholders now happen strictly in one place and apply automatically to both `PostMobileView` and `PostWebView`.
+  - Title placeholder set to `"What's the event?"` across all platforms.
+  - Description placeholder set to `"What is happening? Describe the activity, meeting agenda, or announcements..."`.
+  - Location placeholder set to `"e.g. North Hall 276"`.
+- **Enshrined Consolidation & Template Architecture**: Updated `AGENTS.md` (Section 4.5) and `docs/CodingStandard.md` (Section 3.5) mandating broad consolidation and template usage across controls (buttons, sliders, text inputs, modals, tabs).
+
+### Fixed
+- **Web White Focus Outlines & Carets**: Eliminated white browser focus outlines and white text carets on web for post composer fields (Title, Description, Location, and Custom When), standardizing on Calvin Gold borders and carets across all platforms.
+- **Divergent Web/Mobile Post Field Declarations**: Purged duplicated inline `<FieldLabel>` and `<TextInput>` tags from `PostMobileView` and `PostWebView`, delegating directly to `post-form-sections.tsx`.
+
 ## [0.4.6] - 2026-10-07
 
 ### Added
@@ -24,6 +43,12 @@ and this project adheres to semantic application versioning defined in `AGENTS.m
 - **Mobile Web App Shell & Grounded Navigation**: Updated `client/src/components/app-tabs.web.tsx` to detect compact phone viewports (< 768px) and automatically mount the mobile shell (regal masthead, tab slot, and grounded bottom navigation bar) rather than squeezing the desktop sidebar onto handheld screens.
 - **Shared Modular Bottom Tab Bar**: Extracted `BottomBar` and `TabButton` components into `client/src/components/bottom-tab-bar.tsx` with spring pop motion, icon crossfading, Calvin Gold 33° active indicators, and rigid bottom grounding, shared across native mobile and mobile web without code duplication.
 - **Ultra-Wide Desktop Grid Scaling (Up to 5 Columns)**: Extended `resolveFeedColumnCount` in `client/src/data/feed.ts` and `FeedWebView` to support 4-card grids on full-screen 1080p desktop monitors (1400px–1799px) and 5-card grids on ultrawide monitors (>=1800px, capped at 5), dynamically adjusting container `maxWidth` up to 1880px.
+- **Template Text Input Primitive (`FormTextInput`)**: Added `client/src/components/ui/form-text-input.tsx`, consolidating form input logic and styling across web and mobile:
+  - Automatically suppresses native browser focus rings on web via `outlineStyle: 'none'`.
+  - Injects Calvin Gold text carets across all platforms (`caretColor: Brand.gold` on web, `cursorColor={Brand.gold}` on native).
+  - Handles dynamic Calvin Gold borders on focus (`isFocused ? Brand.gold : theme.border`) and Calvin Bright Red on validation error (`Brand.brightRed`).
+  - Supports standard, headline, small, and multiline variants with full theme token compliance.
+- **Web & Mobile Post Field Unification**: Consolidated Title, Description, Location, and Custom When inputs across `PostMobileView`, `PostWebView`, and `PostDateTimeSection` to consume `FormTextInput` with 100% synchronized placeholders, eliminating divergent inline implementations.
 
 ### Fixed
 - **Unified Single-Input Date Field Architecture (`SegmentedDateInput`)**: Replaced the multi-box input arrangement with a zero-flicker masked architecture patterned after the Claim Club modal code field (`claim-club-modal.tsx`), using an invisible `<TextInput>` capturing raw digits coupled with a synchronous React presentation layer and high-fidelity `BlinkingCursor`:

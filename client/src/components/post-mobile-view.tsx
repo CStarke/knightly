@@ -12,10 +12,8 @@ import {
   Dimensions,
   Keyboard,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
-  TextInput,
   View,
 } from 'react-native';
 import Animated, {
@@ -31,18 +29,16 @@ import { LocationInfoModal } from '@/components/location-info-modal';
 import { PostBannerSection } from '@/components/post-banner-section';
 import { PostClubSelector } from '@/components/post-club-selector';
 import { PostDateTimeSection } from '@/components/post-date-time-section';
+import {
+  PostDescriptionSection,
+  PostLocationSection,
+  PostTitleSection,
+} from '@/components/post-form-sections';
 import { PostSuccessModal } from '@/components/post-success-modal';
 import { Button } from '@/components/ui/button';
-import { FieldLabel } from '@/components/ui/field-label';
-import { Icon } from '@/components/ui/icon';
 import { Screen } from '@/components/ui/screen';
-import { BottomTabContentInset, Brand, Radius, Spacing } from '@/constants/theme';
-import {
-  MAX_DESCRIPTION_LENGTH,
-  MAX_LOCATION_LENGTH,
-  MAX_TITLE_LENGTH,
-  type PostComposerState,
-} from '@/hooks/use-post-composer';
+import { BottomTabContentInset, Spacing } from '@/constants/theme';
+import { type PostComposerState } from '@/hooks/use-post-composer';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 import { handleSmoothInputFocus } from '@/utils/smooth-input-focus';
@@ -217,97 +213,40 @@ export function PostMobileView({ composer }: PostMobileViewProps) {
             />
 
             {/* 2. TITLE (REQUIRED, MAX 50 CHARS) */}
-            <View
-              style={styles.section}
+            <PostTitleSection
+              value={title}
+              onChangeText={setTitle}
+              onFocus={(e) => {
+                setIsTitleFocused(true);
+                scrollToInput(titleSectionY.current);
+                handleSmoothInputFocus(e);
+              }}
+              onBlur={() => setIsTitleFocused(false)}
+              isFocused={isTitleFocused}
               onLayout={(e) => {
                 titleSectionY.current = e.nativeEvent.layout.y;
               }}
-            >
-              <FieldLabel
-                label="POST TITLE"
-                required
-                currentLength={title.length}
-                maxLength={MAX_TITLE_LENGTH}
-              />
-              <TextInput
-                value={title}
-                onChangeText={setTitle}
-                onFocus={(e) => {
-                  setIsTitleFocused(true);
-                  scrollToInput(titleSectionY.current);
-                  handleSmoothInputFocus(e);
-                }}
-                onBlur={() => setIsTitleFocused(false)}
-                cursorColor={Brand.gold}
-                selectionColor={Brand.gold}
-                placeholder="e.g. Welcome Night & Info Session"
-                placeholderTextColor={theme.textMuted}
-                maxLength={MAX_TITLE_LENGTH}
-                style={[
-                  styles.titleInput,
-                  {
-                    color: theme.text,
-                    backgroundColor: theme.backgroundElement,
-                    borderColor:
-                      title.length > MAX_TITLE_LENGTH
-                        ? Brand.brightRed
-                        : isTitleFocused
-                        ? Brand.gold
-                        : theme.border,
-                  },
-                ]}
-              />
-            </View>
+            />
 
             {/* 3. DESCRIPTION (REQUIRED, MAX 280 CHARS) */}
-            <View
-              style={styles.section}
+            <PostDescriptionSection
+              value={description}
+              onChangeText={setDescription}
+              height={Math.max(90, descHeight)}
+              onContentSizeChange={(e) => {
+                setDescHeight(Math.max(90, e.nativeEvent.contentSize.height));
+              }}
+              onFocus={(e) => {
+                setIsDescFocused(true);
+                scrollToInput(descSectionY.current);
+                handleSmoothInputFocus(e);
+              }}
+              onBlur={() => setIsDescFocused(false)}
+              isFocused={isDescFocused}
               onLayout={(e) => {
                 descSectionY.current = e.nativeEvent.layout.y;
               }}
-            >
-              <FieldLabel
-                label="DESCRIPTION"
-                required
-                currentLength={description.length}
-                maxLength={MAX_DESCRIPTION_LENGTH}
-              />
-              <TextInput
-                value={description}
-                onChangeText={setDescription}
-                onContentSizeChange={(e) => {
-                  setDescHeight(Math.max(90, e.nativeEvent.contentSize.height));
-                }}
-                onFocus={(e) => {
-                  setIsDescFocused(true);
-                  scrollToInput(descSectionY.current);
-                  handleSmoothInputFocus(e);
-                }}
-                onBlur={() => setIsDescFocused(false)}
-                cursorColor={Brand.gold}
-                selectionColor={Brand.gold}
-                placeholder="What is happening? Describe the activity, meeting agenda, or announcements..."
-                placeholderTextColor={theme.textMuted}
-                multiline
-                scrollEnabled={false}
-                numberOfLines={4}
-                maxLength={MAX_DESCRIPTION_LENGTH}
-                style={[
-                  styles.descInput,
-                  {
-                    height: Math.max(90, descHeight),
-                    color: theme.text,
-                    backgroundColor: theme.backgroundElement,
-                    borderColor:
-                      description.length > MAX_DESCRIPTION_LENGTH
-                        ? Brand.brightRed
-                        : isDescFocused
-                        ? Brand.gold
-                        : theme.border,
-                  },
-                ]}
-              />
-            </View>
+            />
 
             {/* 4. ATTACH IMAGE */}
             <PostBannerSection
@@ -381,61 +320,21 @@ export function PostMobileView({ composer }: PostMobileViewProps) {
             />
 
             {/* 6. LOCATION (ALWAYS VISIBLE INLINE, BLANK BY DEFAULT) */}
-            <View
-              style={styles.section}
+            <PostLocationSection
+              value={whereText}
+              onChangeText={setWhereText}
+              onFocus={(e) => {
+                setIsWhereFocused(true);
+                scrollToInput(locationSectionY.current);
+                handleSmoothInputFocus(e, { scrollViewRef, targetY: locationSectionY.current });
+              }}
+              onBlur={() => setIsWhereFocused(false)}
+              isFocused={isWhereFocused}
+              onOpenInfoModal={() => setShowLocationInfoModal(true)}
               onLayout={(e) => {
                 locationSectionY.current = e.nativeEvent.layout.y;
               }}
-            >
-              <FieldLabel
-                icon={<Icon sf="mappin.and.ellipse" md="place" size={13} color={Brand.gold} />}
-                label="LOCATION"
-                currentLength={whereText.length}
-                maxLength={MAX_LOCATION_LENGTH}
-                infoButton={
-                  <Pressable
-                    onPress={() => setShowLocationInfoModal(true)}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel="Location guidance"
-                    style={({ pressed }) => [
-                      styles.infoBtn,
-                      pressed && { opacity: 0.6 },
-                    ]}
-                  >
-                    <Icon sf="info.circle" md="info" size={13} color={Brand.gold} />
-                  </Pressable>
-                }
-              />
-              <TextInput
-                value={whereText}
-                onChangeText={setWhereText}
-                onFocus={(e) => {
-                  setIsWhereFocused(true);
-                  scrollToInput(locationSectionY.current);
-                  handleSmoothInputFocus(e, { scrollViewRef, targetY: locationSectionY.current });
-                }}
-                onBlur={() => setIsWhereFocused(false)}
-                cursorColor={Brand.gold}
-                selectionColor={Brand.gold}
-                placeholder="e.g. North Hall 276"
-                placeholderTextColor={theme.textMuted}
-                maxLength={MAX_LOCATION_LENGTH}
-                style={[
-                  styles.smallInput,
-                  {
-                    color: theme.text,
-                    backgroundColor: theme.backgroundElement,
-                    borderColor:
-                      whereText.length > MAX_LOCATION_LENGTH
-                        ? Brand.brightRed
-                        : isWhereFocused
-                        ? Brand.gold
-                        : theme.border,
-                  },
-                ]}
-              />
-            </View>
+            />
 
             {/* 7. PUBLISH ACTION BUTTON */}
             <Button
@@ -484,46 +383,7 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     gap: Spacing.three,
   },
-  section: {
-    gap: 6,
-  },
-  titleInput: {
-    borderWidth: 1,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.two + 4,
-    paddingVertical: Spacing.two + 2,
-    fontSize: 16,
-    fontWeight: '600',
-    outlineWidth: 0,
-    outlineColor: 'transparent',
-  },
-  descInput: {
-    borderWidth: 1,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.two + 4,
-    paddingVertical: Spacing.two + 2,
-    fontSize: 15,
-    lineHeight: 22,
-    minHeight: 90,
-    textAlignVertical: 'top',
-    outlineWidth: 0,
-    outlineColor: 'transparent',
-  },
-  smallInput: {
-    height: 40,
-    borderWidth: 1,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.two + 4,
-    paddingVertical: Spacing.one + 4,
-    fontSize: 14,
-    outlineWidth: 0,
-    outlineColor: 'transparent',
-  },
   publishBtn: {
     marginTop: Spacing.two,
-  },
-  infoBtn: {
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 });

@@ -15,6 +15,7 @@ import { AccessoryButton } from '@/components/ui/accessory-button';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { FieldLabel } from '@/components/ui/field-label';
+import { FormTextInput } from '@/components/ui/form-text-input';
 import { Icon } from '@/components/ui/icon';
 import { ModalDialog, ModalHeader } from '@/components/ui/modal-dialog';
 import { Segmented } from '@/components/ui/segmented';
@@ -205,29 +206,17 @@ export function PostDateTimeSection({
               currentLength={customWhenText.length}
               maxLength={MAX_CUSTOM_WHEN_LENGTH}
             />
-            <TextInput
+            <FormTextInput
               value={customWhenText}
               onChangeText={onCustomWhenTextChange}
               onFocus={onCustomWhenFocus}
               onBlur={onCustomWhenBlur}
-              cursorColor={Brand.gold}
-              selectionColor={Brand.gold}
+              isFocused={isCustomWhenFocused}
+              hasError={customWhenText.length > MAX_CUSTOM_WHEN_LENGTH}
               placeholder="e.g. Starts this weekend"
-              placeholderTextColor={theme.textMuted}
               maxLength={MAX_CUSTOM_WHEN_LENGTH}
-              style={[
-                styles.smallInput,
-                {
-                  color: theme.text,
-                  backgroundColor: theme.backgroundElement,
-                  borderColor:
-                    customWhenText.length > MAX_CUSTOM_WHEN_LENGTH
-                      ? Brand.brightRed
-                      : isCustomWhenFocused
-                      ? Brand.gold
-                      : theme.border,
-                },
-              ]}
+              variant="small"
+              style={styles.smallInput}
             />
           </View>
         )}

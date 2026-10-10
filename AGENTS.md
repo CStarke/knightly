@@ -70,10 +70,11 @@ Multiple developers work in parallel against `origin`. To prevent merge conflict
 - Keep `events-api.ts` gracefully wrapped in try/catch with timeout fallback to `CALVIN_EVENTS_SEED`.
 - Use `node server/scripts/sync-calvin-events.js` to refresh seed snapshots.
 
-### 4.5 Template-Level Feature Implementation & Inheritance
-- Cross-cutting behaviors intended across every modal, screen, or club view (e.g. software keyboard avoidance/elevation, edge-to-edge status/navigation bar translucency, backdrop dismissal, accessibility boundaries) **must strictly be implemented at the template level** (`client/src/components/ui/modal-dialog.tsx`, `client/src/components/ui/screen.tsx`).
-- Leaf components (`SuccessModal`, `DatePickerModal`, `ClaimClubModal`, `LocationInfoModal`, etc.) **must inherit these features by default without duplicated code**.
-- Never implement ad-hoc keyboard listeners, manual elevation math, custom `<Modal>` tags, or duplicate backdrops inside leaf components.
+### 4.5 Template-Level Feature Implementation & Broad Consolidation
+- **Consolidation First**: Wherever possible, elements appearing multiple times **must strictly be consolidated into reusable templates** under `client/src/components/ui/` (e.g. `Button`, `FormTextInput`, `ModalDialog`, `Screen`, sliders, normal and phantom tabs).
+- Cross-cutting behaviors intended across controls (e.g. software keyboard avoidance/elevation, web outline suppression, caret color tokens, edge-to-edge status/navigation bar translucency, backdrop dismissal, accessibility boundaries) **must strictly be implemented at the template level** (`client/src/components/ui/modal-dialog.tsx`, `client/src/components/ui/screen.tsx`, `client/src/components/ui/form-text-input.tsx`).
+- Leaf components (`PostMobileView`, `PostWebView`, `SuccessModal`, `DatePickerModal`, `ClaimClubModal`, `LocationInfoModal`, etc.) **must inherit these features by default without duplicated code or inline element drift**.
+- Never implement ad-hoc keyboard listeners, manual elevation math, custom `<Modal>` tags, duplicate backdrops, or raw unstyled `<TextInput>` tags inside leaf components.
 
 ---
 

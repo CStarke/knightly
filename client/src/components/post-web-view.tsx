@@ -23,9 +23,7 @@
 
 import React from 'react';
 import {
-  Pressable,
   StyleSheet,
-  TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -36,21 +34,20 @@ import { PostBannerSection } from '@/components/post-banner-section';
 import { PostCard } from '@/components/post-card';
 import { PostClubSelector } from '@/components/post-club-selector';
 import { PostDateTimeSection } from '@/components/post-date-time-section';
+import {
+  PostDescriptionSection,
+  PostLocationSection,
+  PostTitleSection,
+} from '@/components/post-form-sections';
 import { PostSuccessModal } from '@/components/post-success-modal';
 import { ThemedText } from '@/components/themed-text';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { FieldLabel } from '@/components/ui/field-label';
 import { Icon } from '@/components/ui/icon';
 import { Screen } from '@/components/ui/screen';
 import { Brand, Radius, Spacing } from '@/constants/theme';
-import {
-  MAX_DESCRIPTION_LENGTH,
-  MAX_LOCATION_LENGTH,
-  MAX_TITLE_LENGTH,
-  type PostComposerState,
-} from '@/hooks/use-post-composer';
+import { type PostComposerState } from '@/hooks/use-post-composer';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -151,132 +148,40 @@ export function PostWebView({ composer }: PostWebViewProps) {
       />
 
       {/* 2. TITLE (HERO HEADLINE INPUT, REQUIRED, MAX 50 CHARS) */}
-      <View style={styles.section}>
-        <FieldLabel
-          label="POST TITLE"
-          required
-          currentLength={title.length}
-          maxLength={MAX_TITLE_LENGTH}
-        />
-        <TextInput
-          value={title}
-          onChangeText={setTitle}
-          onFocus={() => setIsTitleFocused(true)}
-          onBlur={() => setIsTitleFocused(false)}
-          cursorColor={Brand.gold}
-          selectionColor={Brand.gold}
-          placeholder="Post title"
-          placeholderTextColor={theme.textMuted}
-          multiline
-          scrollEnabled={false}
-          blurOnSubmit
-          returnKeyType="done"
-          numberOfLines={2}
-          maxLength={MAX_TITLE_LENGTH}
-          style={[
-            styles.titleInput,
-            {
-              color: theme.text,
-              backgroundColor: theme.backgroundElement,
-              borderColor:
-                title.length > MAX_TITLE_LENGTH
-                  ? Brand.brightRed
-                  : isTitleFocused
-                  ? Brand.gold
-                  : theme.border,
-            },
-          ]}
-        />
-      </View>
+      <PostTitleSection
+        value={title}
+        onChangeText={setTitle}
+        onFocus={() => setIsTitleFocused(true)}
+        onBlur={() => setIsTitleFocused(false)}
+        isFocused={isTitleFocused}
+        variant="headline"
+        style={styles.titleInput}
+      />
 
       {/* 3. DESCRIPTION (EXPANSIVE TEXTAREA, REQUIRED, MAX 280 CHARS) */}
-      <View style={styles.section}>
-        <FieldLabel
-          label="DESCRIPTION"
-          required
-          currentLength={description.length}
-          maxLength={MAX_DESCRIPTION_LENGTH}
-        />
-        <TextInput
-          value={description}
-          onChangeText={setDescription}
-          onContentSizeChange={(e) => {
-            setDescHeight(Math.max(90, Math.min(130, e.nativeEvent.contentSize.height)));
-          }}
-          onFocus={() => setIsDescFocused(true)}
-          onBlur={() => setIsDescFocused(false)}
-          cursorColor={Brand.gold}
-          selectionColor={Brand.gold}
-          placeholder="Write post details, meeting agenda, or announcements..."
-          placeholderTextColor={theme.textMuted}
-          multiline
-          scrollEnabled={false}
-          numberOfLines={4}
-          maxLength={MAX_DESCRIPTION_LENGTH}
-          style={[
-            styles.descInput,
-            {
-              height: Math.max(90, Math.min(130, descHeight)),
-              color: theme.text,
-              backgroundColor: theme.backgroundElement,
-              borderColor:
-                description.length > MAX_DESCRIPTION_LENGTH
-                  ? Brand.brightRed
-                  : isDescFocused
-                  ? Brand.gold
-                  : theme.border,
-            },
-          ]}
-        />
-      </View>
+      <PostDescriptionSection
+        value={description}
+        onChangeText={setDescription}
+        height={Math.max(90, Math.min(130, descHeight))}
+        onContentSizeChange={(e) => {
+          setDescHeight(Math.max(90, Math.min(130, e.nativeEvent.contentSize.height)));
+        }}
+        onFocus={() => setIsDescFocused(true)}
+        onBlur={() => setIsDescFocused(false)}
+        isFocused={isDescFocused}
+        style={styles.descInput}
+      />
 
       {/* 4. LOCATION */}
-      <View style={styles.section}>
-        <FieldLabel
-          icon={<Icon sf="mappin.and.ellipse" md="place" size={13} color={Brand.gold} />}
-          label="LOCATION"
-          currentLength={whereText.length}
-          maxLength={MAX_LOCATION_LENGTH}
-          infoButton={
-            <Pressable
-              onPress={() => setShowLocationInfoModal(true)}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Location guidance"
-              style={({ pressed }) => [
-                styles.infoBtn,
-                pressed && { opacity: 0.6 },
-              ]}
-            >
-              <Icon sf="info.circle" md="info" size={13} color={Brand.gold} />
-            </Pressable>
-          }
-        />
-        <TextInput
-          value={whereText}
-          onChangeText={setWhereText}
-          onFocus={() => setIsWhereFocused(true)}
-          onBlur={() => setIsWhereFocused(false)}
-          cursorColor={Brand.gold}
-          selectionColor={Brand.gold}
-          placeholder="Building & room (e.g. CFAC 222)"
-          placeholderTextColor={theme.textMuted}
-          maxLength={MAX_LOCATION_LENGTH}
-          style={[
-            styles.smallInput,
-            {
-              color: theme.text,
-              backgroundColor: theme.backgroundElement,
-              borderColor:
-                whereText.length > MAX_LOCATION_LENGTH
-                  ? Brand.brightRed
-                  : isWhereFocused
-                  ? Brand.gold
-                  : theme.border,
-            },
-          ]}
-        />
-      </View>
+      <PostLocationSection
+        value={whereText}
+        onChangeText={setWhereText}
+        onFocus={() => setIsWhereFocused(true)}
+        onBlur={() => setIsWhereFocused(false)}
+        isFocused={isWhereFocused}
+        onOpenInfoModal={() => setShowLocationInfoModal(true)}
+        style={styles.smallInput}
+      />
     </View>
   );
 
@@ -532,9 +437,6 @@ const styles = StyleSheet.create({
   columnContent: {
     gap: Spacing.three,
   },
-  section: {
-    gap: 6,
-  },
   titleInput: {
     borderWidth: 1,
     borderRadius: Radius.md,
@@ -572,10 +474,6 @@ const styles = StyleSheet.create({
   publishBtn: {
     marginTop: 2,
     minHeight: 48,
-  },
-  infoBtn: {
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   previewContainer: {
     gap: Spacing.two + 2,
