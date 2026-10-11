@@ -1,5 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
+import fs from 'node:fs';
+import path from 'node:path';
+import {
+  DEFAULT_FEED_SEARCH_PLACEHOLDER,
+  FOLLOWING_FEED_SEARCH_PLACEHOLDER,
+  getFeedSearchPlaceholder,
+} from '@/components/feed-controls';
 import {
   feedCategories,
   filterFeedPosts,
@@ -861,6 +868,138 @@ describe('Knightly Feed & Clubs Domain', () => {
         assert.ok(club.contactEmail.endsWith('@calvin.edu'));
       });
     }
+  });
+
+  // ==========================================================================
+  // Suite: Consolidated Feed Controls & Single Source of Truth Invariants
+  // ==========================================================================
+  describe('Consolidated Feed Controls & Single Source of Truth Invariants', () => {
+    it('provides standard default search placeholder for feed', () => {
+      assert.strictEqual(DEFAULT_FEED_SEARCH_PLACEHOLDER, 'Search all events, clubs, locations...');
+    });
+
+    it('provides context-aware following search placeholder for feed', () => {
+      assert.strictEqual(FOLLOWING_FEED_SEARCH_PLACEHOLDER, 'Search your followed clubs & campus alerts...');
+    });
+
+    it('resolves feed search placeholders accurately based on scope flag', () => {
+      assert.strictEqual(getFeedSearchPlaceholder(false), 'Search all events, clubs, locations...');
+      assert.strictEqual(getFeedSearchPlaceholder(true), 'Search your followed clubs & campus alerts...');
+      assert.strictEqual(getFeedSearchPlaceholder(undefined), 'Search all events, clubs, locations...');
+    });
+
+    it('verifies FeedMobileView delegates controls to feed-controls without inline element drift', () => {
+      const mobilePath = path.resolve(__dirname, '../src/components/feed-mobile-view.tsx');
+      const mobileSource = fs.readFileSync(mobilePath, 'utf-8');
+
+      // Must import from feed-controls
+      assert.ok(mobileSource.includes("from \"@/components/feed-controls\"") || mobileSource.includes("from '@/components/feed-controls'"));
+      assert.ok(mobileSource.includes('<FeedSearchField'));
+      assert.ok(mobileSource.includes('<FeedFilterChips'));
+      assert.ok(mobileSource.includes('<FeedFollowingBanner'));
+      assert.ok(mobileSource.includes('<FeedEmptyState'));
+
+      // Must NOT duplicate inline reset pill, empty card, or raw SearchField
+      assert.ok(!mobileSource.includes('styles.resetPill'));
+      assert.ok(!mobileSource.includes('styles.emptyCard'));
+      assert.ok(!mobileSource.includes('<SearchField'));
+    });
+
+    it('verifies FeedWebView delegates controls to feed-controls without inline element drift', () => {
+      const webPath = path.resolve(__dirname, '../src/components/feed-web-view.tsx');
+      const webSource = fs.readFileSync(webPath, 'utf-8');
+
+      // Must import from feed-controls
+      assert.ok(webSource.includes("from \"@/components/feed-controls\"") || webSource.includes("from '@/components/feed-controls'"));
+      assert.ok(webSource.includes('<FeedSearchField'));
+      assert.ok(webSource.includes('<FeedFilterChips'));
+      assert.ok(webSource.includes('<FeedFollowingBanner'));
+      assert.ok(webSource.includes('<FeedEmptyState'));
+
+      // Must NOT duplicate inline reset pill, empty card, or raw SearchField
+      assert.ok(!webSource.includes('styles.resetPill'));
+      assert.ok(!webSource.includes('styles.emptyCard'));
+      assert.ok(!webSource.includes('<SearchField'));
+    });
+
+    it('verifies ClubsDirectoryView delegates empty state to FeedEmptyState and uses evenGrid', () => {
+      const clubsPath = path.resolve(__dirname, '../src/components/clubs-directory-view.tsx');
+      const clubsSource = fs.readFileSync(clubsPath, 'utf-8');
+
+      // Must import and use FeedEmptyState
+      assert.ok(clubsSource.includes("from '@/components/feed-controls'") || clubsSource.includes('from "@/components/feed-controls"'));
+      assert.ok(clubsSource.includes('<FeedEmptyState'));
+
+      // Must import and use useResponsiveLayout
+      assert.ok(clubsSource.includes("from '@/hooks/use-responsive-layout'") || clubsSource.includes('from "@/hooks/use-responsive-layout"'));
+      assert.ok(clubsSource.includes('useResponsiveLayout('));
+
+      // Must render balanced evenGrid with chunked evenRows
+      assert.ok(clubsSource.includes('styles.evenGrid'));
+      assert.ok(clubsSource.includes('evenRows.map'));
+      assert.ok(clubsSource.includes('evenGridRow'));
+
+      // Must NOT duplicate inline emptyCard or clearBtn styles
+      assert.ok(!clubsSource.includes('styles.emptyCard'));
+      assert.ok(!clubsSource.includes('styles.clearBtn'));
+    });
+
+    it('verifies ClubsDirectoryView shares exact 5-column responsive logic and breakpoints with FeedWebView', () => {
+      const clubsPath = path.resolve(__dirname, '../src/components/clubs-directory-view.tsx');
+      const clubsSource = fs.readFileSync(clubsPath, 'utf-8');
+
+      // Must use resolveFeedColumnCount matching Home Feed
+      assert.ok(clubsSource.includes('resolveFeedColumnCount('));
+      assert.ok(clubsSource.includes('numColumns >= 5 ? 1880 : numColumns >= 4 ? 1520 : 1200'));
+
+      // Invariant: ClubsDirectoryView and FeedWebView share identical 1-5 column breakpoints
+      assert.strictEqual(resolveFeedColumnCount(375, 'ios'), 1);
+      assert.strictEqual(resolveFeedColumnCount(600, 'web'), 1);
+      assert.strictEqual(resolveFeedColumnCount(800, 'web'), 2);
+      assert.strictEqual(resolveFeedColumnCount(1100, 'web'), 3);
+      assert.strictEqual(resolveFeedColumnCount(1500, 'web'), 4);
+      assert.strictEqual(resolveFeedColumnCount(1920, 'web'), 5);
+      assert.strictEqual(resolveFeedColumnCount(2560, 'web'), 5);
+    });
+
+    it('verifies ClubDetailView adapts responsively on desktop web with split columns', () => {
+      const detailPath = path.resolve(__dirname, '../src/components/club-detail-view.tsx');
+      const detailSource = fs.readFileSync(detailPath, 'utf-8');
+
+      // Must use useResponsiveLayout
+      assert.ok(detailSource.includes("from '@/hooks/use-responsive-layout'") || detailSource.includes('from "@/hooks/use-responsive-layout"'));
+      assert.ok(detailSource.includes('useResponsiveLayout('));
+
+      // Must define and render desktopSplit and mobileStack
+      assert.ok(detailSource.includes('styles.desktopSplit'));
+      assert.ok(detailSource.includes('styles.mobileStack'));
+      assert.ok(detailSource.includes('desktopLeftCol'));
+      assert.ok(detailSource.includes('desktopRightCol'));
+    });
+
+    it('verifies resilient canGoBack fallback handling across clubs screens and navigation contexts', () => {
+      const clubsIndexPath = path.resolve(__dirname, '../src/app/clubs/index.tsx');
+      const clubsIndexSource = fs.readFileSync(clubsIndexPath, 'utf-8');
+      assert.ok(clubsIndexSource.includes('router.canGoBack()'));
+      assert.ok(clubsIndexSource.includes("router.replace('/(tabs)')"));
+
+      const clubsDetailPath = path.resolve(__dirname, '../src/app/clubs/[id].tsx');
+      const clubsDetailSource = fs.readFileSync(clubsDetailPath, 'utf-8');
+      assert.ok(clubsDetailSource.includes('router.canGoBack()'));
+      assert.ok(clubsDetailSource.includes("router.replace('/clubs/index')"));
+
+      const navCtxPath = path.resolve(__dirname, '../src/context/clubs-navigation-context.tsx');
+      const navCtxSource = fs.readFileSync(navCtxPath, 'utf-8');
+      assert.ok(navCtxSource.includes('router.canGoBack()'));
+      assert.ok(navCtxSource.includes("router.replace('/clubs/index')"));
+      assert.ok(navCtxSource.includes("router.replace('/(tabs)')"));
+
+      const tabsWebPath = path.resolve(__dirname, '../src/components/app-tabs.web.tsx');
+      const tabsWebSource = fs.readFileSync(tabsWebPath, 'utf-8');
+      assert.ok(tabsWebSource.includes('router.canGoBack()'));
+      assert.ok(tabsWebSource.includes("router.replace('/clubs/index')"));
+      assert.ok(tabsWebSource.includes("router.replace('/(tabs)')"));
+    });
   });
 });
 

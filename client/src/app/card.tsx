@@ -80,7 +80,11 @@ export default function KnightCardScreen() {
 
   const handleClose = () => {
     restoreBrightness();
-    router.back();
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)');
+    }
   };
 
   return (

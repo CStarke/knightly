@@ -14,17 +14,18 @@
  */
 
 import { useDeferredValue, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
+import {
+  FeedEmptyState,
+  FeedFilterChips,
+  FeedFollowingBanner,
+  FeedSearchField,
+} from "@/components/feed-controls";
 import { PostCard } from "@/components/post-card";
-import { ThemedText } from "@/components/themed-text";
-import { Card } from "@/components/ui/card";
-import { Chip } from "@/components/ui/chip";
-import { Icon } from "@/components/ui/icon";
 import { ScreenFlatList } from "@/components/ui/screen";
-import { SearchField } from "@/components/ui/search-field";
 import { Segmented } from "@/components/ui/segmented";
-import { Brand, Radius, Spacing } from "@/constants/theme";
+import { Spacing } from "@/constants/theme";
 import { useClubFollow } from "@/context/club-follow-context";
 import { useClubsNavigation } from "@/context/clubs-navigation-context";
 import { useFeed } from "@/context/feed-context";
@@ -122,101 +123,48 @@ export function FeedMobileView() {
       </View>
 
       {mobileScope === "All Campus" && (
-        <SearchField
+        <FeedSearchField
           value={query}
           onChangeText={setQuery}
-          placeholder="Search all events, clubs, locations..."
         />
       )}
 
-      <View style={styles.mobileFiltersBanner}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.mobileFiltersContent}
-        >
-          {mobileCategoryOptions.map((cat) => {
-            const selected =
-              cat === "All"
-                ? mobileCategories.size === 0 || mobileCategories.has("All")
-                : mobileCategories.has(cat) && !mobileCategories.has("All");
-            return (
-              <Chip
-                key={cat}
-                label={cat}
-                selected={selected}
-                onPress={() => toggleMobileCategory(cat)}
-                tone="gold"
-              />
-            );
-          })}
-
-          {isFilterActive && (
-            <Pressable
-              onPress={handleClear}
-              accessibilityRole="button"
-              accessibilityLabel="Clear active filters"
-              style={({ pressed }) => [styles.resetPill, pressed && styles.pressed]}
-            >
-              <Icon sf="xmark.circle.fill" md="cancel" size={13} color={Brand.brightRed} />
-              <ThemedText style={styles.resetPillText}>Clear</ThemedText>
-            </Pressable>
-          )}
-        </ScrollView>
-      </View>
+      <FeedFilterChips
+        options={mobileCategoryOptions.map((cat) => ({
+          key: cat,
+          label: cat,
+          selected:
+            cat === "All"
+              ? mobileCategories.size === 0 || mobileCategories.has("All")
+              : mobileCategories.has(cat) && !mobileCategories.has("All"),
+        }))}
+        onSelectOption={(key) => toggleMobileCategory(key as "All" | FeedCategory)}
+        isFilterActive={isFilterActive}
+        onClear={handleClear}
+      />
 
       {mobileScope === "Following" && (
-        <Pressable
+        <FeedFollowingBanner
+          followedCount={followedCount}
           onPress={openClubsDirectory}
-          accessibilityRole="button"
-          accessibilityLabel={`Following ${followedCount} clubs. Campus-wide events included.`}
-          style={({ pressed }) => [styles.followingBar, pressed && styles.pressed]}
-        >
-          <ThemedText
-            type="caption"
-            themeColor="textMuted"
-            numberOfLines={1}
-            style={styles.followingCaption}
-          >
-            Following {followedCount} {followedCount === 1 ? "club" : "clubs"} · campus-wide events included
-          </ThemedText>
-        </Pressable>
+        />
       )}
     </View>
   );
 
   // List Empty Component
+  const isNoFollowingPosts =
+    deferredMobileScope === "Following" &&
+    (deferredMobileCategories.size === 0 || deferredMobileCategories.has("All")) &&
+    !deferredQuery.trim();
+
   const listEmpty = visible.length === 0 ? (
     <View style={[styles.screenInner, styles.mobileEmptyContainer]}>
-      {(deferredMobileScope === "Following" && (deferredMobileCategories.size === 0 || deferredMobileCategories.has("All")) && !deferredQuery.trim()) ? (
-        <Card style={styles.emptyCard}>
-          <Icon sf="sparkles" md="auto_awesome" size={28} color={Brand.gold} />
-          <ThemedText type="smallBold">No posts from your followed clubs</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.emptySub}>
-            Follow campus clubs to see their upcoming events, workshops, and announcements here.
-          </ThemedText>
-          <Pressable
-            onPress={openClubsDirectory}
-            style={styles.emptyCta}
-          >
-            <ThemedText style={styles.emptyCtaText}>Browse Campus Clubs</ThemedText>
-          </Pressable>
-        </Card>
-      ) : (
-        <Card style={styles.emptyCard}>
-          <Icon sf="magnifyingglass" md="search" size={26} color={Brand.gold} />
-          <ThemedText type="smallBold">Nothing matches those filters</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.emptySub}>
-            Try searching for a different keyword or select another category.
-          </ThemedText>
-          <Pressable
-            onPress={handleClear}
-            style={styles.emptyCta}
-          >
-            <ThemedText style={styles.emptyCtaText}>Clear Filters</ThemedText>
-          </Pressable>
-        </Card>
-      )}
+      <FeedEmptyState
+        type={isNoFollowingPosts ? "no-following-posts" : "no-filter-matches"}
+        onBrowseClubs={openClubsDirectory}
+        onClearFilters={handleClear}
+      />
     </View>
   ) : null;
 
@@ -254,63 +202,6 @@ const styles = StyleSheet.create({
     marginHorizontal: -Spacing.two - 2,
     alignSelf: "stretch",
   },
-  mobileFiltersBanner: {
-    marginHorizontal: -Spacing.three,
-  },
-  mobileFiltersContent: {
-    paddingHorizontal: Spacing.three,
-    gap: Spacing.one + 2,
-    alignItems: "center",
-    paddingVertical: Spacing.half,
-  },
-  resetPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: Spacing.two + 2,
-    paddingVertical: 7,
-    borderRadius: Radius.pill,
-    backgroundColor: "rgba(194, 0, 47, 0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(194, 0, 47, 0.25)",
-  },
-  resetPillText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: Brand.brightRed,
-  },
-  followingBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 2,
-  },
-  followingCaption: {
-    fontSize: 12,
-  },
-  emptyCard: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: Spacing.five,
-    gap: Spacing.two,
-  },
-  emptySub: {
-    textAlign: "center",
-    maxWidth: 280,
-    lineHeight: 18,
-  },
-  emptyCta: {
-    marginTop: Spacing.two,
-    backgroundColor: Brand.gold,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: 9,
-    borderRadius: Radius.pill,
-  },
-  emptyCtaText: {
-    color: "#0B0C0E",
-    fontWeight: "700",
-    fontSize: 13,
-  },
   mobileCardRow: {
     paddingHorizontal: Spacing.three,
     marginBottom: Spacing.three,
@@ -320,8 +211,5 @@ const styles = StyleSheet.create({
   },
   mobileEmptyContainer: {
     paddingHorizontal: Spacing.three,
-  },
-  pressed: {
-    opacity: 0.75,
   },
 });

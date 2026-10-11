@@ -259,8 +259,20 @@ export default function AppTabs() {
             activeClubId: null,
             openClubsDirectory: () => { router.push('/clubs/index'); },
             openClubDetail: (clubId: string) => { router.push({ pathname: '/clubs/[id]', params: { id: clubId } }); },
-            closeClubDetail: () => { router.back(); },
-            closeClubsDirectory: () => { router.back(); },
+            closeClubDetail: () => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/clubs/index');
+              }
+            },
+            closeClubsDirectory: () => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/(tabs)');
+              }
+            },
           }}>
             <TabPagerPriorityProvider value={{
               isInnerScrollActive,

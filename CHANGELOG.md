@@ -5,16 +5,34 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
+## [0.5.1] - 2026-10-11
+
+### Added
+- **Campus Safety Anti-Monolith Modularization**: Refactored `safety.tsx` into a 24-line router delegating between `SafetyMobileView` and `SafetyWebView`. Extracted `safety-sections.tsx` (`SafetyEmergencyButton`, `SafetyQuickAssistCard`, `SafetyAlertsSection`, `SafetyNumbersSection`) shared across web and mobile with zero code duplication.
+- **Campus Dining Anti-Monolith Modularization**: Refactored `dining.tsx` from a 387-line monolith into a 22-line router delegating to `DiningMobileView` and `DiningWebView`. Extracted shared sections (`KnightIdCardSection`, `DiningHallsSection`, `DiningMenuSection`).
+- **Campus People Directory 1–5 Column Responsive Grid**: Upgraded `DirectoryScreen` to scale dynamically from 1 to 5 columns matching Home Feed breakpoints and integrated `FeedEmptyState`.
+- **Campus Clubs 5-Column Parity**: Aligned `ClubsDirectoryView` to scale from 1 to 5 columns using `resolveFeedColumnCount` and dynamic container widths.
+- **Safety Domain Invariant Test Suite**: Added Suite 12 to `dining-and-services.test.ts` verifying router brevity, shared section imports, and desktop layout constraints (1,036 total tests across 147 suites).
+
+### Fixed
+- **Campus Clubs & Card Back Navigation Resilience**: Eliminated unhandled `GO_BACK` warning and unresponsive back buttons across Campus Clubs and Student ID screens by checking `router.canGoBack()` and safely falling back to root tabs.
+- **Dining & Safety Monoliths**: Eliminated 500+ lines of monolithic inline layouts across `dining.tsx` and `safety.tsx`.
+
+---
+
 ## [0.5.0] - 2026-10-10
 
 ### Added
 - **Reusable Input Template (`FormTextInput`)**: Consolidated text input primitive across web and mobile with Calvin Gold borders, gold carets, and browser outline suppression.
 - **Unified Post Form Controls**: Extracted shared `PostTitleSection`, `PostDescriptionSection`, and `PostLocationSection` to keep placeholders and length limits in parity across mobile and web.
-- **Enterprise Test Infrastructure (1,015 Tests / 143 Suites)**: Doubled automated test coverage with headless E2E user journeys, human interaction fuzzing, and concurrency stress tests. Consolidated 22 fragmented test files into 11 cohesive domain suites.
+- **Shared Feed Page Controls (`feed-controls.tsx`)**: Consolidated `FeedSearchField`, `FeedFilterChips`, `FeedFollowingBanner`, and `FeedEmptyState` templates for single-source-of-truth feed search, chips, and empty states.
+- **Campus Clubs 2-Column Desktop Studio**: Added 2-column desktop layout (profile & logistics on left, announcements stream on right) to `ClubDetailView`.
+- **Enterprise Test Infrastructure (1,015+ Tests / 143+ Suites)**: Doubled automated test coverage with headless E2E user journeys, human interaction fuzzing, and concurrency stress tests. Consolidated 22 fragmented test files into 11 cohesive domain suites.
 - **Template Architecture Invariant**: Mandated template-level consolidation across repeated controls (buttons, inputs, modals, tabs) in `AGENTS.md` and `docs/CodingStandard.md`.
 
 ### Fixed
 - **Motionless Home-Swipe Tab Desynchronization**: Resolved tab desync between content, header, and bottom bar on app resume by establishing a single source of truth (`activeTabIndex`), pure derived headers, and safe screen dimension resolution.
+- **Feed & Directory Empty State Consolidation**: Replaced duplicate inline empty cards and reset buttons across Feed, Campus Clubs, and People Directory with the unified `FeedEmptyState` template. Added web outline suppression and gold carets to `SearchField`.
 - **Web Form Focus Outlines & Carets**: Standardized text carets and focus rings across post composer fields on web to match mobile brand styling.
 - **Mobile & Web Input Divergence**: Purged duplicated inline text inputs across `PostMobileView` and `PostWebView` in favor of shared template sections.
 

@@ -14,6 +14,14 @@ export default function ClubsDirectoryScreen() {
   const translateX = useSharedValue(0);
   const scrollY = useSharedValue(0);
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)');
+    }
+  };
+
   return (
     <StarfieldContext.Provider value={{ translateX, scrollY }}>
       <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -23,7 +31,7 @@ export default function ClubsDirectoryScreen() {
           subtitle="Student orgs & communities"
           left={
             <HeaderBackButton
-              onPress={() => router.back()}
+              onPress={handleBack}
               accessibilityLabel="Go back"
             />
           }

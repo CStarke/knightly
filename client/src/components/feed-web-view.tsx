@@ -15,21 +15,20 @@
 
 import { useDeferredValue, useMemo, useState } from "react";
 import {
-  Pressable,
-  ScrollView,
   StyleSheet,
   useWindowDimensions,
   View,
 } from "react-native";
 
+import {
+  FeedEmptyState,
+  FeedFilterChips,
+  FeedFollowingBanner,
+  FeedSearchField,
+} from "@/components/feed-controls";
 import { PostCard } from "@/components/post-card";
-import { ThemedText } from "@/components/themed-text";
-import { Card } from "@/components/ui/card";
-import { Chip } from "@/components/ui/chip";
-import { Icon } from "@/components/ui/icon";
 import { Screen } from "@/components/ui/screen";
-import { SearchField } from "@/components/ui/search-field";
-import { Brand, Radius, Spacing } from "@/constants/theme";
+import { Spacing } from "@/constants/theme";
 import { useClubFollow } from "@/context/club-follow-context";
 import { useClubsNavigation } from "@/context/clubs-navigation-context";
 import { useFeed } from "@/context/feed-context";
@@ -129,139 +128,48 @@ export function FeedWebView() {
 
   const listHeader = (
     <View style={styles.filterSection}>
-      <SearchField
+      <FeedSearchField
         value={query}
         onChangeText={setQuery}
-        placeholder={
-          selectedFilters.has("Following") && !selectedFilters.has("All")
-            ? "Search your followed clubs & campus alerts..."
-            : "Search all events, clubs, locations..."
-        }
+        isFollowingScope={selectedFilters.has("Following") && !selectedFilters.has("All")}
       />
 
-      {width >= 720 ? (
-        <View style={styles.desktopWrapRow}>
-          {allFilterOptions.map((opt) => {
-            const label =
-              opt === "Following" ? `★ Following (${followedCount})` : opt;
-            const selected = selectedFilters.has(opt);
-
-            return (
-              <Chip
-                key={opt}
-                label={label}
-                selected={selected}
-                onPress={() => toggleFilter(opt)}
-                tone="gold"
-              />
-            );
-          })}
-
-          {isFilterActive && (
-            <Pressable
-              onPress={handleClear}
-              accessibilityRole="button"
-              accessibilityLabel="Clear active filters"
-              style={({ pressed }) => [styles.resetPill, pressed && styles.pressed]}
-            >
-              <Icon sf="xmark.circle.fill" md="cancel" size={13} color={Brand.brightRed} />
-              <ThemedText style={styles.resetPillText}>Clear</ThemedText>
-            </Pressable>
-          )}
-        </View>
-      ) : (
-        <View style={styles.mobileScrollContainer}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.mobileScrollContent}
-          >
-            {allFilterOptions.map((opt) => {
-              const label =
-                opt === "Following" ? `★ Following (${followedCount})` : opt;
-              const selected = selectedFilters.has(opt);
-
-              return (
-                <Chip
-                  key={opt}
-                  label={label}
-                  selected={selected}
-                  onPress={() => toggleFilter(opt)}
-                  tone="gold"
-                />
-              );
-            })}
-
-            {isFilterActive && (
-              <Pressable
-                onPress={handleClear}
-                accessibilityRole="button"
-                accessibilityLabel="Clear active filters"
-                style={({ pressed }) => [styles.resetPill, pressed && styles.pressed]}
-              >
-                <Icon sf="xmark.circle.fill" md="cancel" size={13} color={Brand.brightRed} />
-                <ThemedText style={styles.resetPillText}>Clear</ThemedText>
-              </Pressable>
-            )}
-          </ScrollView>
-        </View>
-      )}
+      <FeedFilterChips
+        options={allFilterOptions.map((opt) => ({
+          key: opt,
+          label: opt === "Following" ? `★ Following (${followedCount})` : opt,
+          selected: selectedFilters.has(opt),
+        }))}
+        onSelectOption={(key) => toggleFilter(key as FeedFilterOption)}
+        isFilterActive={isFilterActive}
+        onClear={handleClear}
+        wrap={width >= 720}
+      />
 
       {selectedFilters.has("Following") && (
-        <Pressable
+        <FeedFollowingBanner
+          followedCount={followedCount}
           onPress={openClubsDirectory}
-          accessibilityRole="button"
-          accessibilityLabel={`Following ${followedCount} clubs. Tap to view and explore campus clubs.`}
-          style={({ pressed }) => [styles.followingBar, pressed && styles.pressed]}
-        >
-          <Icon sf="star.fill" md="star" size={13} color={Brand.gold} />
-          <ThemedText
-            type="caption"
-            themeColor="textMuted"
-            numberOfLines={1}
-            style={styles.followingCaption}
-          >
-            Following {followedCount} {followedCount === 1 ? "club" : "clubs"} · campus-wide events included (tap to browse clubs)
-          </ThemedText>
-        </Pressable>
+          showStar={true}
+          interactiveHint={true}
+        />
       )}
     </View>
   );
 
+  const isNoFollowingPosts =
+    deferredSelectedFilters.has("Following") &&
+    !deferredSelectedFilters.has("All") &&
+    Array.from(deferredSelectedFilters).filter((o) => o !== "All" && o !== "Following").length === 0 &&
+    !deferredQuery.trim();
+
   const listEmpty = visible.length === 0 ? (
     <View style={styles.screenInner}>
-      {deferredSelectedFilters.has("Following") &&
-      !deferredSelectedFilters.has("All") &&
-      Array.from(deferredSelectedFilters).filter((o) => o !== "All" && o !== "Following").length === 0 &&
-      !deferredQuery.trim() ? (
-        <Card style={styles.emptyCard}>
-          <Icon sf="sparkles" md="auto_awesome" size={28} color={Brand.gold} />
-          <ThemedText type="smallBold">No posts from your followed clubs</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.emptySub}>
-            Follow campus clubs to see their upcoming events, workshops, and announcements here.
-          </ThemedText>
-          <Pressable
-            onPress={openClubsDirectory}
-            style={styles.emptyCta}
-          >
-            <ThemedText style={styles.emptyCtaText}>Browse Campus Clubs</ThemedText>
-          </Pressable>
-        </Card>
-      ) : (
-        <Card style={styles.emptyCard}>
-          <Icon sf="magnifyingglass" md="search" size={26} color={Brand.gold} />
-          <ThemedText type="smallBold">Nothing matches those filters</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.emptySub}>
-            Try searching for a different keyword or select another category.
-          </ThemedText>
-          <Pressable
-            onPress={handleClear}
-            style={styles.emptyCta}
-          >
-            <ThemedText style={styles.emptyCtaText}>Clear Filters</ThemedText>
-          </Pressable>
-        </Card>
-      )}
+      <FeedEmptyState
+        type={isNoFollowingPosts ? "no-following-posts" : "no-filter-matches"}
+        onBrowseClubs={openClubsDirectory}
+        onClearFilters={handleClear}
+      />
     </View>
   ) : null;
 
@@ -302,47 +210,6 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     marginBottom: Spacing.one,
   },
-  desktopWrapRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.one + 3,
-    alignItems: "center",
-    paddingVertical: Spacing.half,
-  },
-  mobileScrollContainer: {
-    marginHorizontal: -Spacing.three,
-  },
-  mobileScrollContent: {
-    paddingHorizontal: Spacing.three,
-    gap: Spacing.one + 2,
-    alignItems: "center",
-    paddingVertical: Spacing.half,
-  },
-  resetPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: Spacing.two + 2,
-    paddingVertical: 7,
-    borderRadius: Radius.pill,
-    backgroundColor: "rgba(194, 0, 47, 0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(194, 0, 47, 0.25)",
-  },
-  resetPillText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: Brand.brightRed,
-  },
-  followingBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 2,
-  },
-  followingCaption: {
-    fontSize: 12,
-  },
   evenGrid: {
     gap: Spacing.three,
     width: "100%",
@@ -355,31 +222,5 @@ const styles = StyleSheet.create({
   },
   evenGridCell: {
     flex: 1,
-  },
-  emptyCard: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: Spacing.five,
-    gap: Spacing.two,
-  },
-  emptySub: {
-    textAlign: "center",
-    maxWidth: 280,
-    lineHeight: 18,
-  },
-  emptyCta: {
-    marginTop: Spacing.two,
-    backgroundColor: Brand.gold,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: 9,
-    borderRadius: Radius.pill,
-  },
-  emptyCtaText: {
-    color: "#0B0C0E",
-    fontWeight: "700",
-    fontSize: 13,
-  },
-  pressed: {
-    opacity: 0.75,
   },
 });

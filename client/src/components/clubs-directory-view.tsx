@@ -16,8 +16,9 @@
  */
 
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
+import { FeedEmptyState } from '@/components/feed-controls';
 import { ThemedText } from '@/components/themed-text';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -31,7 +32,8 @@ import { useClubFollow } from '@/context/club-follow-context';
 import { useClubLeadership } from '@/context/club-leadership-context';
 import { useClubsNavigation } from '@/context/clubs-navigation-context';
 import { CALVIN_CLUBS, type Club } from '@/data/clubs';
-import { feedCategories, type FeedCategory } from '@/data/feed';
+import { feedCategories, resolveFeedColumnCount, type FeedCategory } from '@/data/feed';
+import { useResponsiveLayout } from '@/hooks/use-responsive-layout';
 
 const filterCategories: ('All' | FeedCategory)[] = ['All', ...feedCategories];
 
@@ -50,12 +52,17 @@ export function ClubsDirectoryView() {
   const { isFollowing, toggleFollow } = useClubFollow();
   const { openClubDetail } = useClubsNavigation();
   const { openClaimModal, linkedClubs, isLeader, isClaimBannerDismissed } = useClubLeadership();
+  const { width } = useResponsiveLayout();
 
-  // Step 2: Filter States
+  // Step 2: Responsive Columns Calculation (matching Home Feed: 1 on mobile, 2 to 5 on web with identical breakpoints)
+  const numColumns = resolveFeedColumnCount(width, Platform.OS);
+  const maxContentWidth = numColumns >= 5 ? 1880 : numColumns >= 4 ? 1520 : 1200;
+
+  // Step 3: Filter States
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<'All' | FeedCategory>('All');
 
-  // Step 3: Multi-field fuzzy search pipeline
+  // Step 4: Multi-field fuzzy search pipeline
   // WHY COMBINED PREDICATE:
   // Students often remember where a club meets ("North Hall CS Lab") or general mission keywords
   // ("coding", "robotics") rather than the exact club name ("Abstraction").
@@ -78,8 +85,17 @@ export function ClubsDirectoryView() {
     });
   }, [query, category]);
 
+  // Step 5: Chunk filtered clubs into balanced rows of `numColumns` items
+  const evenRows = useMemo(() => {
+    const rows: Club[][] = [];
+    for (let i = 0; i < filteredClubs.length; i += numColumns) {
+      rows.push(filteredClubs.slice(i, i + numColumns));
+    }
+    return rows;
+  }, [filteredClubs, numColumns]);
+
   return (
-    <Screen style={styles.screenInner}>
+    <Screen style={[styles.screenInner, { maxWidth: maxContentWidth }]}>
       {/*
         Step 4: Club Leader Action Strip
         Visible unless permanently dismissed. Prompts student leaders to claim their club
@@ -149,41 +165,44 @@ export function ClubsDirectoryView() {
         </ThemedText>
       </View>
 
-      {/* Step 7: Organization Cards List & Empty Search State */}
-      <View style={styles.clubsList}>
-        {filteredClubs.map((club) => (
-          <ClubCard
-            key={club.id}
-            club={club}
-            following={isFollowing(club.id)}
-            onToggleFollow={() => toggleFollow(club.id)}
-            onPress={() => openClubDetail(club.id)}
-          />
+      {/* Step 7: Organization Cards Grid & Empty Search State */}
+      <View style={styles.evenGrid}>
+        {evenRows.map((row, rowIdx) => (
+          <View key={`grid-row-${rowIdx}`} style={styles.evenGridRow}>
+            {row.map((club) => (
+              <View key={club.id} style={styles.evenGridCell}>
+                <ClubCard
+                  club={club}
+                  following={isFollowing(club.id)}
+                  onToggleFollow={() => toggleFollow(club.id)}
+                  onPress={() => openClubDetail(club.id)}
+                />
+              </View>
+            ))}
+            {row.length < numColumns &&
+              Array.from({ length: numColumns - row.length }).map((_, i) => (
+                <View key={`spacer-${rowIdx}-${i}`} style={styles.evenGridCell} />
+              ))}
+          </View>
         ))}
+      </View>
 
-        {filteredClubs.length === 0 ? (
-          <Card style={styles.emptyCard}>
-            <Icon sf="magnifyingglass" md="search" size={28} color={Brand.gold} />
-            <ThemedText type="smallBold" style={styles.emptyTitle}>
-              No clubs match that search
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary" style={styles.emptySub}>
-              Try searching for a different keyword or select another category.
-            </ThemedText>
-            {(query || category !== 'All') && (
-              <Pressable
-                onPress={() => {
+      {filteredClubs.length === 0 ? (
+        <FeedEmptyState
+          type="no-filter-matches"
+          title="No clubs match that search"
+          subtitle="Try searching for a different keyword or select another category."
+          buttonLabel="Clear filters"
+          onClearFilters={
+            query || category !== 'All'
+              ? () => {
                   setQuery('');
                   setCategory('All');
-                }}
-                style={styles.clearBtn}
-              >
-                <ThemedText style={styles.clearBtnText}>Clear filters</ThemedText>
-              </Pressable>
-            )}
-          </Card>
-        ) : null}
-      </View>
+                }
+              : undefined
+          }
+        />
+      ) : null}
     </Screen>
   );
 }
@@ -292,6 +311,8 @@ function ClubCard({
 const styles = StyleSheet.create({
   screenInner: {
     gap: Spacing.three,
+    width: '100%',
+    alignSelf: 'center',
   },
   claimBanner: {
     flexDirection: 'row',
@@ -319,8 +340,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
     marginTop: -Spacing.one,
   },
-  clubsList: {
+  evenGrid: {
     gap: Spacing.three,
+    width: '100%',
+  },
+  evenGridRow: {
+    flexDirection: 'row',
+    gap: Spacing.three,
+    width: '100%',
+    alignItems: 'stretch',
+  },
+  evenGridCell: {
+    flex: 1,
   },
   clubCard: {
     borderRadius: Radius.lg,
@@ -393,34 +424,5 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.two,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  emptyCard: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.four,
-    gap: Spacing.two,
-    borderRadius: Radius.lg,
-  },
-  emptyTitle: {
-    textAlign: 'center',
-    marginTop: Spacing.one,
-  },
-  emptySub: {
-    textAlign: 'center',
-    maxWidth: 280,
-  },
-  clearBtn: {
-    marginTop: Spacing.two,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: Radius.pill,
-    backgroundColor: 'rgba(217, 155, 38, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(217, 155, 38, 0.4)',
-  },
-  clearBtnText: {
-    color: Brand.gold,
-    fontWeight: '600',
-    fontSize: 13,
   },
 });

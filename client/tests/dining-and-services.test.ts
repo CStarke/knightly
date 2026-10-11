@@ -1,5 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
+import fs from 'node:fs';
+import path from 'node:path';
+import { resolveFeedColumnCount } from '@/data/feed';
 import {
   CALVIN_MEAL_PLANS,
   diningHalls,
@@ -480,6 +483,208 @@ describe('Dining, Directory & Campus Safety Domain', () => {
         assert.strictEqual(formatted, tx.expected);
       });
     }
+  });
+
+  // ==========================================================================
+  // Suite 10: Campus Directory Responsive Grid & Template Invariants
+  // ==========================================================================
+  describe('Campus Directory Responsive Grid & Template Invariants', () => {
+    it('verifies DirectoryScreen delegates empty state to FeedEmptyState and prunes duplicate inline empty cards', () => {
+      const dirPath = path.resolve(__dirname, '../src/app/(tabs)/directory.tsx');
+      const dirSource = fs.readFileSync(dirPath, 'utf-8');
+
+      // Must import and render FeedEmptyState
+      assert.ok(dirSource.includes("from '@/components/feed-controls'") || dirSource.includes('from "@/components/feed-controls"'));
+      assert.ok(dirSource.includes('<FeedEmptyState'));
+      assert.ok(dirSource.includes('type="no-filter-matches"'));
+
+      // Must NOT duplicate inline empty styles
+      assert.ok(!dirSource.includes('styles.empty'));
+    });
+
+    it('verifies DirectoryScreen imports and uses useResponsiveLayout and resolveFeedColumnCount', () => {
+      const dirPath = path.resolve(__dirname, '../src/app/(tabs)/directory.tsx');
+      const dirSource = fs.readFileSync(dirPath, 'utf-8');
+
+      // Must import and call useResponsiveLayout and resolveFeedColumnCount
+      assert.ok(dirSource.includes("from '@/hooks/use-responsive-layout'") || dirSource.includes('from "@/hooks/use-responsive-layout"'));
+      assert.ok(dirSource.includes('useResponsiveLayout('));
+      assert.ok(dirSource.includes('resolveFeedColumnCount('));
+    });
+
+    it('verifies DirectoryScreen scales 1 to 5 columns with identical breakpoints and container width parity', () => {
+      const dirPath = path.resolve(__dirname, '../src/app/(tabs)/directory.tsx');
+      const dirSource = fs.readFileSync(dirPath, 'utf-8');
+
+      // Invariant: Container maxWidth calculation matching Home Feed & Clubs
+      assert.ok(dirSource.includes('numColumns >= 5 ? 1880 : numColumns >= 4 ? 1520 : 1200'));
+
+      // Invariant: Multi-column grid rules
+      assert.ok(dirSource.includes('styles.evenGrid'));
+      assert.ok(dirSource.includes('evenRows.map'));
+      assert.ok(dirSource.includes('evenGridRow'));
+      assert.ok(dirSource.includes('evenGridCell'));
+
+      // Verify identical 1-5 column breakpoints
+      assert.strictEqual(resolveFeedColumnCount(375, 'ios'), 1);
+      assert.strictEqual(resolveFeedColumnCount(600, 'web'), 1);
+      assert.strictEqual(resolveFeedColumnCount(800, 'web'), 2);
+      assert.strictEqual(resolveFeedColumnCount(1100, 'web'), 3);
+      assert.strictEqual(resolveFeedColumnCount(1500, 'web'), 4);
+      assert.strictEqual(resolveFeedColumnCount(1920, 'web'), 5);
+      assert.strictEqual(resolveFeedColumnCount(2560, 'web'), 5);
+    });
+
+    it('verifies PersonGridCard and PersonListRow component structural contracts', () => {
+      const dirPath = path.resolve(__dirname, '../src/app/(tabs)/directory.tsx');
+      const dirSource = fs.readFileSync(dirPath, 'utf-8');
+
+      assert.ok(dirSource.includes('function PersonGridCard('));
+      assert.ok(dirSource.includes('function PersonListRow('));
+      assert.ok(dirSource.includes('mailto:'));
+      assert.ok(dirSource.includes('styles.gridCard'));
+      assert.ok(dirSource.includes('styles.gridSubtitle'));
+    });
+  });
+
+  // ==========================================================================
+  // Suite 11: Campus Dining Modularization & Desktop Dashboard Invariants
+  // ==========================================================================
+  describe('Campus Dining Modularization & Desktop Dashboard Invariants', () => {
+    it('verifies dining.tsx satisfies anti-monolith invariant and delegates responsively', () => {
+      const diningPath = path.resolve(__dirname, '../src/app/(tabs)/dining.tsx');
+      const diningSource = fs.readFileSync(diningPath, 'utf-8');
+      const lineCount = diningSource.split('\n').length;
+
+      // Anti-monolith invariant: router must be lightweight (< 100 lines)
+      assert.ok(lineCount < 100, `dining.tsx is ${lineCount} lines, expected < 100`);
+
+      // Must import and use useResponsiveLayout
+      assert.ok(diningSource.includes("from '@/hooks/use-responsive-layout'") || diningSource.includes('from "@/hooks/use-responsive-layout"'));
+      assert.ok(diningSource.includes('useResponsiveLayout('));
+
+      // Must delegate to DiningMobileView and DiningWebView
+      assert.ok(diningSource.includes('<DiningMobileView'));
+      assert.ok(diningSource.includes('<DiningWebView'));
+    });
+
+    it('verifies DiningMobileView and DiningWebView share dining-card-section and dining-venues-section with zero duplicate code', () => {
+      const mobilePath = path.resolve(__dirname, '../src/components/dining-mobile-view.tsx');
+      const mobileSource = fs.readFileSync(mobilePath, 'utf-8');
+
+      const webPath = path.resolve(__dirname, '../src/components/dining-web-view.tsx');
+      const webSource = fs.readFileSync(webPath, 'utf-8');
+
+      // Both views must import and render the shared sections
+      assert.ok(mobileSource.includes('<KnightIdCardSection'));
+      assert.ok(mobileSource.includes('<DiningHallsSection'));
+      assert.ok(mobileSource.includes('<DiningMenuSection'));
+
+      assert.ok(webSource.includes('<KnightIdCardSection'));
+      assert.ok(webSource.includes('<DiningHallsSection'));
+      assert.ok(webSource.includes('<DiningMenuSection'));
+
+      // Neither view duplicates inline meal plan calculations or card structures
+      assert.ok(!mobileSource.includes('cardHero'));
+      assert.ok(!webSource.includes('cardHero'));
+      assert.ok(!mobileSource.includes('diningHalls.map'));
+      assert.ok(!webSource.includes('diningHalls.map'));
+    });
+
+    it('verifies DiningWebView implements responsive 2-column desktop split dashboard', () => {
+      const webPath = path.resolve(__dirname, '../src/components/dining-web-view.tsx');
+      const webSource = fs.readFileSync(webPath, 'utf-8');
+
+      // Invariant: 2-column split dashboard structure
+      assert.ok(webSource.includes('styles.desktopSplit'));
+      assert.ok(webSource.includes('styles.desktopLeftCol'));
+      assert.ok(webSource.includes('styles.desktopRightCol'));
+      assert.ok(webSource.includes('maxWidth: 1200'));
+      assert.ok(webSource.includes("width: 380"));
+    });
+
+    it('verifies KnightIdCardSection provides digital ID barcode navigation and balance meters', () => {
+      const cardSectionPath = path.resolve(__dirname, '../src/components/dining-card-section.tsx');
+      const cardSource = fs.readFileSync(cardSectionPath, 'utf-8');
+
+      // Must support expanding to full-screen barcode
+      assert.ok(cardSource.includes("router.push('/card')") || cardSource.includes('router.push("/card")'));
+
+      // Must render DashMeter, SubMeter, and MealPlanStats
+      assert.ok(cardSource.includes('<DashMeter'));
+      assert.ok(cardSource.includes('<SubMeter'));
+      assert.ok(cardSource.includes('<MealPlanStats'));
+      assert.ok(cardSource.includes('openActivity'));
+    });
+  });
+
+  // ==========================================================================
+  // Suite 12: Campus Safety Modularization & Command Center Invariants
+  // ==========================================================================
+  describe('Campus Safety Modularization & Command Center Invariants', () => {
+    it('verifies safety.tsx satisfies anti-monolith invariant and delegates responsively', () => {
+      const safetyPath = path.resolve(__dirname, '../src/app/(tabs)/safety.tsx');
+      const safetySource = fs.readFileSync(safetyPath, 'utf-8');
+      const lineCount = safetySource.split('\n').length;
+
+      // Anti-monolith invariant: router must be lightweight (< 100 lines)
+      assert.ok(lineCount < 100, `safety.tsx is ${lineCount} lines, expected < 100`);
+
+      // Must import and use useResponsiveLayout
+      assert.ok(safetySource.includes("from '@/hooks/use-responsive-layout'") || safetySource.includes('from "@/hooks/use-responsive-layout"'));
+      assert.ok(safetySource.includes('useResponsiveLayout('));
+
+      // Must delegate to SafetyMobileView and SafetyWebView
+      assert.ok(safetySource.includes('<SafetyMobileView'));
+      assert.ok(safetySource.includes('<SafetyWebView'));
+    });
+
+    it('verifies SafetyMobileView and SafetyWebView share safety-sections with zero duplicate code', () => {
+      const mobilePath = path.resolve(__dirname, '../src/components/safety-mobile-view.tsx');
+      const mobileSource = fs.readFileSync(mobilePath, 'utf-8');
+
+      const webPath = path.resolve(__dirname, '../src/components/safety-web-view.tsx');
+      const webSource = fs.readFileSync(webPath, 'utf-8');
+
+      // Both views must import and render the shared sections
+      assert.ok(mobileSource.includes('<SafetyEmergencyButton'));
+      assert.ok(mobileSource.includes('<SafetyQuickAssistCard'));
+      assert.ok(mobileSource.includes('<SafetyAlertsSection'));
+      assert.ok(mobileSource.includes('<SafetyNumbersSection'));
+
+      assert.ok(webSource.includes('<SafetyEmergencyButton'));
+      assert.ok(webSource.includes('<SafetyQuickAssistCard'));
+      assert.ok(webSource.includes('<SafetyAlertsSection'));
+      assert.ok(webSource.includes('<SafetyNumbersSection'));
+
+      // Neither view duplicates inline alert mapping or emergency numbers
+      assert.ok(!mobileSource.includes('emergencyContacts.map'));
+      assert.ok(!webSource.includes('emergencyContacts.map'));
+      assert.ok(!mobileSource.includes('safetyAlerts.map'));
+      assert.ok(!webSource.includes('safetyAlerts.map'));
+    });
+
+    it('verifies SafetyWebView implements responsive 2-column command center layout', () => {
+      const webPath = path.resolve(__dirname, '../src/components/safety-web-view.tsx');
+      const webSource = fs.readFileSync(webPath, 'utf-8');
+
+      // Invariant: 2-column command center split
+      assert.ok(webSource.includes('styles.desktopSplit'));
+      assert.ok(webSource.includes('styles.desktopLeftCol'));
+      assert.ok(webSource.includes('styles.desktopRightCol'));
+      assert.ok(webSource.includes('maxWidth: 1200'));
+      assert.ok(webSource.includes('width: 380'));
+    });
+
+    it('verifies safety-sections exports dialPhone and emergency dispatcher button', () => {
+      const sectionsPath = path.resolve(__dirname, '../src/components/safety-sections.tsx');
+      const sectionsSource = fs.readFileSync(sectionsPath, 'utf-8');
+
+      assert.ok(sectionsSource.includes('export function dialPhone('));
+      assert.ok(sectionsSource.includes("tel:"));
+      assert.ok(sectionsSource.includes('6165263333'));
+      assert.ok(sectionsSource.includes('Call Campus Safety (Emergency)'));
+    });
   });
 });
 
