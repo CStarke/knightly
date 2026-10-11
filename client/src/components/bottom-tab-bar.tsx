@@ -113,10 +113,8 @@ export function TabButton({
   const effectivelyFocused = activeTabIndex === index;
   const progress = useSharedValue(effectivelyFocused ? 1 : 0);
 
-  const effectivelyFocusedRef = useRef(effectivelyFocused);
-  effectivelyFocusedRef.current = effectivelyFocused;
-
   useEffect(() => {
+    cancelAnimation(progress);
     if (AppState.currentState === 'active') {
       progress.value = withSpring(effectivelyFocused ? 1 : 0, {
         damping: 14,
@@ -124,21 +122,18 @@ export function TabButton({
         mass: 0.6,
       });
     } else {
-      cancelAnimation(progress);
       progress.value = effectivelyFocused ? 1 : 0;
     }
   }, [effectivelyFocused, progress]);
 
-  // Cleanly snap progress to current focus on foreground resume
+  // Cleanly snap progress to current focus on foreground resume and background freeze
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') {
-        cancelAnimation(progress);
-        progress.value = effectivelyFocusedRef.current ? 1 : 0;
-      }
+    const sub = AppState.addEventListener('change', () => {
+      cancelAnimation(progress);
+      progress.value = effectivelyFocused ? 1 : 0;
     });
     return () => sub.remove();
-  }, [progress]);
+  }, [effectivelyFocused, progress]);
 
   const iconContainerAnimatedStyle = useAnimatedStyle(() => {
     const p = progress.value;

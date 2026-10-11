@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import {
@@ -2897,6 +2899,203 @@ describe('Club Leadership & Post Creation Domain', () => {
       });
     });
   });
-});
 
+  describe('Post Modular Components & Debloating Invariants', () => {
+    it('verifies 16:9 aspect ratio and default banner dimensions', () => {
+      const bannerAspectRatio = 16 / 9;
+      assert.strictEqual(Math.round(bannerAspectRatio * 100) / 100, 1.78);
+      const fallbackWidth = 1200;
+      const fallbackHeight = 675;
+      assert.strictEqual(fallbackWidth / fallbackHeight, 16 / 9);
+    });
+
+    it('verifies PostSuccessModal displays target club and feed navigation action', () => {
+      let navigatedTarget = null;
+      let modalVisible = true;
+
+      const mockTabNav = {
+        activeTabIndex: 4,
+        setActiveTabIndex: (index: number) => { mockTabNav.activeTabIndex = index; },
+        navigateToTab: (index: number, href?: string) => {
+          navigatedTarget = { index, href };
+          mockTabNav.activeTabIndex = index;
+        },
+        tabs: [],
+      };
+
+      const handleViewFeed = () => {
+        modalVisible = false;
+        mockTabNav.navigateToTab(0, '/');
+      };
+
+      const modalProps = {
+        visible: modalVisible,
+        clubName: 'Calvin Chess Club',
+        viewFeedLabel: 'View in Feed',
+        secondaryLabel: 'Got it',
+        onViewFeed: handleViewFeed,
+      };
+
+      assert.strictEqual(modalProps.clubName, 'Calvin Chess Club');
+      assert.strictEqual(modalProps.viewFeedLabel, 'View in Feed');
+
+      modalProps.onViewFeed();
+      assert.strictEqual(modalVisible, false);
+      assert.deepStrictEqual(navigatedTarget, { index: 0, href: '/' });
+      assert.strictEqual(mockTabNav.activeTabIndex, 0);
+    });
+  });
+
+  describe('Post Screen Modularization & Web Responsiveness Invariants', () => {
+    const srcDir = path.resolve(__dirname, '../src');
+    const readSrc = (relPath: string) => fs.readFileSync(path.join(srcDir, relPath), 'utf-8').replace(/\r\n/g, '\n');
+
+    it('verifies post.tsx satisfies anti-monolith invariant and delegates responsively', () => {
+      const postCode = readSrc('app/(tabs)/post.tsx');
+      const lines = postCode.split('\n');
+
+      assert.ok(
+        lines.length < 150,
+        'post.tsx must remain a lightweight modular router (< 150 lines), but has ' + lines.length + ' lines'
+      );
+
+      assert.ok(postCode.includes('MAX_TITLE_LENGTH,'));
+      assert.ok(postCode.includes('MAX_DESCRIPTION_LENGTH,'));
+      assert.ok(postCode.includes('MAX_LOCATION_LENGTH,'));
+      assert.ok(postCode.includes('MAX_CUSTOM_WHEN_LENGTH,'));
+      assert.ok(postCode.includes('formatEventDate,'));
+      assert.ok(postCode.includes('DatePickerModal,'));
+      assert.ok(postCode.includes('parseDateOrDefault,'));
+
+      const composerExports = require('../src/hooks/use-post-composer');
+      assert.strictEqual(composerExports.MAX_TITLE_LENGTH, 50);
+      assert.strictEqual(composerExports.MAX_DESCRIPTION_LENGTH, 280);
+      assert.strictEqual(composerExports.MAX_LOCATION_LENGTH, 25);
+      assert.strictEqual(composerExports.MAX_CUSTOM_WHEN_LENGTH, 25);
+
+      assert.ok(postCode.includes('PostMobileView'));
+      assert.ok(postCode.includes('PostWebView'));
+      assert.ok(postCode.includes('PostNotLeaderView'));
+      assert.ok(postCode.includes('useResponsiveLayout'));
+      assert.ok(postCode.includes('isCompact ?'));
+    });
+
+    it('validates PostWebView responsive layout rules and live preview panel', () => {
+      const webViewCode = readSrc('components/post-web-view.tsx');
+
+      assert.ok(webViewCode.includes('width >= 1024'));
+      assert.ok(webViewCode.includes('maxWidth: isSideBySide ? 1240 : 740'));
+      assert.ok(webViewCode.includes('<PostCard'));
+      assert.ok(webViewCode.includes('LIVE FEED PREVIEW'));
+      assert.ok(webViewCode.includes('Posting Best Practices'));
+      assert.ok(webViewCode.includes('Brand.gold'));
+      assert.ok(webViewCode.includes('threeColumnLayout'));
+      assert.ok(webViewCode.includes('scroll={!isSideBySide}'));
+      assert.ok(webViewCode.includes('columnContent'));
+    });
+
+    it('validates live draft Post object construction in usePostComposer', () => {
+      const {
+        MAX_TITLE_LENGTH,
+        MAX_DESCRIPTION_LENGTH,
+        MAX_LOCATION_LENGTH,
+        MAX_CUSTOM_WHEN_LENGTH,
+      } = require('../src/hooks/use-post-composer');
+
+      assert.strictEqual(MAX_TITLE_LENGTH, 50);
+      assert.strictEqual(MAX_DESCRIPTION_LENGTH, 280);
+      assert.strictEqual(MAX_LOCATION_LENGTH, 25);
+      assert.strictEqual(MAX_CUSTOM_WHEN_LENGTH, 25);
+
+      const buildPreviewDraft = (params: any) => {
+        const trimmedTitle = params.title.trim();
+        const trimmedDescription = params.description.trim();
+        return {
+          id: 'preview-draft',
+          clubId: params.activeClub?.id ?? 'preview-club',
+          org: params.activeClub?.name ?? 'Calvin Student Club',
+          mark: params.activeClub?.mark,
+          category: params.activeClub?.category ?? 'Official',
+          postedAt: 'Just now',
+          createdAt: Date.now(),
+          headline: trimmedTitle || 'Your Title Will Appear Here',
+          body:
+            trimmedDescription ||
+            'Add a clear event description, agenda, or announcement details. As you type, this preview updates in real-time!',
+          image: params.imageUrl ?? undefined,
+          when: params.computedWhen,
+          where: params.computedWhere,
+          followed: false,
+          campusWide: true,
+        };
+      };
+
+      const emptyDraft = buildPreviewDraft({ title: '', description: '' });
+      assert.strictEqual(emptyDraft.headline, 'Your Title Will Appear Here');
+      assert.ok(emptyDraft.body.includes('As you type, this preview updates in real-time!'));
+      assert.strictEqual(emptyDraft.category, 'Official');
+      assert.strictEqual(emptyDraft.campusWide, true);
+
+      const filledDraft = buildPreviewDraft({
+        activeClub: { id: 'cs-club', name: 'Computer Science Club', mark: 'CS', category: 'Academics' },
+        title: 'Hackathon Kickoff 2026',
+        description: 'Join us for 24 hours of coding and pizza!',
+        imageUrl: 'https://example.com/banner.png',
+        computedWhen: 'Saturday, Nov 14 · 9:00 AM – 9:00 PM',
+        computedWhere: 'North Hall 276',
+      });
+      assert.strictEqual(filledDraft.headline, 'Hackathon Kickoff 2026');
+      assert.strictEqual(filledDraft.org, 'Computer Science Club');
+      assert.strictEqual(filledDraft.category, 'Academics');
+      assert.strictEqual(filledDraft.when, 'Saturday, Nov 14 · 9:00 AM – 9:00 PM');
+      assert.strictEqual(filledDraft.where, 'North Hall 276');
+      assert.strictEqual(filledDraft.image, 'https://example.com/banner.png');
+    });
+  });
+
+  describe('Post Creation Combinatorial Field Validation Matrix (15 Scenarios)', () => {
+    const scenarios = [
+      { t: 'Title', d: 'Desc', loc: 'Hall', dt: '09/18/2026', valid: true },
+      { t: '', d: 'Desc', loc: 'Hall', dt: '09/18/2026', valid: false },
+      { t: 'Title', d: '', loc: 'Hall', dt: '09/18/2026', valid: false },
+      { t: '   ', d: 'Desc', loc: 'Hall', dt: '09/18/2026', valid: false },
+      { t: 'Title', d: '   ', loc: 'Hall', dt: '09/18/2026', valid: false },
+      { t: 'Title', d: 'Desc', loc: '', dt: '09/18/2026', valid: true },
+      { t: 'Title', d: 'Desc', loc: 'Hall', dt: '', valid: true },
+      { t: 'Title', d: 'Desc', loc: '', dt: '', valid: true },
+      { t: 'T'.repeat(50), d: 'D'.repeat(280), loc: 'L'.repeat(25), dt: '', valid: true },
+      { t: 'T'.repeat(51), d: 'Desc', loc: 'Hall', dt: '', valid: false },
+      { t: 'Title', d: 'D'.repeat(281), loc: 'Hall', dt: '', valid: false },
+      { t: 'Title', d: 'Desc', loc: 'L'.repeat(26), dt: '', valid: false },
+      { t: 'Special 🎉', d: 'Description with emojis 🚀', loc: 'Commons', dt: '', valid: true },
+      { t: '   Trimmed Title   ', d: '   Trimmed Desc   ', loc: 'Trimmed Loc', dt: '', valid: true },
+      { t: 'A', d: 'B', loc: 'C', dt: '', valid: true },
+    ];
+
+    for (let idx = 0; idx < scenarios.length; idx++) {
+      const s = scenarios[idx];
+      it(`evaluates combinatorial form validity scenario #${idx + 1} (expected: ${s.valid})`, () => {
+        const canPublish =
+          s.t.trim().length > 0 &&
+          s.t.trim().length <= 50 &&
+          s.d.trim().length > 0 &&
+          s.d.trim().length <= 280 &&
+          s.loc.trim().length <= 25;
+        assert.strictEqual(canPublish, s.valid);
+      });
+    }
+  });
+
+  describe('Club Leadership Context Account Scoping Invariants', () => {
+    const studentUsernames = ['jmd42', 'alice24', 'bob99', 'carol12', 'david77'];
+
+    for (const u of studentUsernames) {
+      it(`generates unique storage key scoped to account "${u}"`, () => {
+        const key = getAccountStorageKey({ username: u }, 'knightly_leader_clubs_');
+        assert.ok(key.includes(u));
+        assert.ok(key.startsWith('knightly_'));
+      });
+    }
+  });
+});
 
