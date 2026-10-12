@@ -33,6 +33,15 @@ type FeedContextType = {
   posts: Post[];
   createPost: (input: CreatePostInput) => Post;
   deletePost: (id: string) => void;
+
+  // Posts saved by the student 
+  favoritePosts: Post[];
+
+  // Add or remove a favorite
+  toggleFavorite: (id: string) => void;
+
+  // Check whether a post is a favorite
+  isFavorite: (id: string) => boolean;
 };
 
 const FeedContext = createContext<FeedContextType | null>(null);
@@ -86,6 +95,33 @@ function getInitialPosts(): Post[] {
 
 export function FeedProvider({ children }: { children: React.ReactNode }) {
   const [feedPosts, setFeedPosts] = useState<Post[]>(getInitialPosts);
+  // Store the IDs of posts saved by the student. -- duo2
+  // Start with an empty list because no posts are favorited yet.
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+
+  // Add a post to favorites or remove it if already saved.
+  const toggleFavorite = useCallback((id: string) => {
+    setFavoriteIds((previousIds) =>
+      previousIds.includes(id)
+        // Remove the post if it is already a favorite.
+        ? previousIds.filter((savedId) => savedId !== id)
+        // Otherwise, add the post to favorites.
+        : [...previousIds, id]
+    );
+  }, []);
+
+  // Check whether a post is already saved as a favorite.
+  const isFavorite = useCallback(
+    (id: string) => favoriteIds.includes(id),
+    [favoriteIds]
+  );
+
+  // Get all posts that the student has saved as favorites.
+  const favoritePosts = useMemo(
+    () => feedPosts.filter((post) => favoriteIds.includes(post.id)),
+    [feedPosts, favoriteIds]
+  );
+
   const { isFollowing, toggleFollow } = useClubFollow();
 
   // SPRINT 1 SLO DIRECTIVE (SC2):
@@ -176,8 +212,20 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       posts: feedPosts,
       createPost,
       deletePost,
+
+      // Make favorite posts and functions available to other components.
+      favoritePosts,
+      toggleFavorite,
+      isFavorite,
     }),
-    [feedPosts, createPost, deletePost]
+    [
+      feedPosts,
+      createPost,
+      deletePost,
+      favoritePosts,
+      toggleFavorite,
+      isFavorite,
+    ]
   );
 
   return <FeedContext.Provider value={value}>{children}</FeedContext.Provider>;

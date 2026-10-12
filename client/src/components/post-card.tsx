@@ -9,6 +9,7 @@ import { Icon } from '@/components/ui/icon';
 import { Brand, Fonts, Radius, Spacing } from '@/constants/theme';
 import { getPresetBannerDetails, isPresetBanner } from '@/constants/preset-banners';
 import { useClubFollow } from '@/context/club-follow-context';
+import { useFeed } from '@/context/feed-context';
 import type { Post } from '@/data/feed';
 import { useTheme } from '@/hooks/use-theme';
 import { formatRelativeTime } from '@/utils/date-format';
@@ -123,6 +124,12 @@ export interface PostCardProps {
 export function PostCard({ post, onPressOrg }: PostCardProps) {
   const theme = useTheme();
   const { isFollowing } = useClubFollow();
+
+  // Access the Favorites functions from FeedContext.
+  const { toggleFavorite, isFavorite } = useFeed();
+
+  // Check whether this post is already a favorite.
+  const favorited = isFavorite(post.id);
 
   // Step 1: Derive canonical club ID (fallback slugification for legacy posts without clubId)
   // WHY SLUGIFY FALLBACK:
@@ -243,11 +250,28 @@ export function PostCard({ post, onPressOrg }: PostCardProps) {
           <ThemedText type="caption" themeColor="textMuted">
             {formatRelativeTime(post.postedAt, post.createdAt, post.monotonicCreatedAt)}
           </ThemedText>
+
           {post.campusWide ? (
             <ThemedText type="caption" themeColor="textMuted">
               Campus-wide
             </ThemedText>
           ) : null}
+
+          {/* Allow students to save or remove this post from Favorites. */}
+          <Pressable
+            onPress={() => toggleFavorite(post.id)}
+            accessibilityRole="button"
+            accessibilityLabel={favorited ? 'Remove from favorites' : 'Add to favorites'}
+            accessibilityState={{ selected: favorited }}
+            hitSlop={10}
+          >
+            <Icon
+              sf={favorited ? 'heart.fill' : 'heart'}
+              md={favorited ? 'favorite' : 'favorite_border'}
+              size={22}
+              color={favorited ? Brand.maroon : theme.text}
+            />
+          </Pressable>
         </View>
       </View>
     </Card>
