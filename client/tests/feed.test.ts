@@ -850,5 +850,103 @@ describe('Knightly Feed Domain', () => {
       assert.strictEqual(searchedWithAll[0].headline, 'Airband is back');
     });
   });
+
+  describe('Feed Screen SearchField & Category Chip Invariants', () => {
+    it('verifies all 13 official Calvin categories are available for chip filtering', () => {
+      const expectedCategories: FeedCategory[] = [
+        'Academics',
+        'Athletics',
+        'Career',
+        'Culture',
+        'Faith',
+        'Gaming',
+        'Music',
+        'Official',
+        'Outdoors',
+        'Service',
+        'Social',
+        'The Arts',
+        'Wellness',
+      ];
+
+      assert.strictEqual(feedCategories.length, 13);
+      for (const cat of expectedCategories) {
+        assert.ok(feedCategories.includes(cat), `Category chip for ${cat} must be present`);
+      }
+    });
+
+    it('filters feed posts for each individual category chip', () => {
+      for (const cat of feedCategories) {
+        const filtered = filterFeedPosts(posts, {
+          scope: 'All Campus',
+          categories: [cat],
+          query: '',
+        });
+        for (const post of filtered) {
+          assert.strictEqual(post.category, cat, `All returned posts must have category ${cat}`);
+        }
+      }
+    });
+
+    it('searches posts by keyword across headline, body, org, and venue in All Campus scope', () => {
+      // 1. Headline match
+      const headlineResults = filterFeedPosts(posts, {
+        scope: 'All Campus',
+        categories: [],
+        query: 'Airband',
+      });
+      assert.ok(headlineResults.some((p) => p.headline.includes('Airband')));
+
+      // 2. Organization match
+      const orgResults = filterFeedPosts(posts, {
+        scope: 'All Campus',
+        categories: [],
+        query: 'Knights Athletics',
+      });
+      assert.ok(orgResults.some((p) => p.org === 'Knights Athletics'));
+
+      // 3. Venue / location match
+      const venueResults = filterFeedPosts(posts, {
+        scope: 'All Campus',
+        categories: [],
+        query: 'Van Noord',
+      });
+      assert.ok(venueResults.some((p) => p.where?.includes('Van Noord')));
+    });
+
+    it('searches posts by keyword in Following scope while respecting follow affiliations', () => {
+      const isTestFollowing = (clubId: string) => clubId === 'student-activities';
+
+      const followingSearched = filterFeedPosts(posts, {
+        scope: 'Following',
+        categories: [],
+        query: 'Airband',
+        isFollowing: isTestFollowing,
+      });
+
+      assert.strictEqual(followingSearched.length, 1);
+      assert.strictEqual(followingSearched[0].org, 'Student Activities');
+    });
+
+    it('composes category chip filter and search query simultaneously', () => {
+      // Searching "Zuidema" with category "Athletics" yields soccer post
+      const athleticsMatches = filterFeedPosts(posts, {
+        scope: 'All Campus',
+        categories: ['Athletics'],
+        query: 'Zuidema',
+      });
+      assert.strictEqual(athleticsMatches.length, 1);
+      assert.strictEqual(athleticsMatches[0].category, 'Athletics');
+
+      // Searching "Zuidema" with mismatched category "Music" yields 0
+      const musicMatches = filterFeedPosts(posts, {
+        scope: 'All Campus',
+        categories: ['Music'],
+        query: 'Zuidema',
+      });
+      assert.strictEqual(musicMatches.length, 0);
+    });
+  });
 });
+
 

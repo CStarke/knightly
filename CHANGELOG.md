@@ -11,6 +11,18 @@ and this project adheres to semantic application versioning defined in `AGENTS.m
 - **Add favorite posts functionality (#48)**: Added the ability for students to mark campus posts as favorites using a heart button.
 - **Favorites Tab**: Added a dedicated tab where students can view their saved posts and remove posts from favorites.
 - **Favorites State Management**: Implemented favorites management using React Context.
+## [0.5.0] - 2026-10-11
+
+### Added
+- **Feed Tab Search Integration**: Prominently integrated the canonical `SearchField` component at the top of the Knightly Feed (`client/src/app/(tabs)/index.tsx`), providing 0-click live keyword filtering across headline, body text, organizing club/department, category, and venue fields under both "Following" and "All Campus" scopes.
+- **Feed Tab Category Filter Chips**: Exposed all 13 official Calvin University feed categories (`Academics`, `Athletics`, `Career`, `Culture`, `Faith`, `Gaming`, `Music`, `Official`, `Outdoors`, `Service`, `Social`, `The Arts`, `Wellness`) plus "All" using `ChipRow` (`client/src/components/ui/chip.tsx`) directly on the feed screen. Tapping a category chip filters the stream instantly; tapping again deselects it, and an active filter indicator pill provides 1-tap reset.
+- **Search & Category Invariant Tests**: Added automated test coverage in `client/tests/feed.test.ts` verifying category isolation, keyword matching across attributes, and composing search with category filtering.
+
+### Fixed
+- **Claim Club Setup Success Header Latency**: Resolved the delay where the top `AppHeader` stayed stuck on "Complete Profile" after tapping "Got it" on the success modal. Made `completeClaimSetup()` execute synchronously inside `handleSuccessFromSetup` (`client/src/components/app-tabs.tsx`), instantly resetting `claimSetupState.isOpen` and restoring the "Knightly" title at the very start of the camera slide back to Slot 0 without awaiting the 340ms animation completion callback.
+- **Claim Club Header Back Dismissal Latency**: Synchronously invoked `cancelClaimSetup()` in `handleBackFromSetup` and `handleDismissSetupFromGesture` so header immediately restores to "Knightly" without animation completion lag.
+- **Duplicate Style Object Properties in Login Screen**: Resolved duplicate property and identifier definitions in `client/src/components/login-screen.tsx` (`maroonContainer` and sidebar styles) to maintain 0 TypeScript compiler diagnostics.
+- **Side-Effect CSS Type Declarations**: Created `client/expo-env.d.ts` declaring `.css` module types for `@/global.css` side-effect imports.
 
 ## [0.4.4] - 2026-10-05
 
