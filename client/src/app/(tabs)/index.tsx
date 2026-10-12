@@ -55,7 +55,10 @@ import {
 const scopeOptions = ["Following", "All Campus"] as const;
 type FeedScope = (typeof scopeOptions)[number];
 
-const categoryOptions: ("All" | FeedCategory)[] = [
+const mobileToggleOptions = ["Following", "All Campus", "Favorites"] as const;
+type MobileScope = (typeof mobileToggleOptions)[number];
+
+const mobileCategoryOptions: ("All" | FeedCategory)[] = [
   "All",
   ...feedCategories,
 ];
@@ -75,7 +78,8 @@ export default function FeedScreen() {
   const deferredCategory = useDeferredValue(category);
   const deferredQuery = useDeferredValue(query);
 
-  const { posts: dynamicPosts } = useFeed();
+  //Get all feed posts and the student's saved favorite posts.
+  const { posts: dynamicPosts, favoritePosts } = useFeed();
   const { isFollowing, followedCount } = useClubFollow();
   const { openClubsDirectory } = useClubsNavigation();
 
@@ -93,7 +97,32 @@ export default function FeedScreen() {
 
   // Step 3: Filtering Pipeline
   const visible = useMemo(() => {
-    const activeCats = deferredCategory === "All" ? [] : [deferredCategory];
+    if (isMobileApp) {
+
+      //show only saved posts when the students selects Favorites.
+      if (deferredMobileScope === "Favorites") {
+        return favoritePosts;
+      }
+
+      const activeCats = deferredMobileCategories.has("All")
+        ? []
+        : Array.from(deferredMobileCategories).filter((c): c is FeedCategory => c !== "All");
+
+      return filterFeedPosts(dynamicPosts, {
+        scope: deferredMobileScope,
+        categories: activeCats,
+        query: deferredMobileScope === "All Campus" ? deferredQuery : "",
+        isFollowing,
+      });
+    }
+
+    // Web filtering logic
+    const webScope = deferredSelectedFilters.has("Following") ? "Following" : "All";
+    const webCategories = deferredSelectedFilters.has("All")
+      ? []
+      : Array.from(deferredSelectedFilters).filter(
+        (opt): opt is FeedCategory => opt !== "All" && opt !== "Following"
+      );
 
     return filterFeedPosts(dynamicPosts, {
       scope: deferredScope,
@@ -101,7 +130,7 @@ export default function FeedScreen() {
       query: deferredQuery,
       isFollowing,
     });
-  }, [dynamicPosts, deferredScope, deferredCategory, deferredQuery, isFollowing]);
+  }, [dynamicPosts, favoritePosts, isMobileApp, deferredMobileScope, deferredMobileCategories, deferredSelectedFilters, deferredQuery, isFollowing]);
 
   // Step 4: Chunk visible posts into even rows of `numColumns` items
   const evenRows = useMemo(() => {
@@ -112,7 +141,10 @@ export default function FeedScreen() {
     return rows;
   }, [visible, numColumns]);
 
-  const isFilterActive = query.trim().length > 0 || category !== "All";
+  const isFilterActive = isMobileApp
+    ? (mobileScope === "All Campus" && query.trim().length > 0) ||
+    (mobileCategories.size > 0 && !mobileCategories.has("All"))
+    : query.trim().length > 0 || !selectedFilters.has("All");
 
   // Step 5: Reset handler
   const handleClear = () => {
@@ -192,36 +224,66 @@ export default function FeedScreen() {
   const listEmpty = (
     <View style={[styles.screenInner, isMobileApp && styles.mobileEmptyContainer]}>
       {visible.length === 0 ? (
-        scope === "Following" && category === "All" && !query.trim() ? (
+        // Show a message when the student has no favorite posts.
+        isMobileApp && deferredMobileScope === "Favorites" ? (
           <Card style={styles.emptyCard}>
-            <Icon sf="sparkles" md="auto_awesome" size={28} color={Brand.gold} />
-            <ThemedText type="smallBold">No posts from your followed clubs</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary" style={styles.emptySub}>
-              Follow campus clubs to see their upcoming events, workshops, and announcements here.
+            <Icon
+              sf="heart"
+              md="favorite_border"
+              size={28}
+              color={Brand.maroon}
+            />
+
+            <ThemedText type="smallBold">
+              No favorite posts yet
             </ThemedText>
-            <Pressable
-              onPress={openClubsDirectory}
-              style={styles.emptyCta}
+
+            <ThemedText
+              type="small"
+              themeColor="textSecondary"
+              style={styles.emptySub}
             >
-              <ThemedText style={styles.emptyCtaText}>Browse Campus Clubs</ThemedText>
-            </Pressable>
+              Tap the heart on any post to save it here.
+            </ThemedText>
           </Card>
         ) : (
-          <Card style={styles.emptyCard}>
-            <Icon sf="magnifyingglass" md="search" size={26} color={Brand.gold} />
-            <ThemedText type="smallBold">Nothing matches those filters</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary" style={styles.emptySub}>
-              Try searching for a different keyword or select another category.
-            </ThemedText>
-            <Pressable
-              onPress={handleClear}
-              style={styles.emptyCta}
-            >
-              <ThemedText style={styles.emptyCtaText}>Clear Filters</ThemedText>
-            </Pressable>
-          </Card>
+          (isMobileApp
+            ? deferredMobileScope === "Following" && (deferredMobileCategories.size === 0 || deferredMobileCategories.has("All")) && !deferredQuery.trim()
+            : deferredSelectedFilters.has("Following") &&
+            !deferredSelectedFilters.has("All") &&
+            Array.from(deferredSelectedFilters).filter((o) => o !== "All" && o !== "Following").length === 0 &&
+            !deferredQuery.trim()
+          ) ? (
+            <Card style={styles.emptyCard}>
+              <Icon sf="sparkles" md="auto_awesome" size={28} color={Brand.gold} />
+              <ThemedText type="smallBold">No posts from your followed clubs</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.emptySub}>
+                Follow campus clubs to see their upcoming events, workshops, and announcements here.
+              </ThemedText>
+              <Pressable
+                onPress={openClubsDirectory}
+                style={styles.emptyCta}
+              >
+                <ThemedText style={styles.emptyCtaText}>Browse Campus Clubs</ThemedText>
+              </Pressable>
+            </Card>
+          ) : (
+            <Card style={styles.emptyCard}>
+              <Icon sf="magnifyingglass" md="search" size={26} color={Brand.gold} />
+              <ThemedText type="smallBold">Nothing matches those filters</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.emptySub}>
+                Try searching for a different keyword or select another category.
+              </ThemedText>
+              <Pressable
+                onPress={handleClear}
+                style={styles.emptyCta}
+              >
+                <ThemedText style={styles.emptyCtaText}>Clear Filters</ThemedText>
+              </Pressable>
+            </Card>
+          )
         )
-      ) : null}
+        ) : null}
     </View>
   );
 

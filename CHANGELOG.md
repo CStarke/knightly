@@ -5,6 +5,12 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
+## [0.5.1] - Unreleased
+
+### Added
+- **Add favorite posts functionality (#48)**: Added the ability for students to mark campus posts as favorites using a heart button.
+- **Favorites Tab**: Added a dedicated tab where students can view their saved posts and remove posts from favorites.
+- **Favorites State Management**: Implemented favorites management using React Context.
 ## [0.5.0] - 2026-10-11
 
 ### Added
