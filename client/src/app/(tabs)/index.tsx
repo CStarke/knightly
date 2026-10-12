@@ -53,12 +53,11 @@ import {
 } from "@/data/feed";
 
 const scopeOptions = ["Following", "All Campus"] as const;
-type FeedScope = (typeof scopeOptions)[number];
 
 const mobileToggleOptions = ["Following", "All Campus", "Favorites"] as const;
 type MobileScope = (typeof mobileToggleOptions)[number];
 
-const mobileCategoryOptions: ("All" | FeedCategory)[] = [
+const categoryOptions: ("All" | FeedCategory)[] = [
   "All",
   ...feedCategories,
 ];
@@ -68,7 +67,8 @@ export default function FeedScreen() {
   const isMobileApp = Platform.OS !== "web";
 
   // Dedicated audience scope ("Following" vs "All Campus")
-  const [scope, setScope] = useState<FeedScope>("Following");
+  // Favorites extends the mobile toggle while both platforms share the same filter state.
+  const [scope, setScope] = useState<MobileScope>("Following");
   // Topical category filter
   const [category, setCategory] = useState<"All" | FeedCategory>("All");
   // Live keyword search query
@@ -97,40 +97,19 @@ export default function FeedScreen() {
 
   // Step 3: Filtering Pipeline
   const visible = useMemo(() => {
-    if (isMobileApp) {
+    const activeCats = deferredCategory === "All" ? [] : [deferredCategory];
+    //show only saved posts when the students selects Favorites.
+    // Saved posts must remain visible regardless of whether their club is followed.
+    const showFavorites = isMobileApp && deferredScope === "Favorites";
 
-      //show only saved posts when the students selects Favorites.
-      if (deferredMobileScope === "Favorites") {
-        return favoritePosts;
-      }
-
-      const activeCats = deferredMobileCategories.has("All")
-        ? []
-        : Array.from(deferredMobileCategories).filter((c): c is FeedCategory => c !== "All");
-
-      return filterFeedPosts(dynamicPosts, {
-        scope: deferredMobileScope,
-        categories: activeCats,
-        query: deferredMobileScope === "All Campus" ? deferredQuery : "",
-        isFollowing,
-      });
-    }
-
-    // Web filtering logic
-    const webScope = deferredSelectedFilters.has("Following") ? "Following" : "All";
-    const webCategories = deferredSelectedFilters.has("All")
-      ? []
-      : Array.from(deferredSelectedFilters).filter(
-        (opt): opt is FeedCategory => opt !== "All" && opt !== "Following"
-      );
-
-    return filterFeedPosts(dynamicPosts, {
-      scope: deferredScope,
+    // Web filtering logic shares main's category and keyword pipeline with mobile.
+    return filterFeedPosts(showFavorites ? favoritePosts : dynamicPosts, {
+      scope: deferredScope === "Favorites" ? "All Campus" : deferredScope,
       categories: activeCats,
       query: deferredQuery,
       isFollowing,
     });
-  }, [dynamicPosts, favoritePosts, isMobileApp, deferredMobileScope, deferredMobileCategories, deferredSelectedFilters, deferredQuery, isFollowing]);
+  }, [dynamicPosts, favoritePosts, isMobileApp, deferredScope, deferredCategory, deferredQuery, isFollowing]);
 
   // Step 4: Chunk visible posts into even rows of `numColumns` items
   const evenRows = useMemo(() => {
@@ -141,10 +120,7 @@ export default function FeedScreen() {
     return rows;
   }, [visible, numColumns]);
 
-  const isFilterActive = isMobileApp
-    ? (mobileScope === "All Campus" && query.trim().length > 0) ||
-    (mobileCategories.size > 0 && !mobileCategories.has("All"))
-    : query.trim().length > 0 || !selectedFilters.has("All");
+  const isFilterActive = query.trim().length > 0 || category !== "All";
 
   // Step 5: Reset handler
   const handleClear = () => {
@@ -168,7 +144,7 @@ export default function FeedScreen() {
       {/* Step B: Audience Scope Toggle */}
       <View style={styles.scopeToggleWrapper}>
         <Segmented
-          options={scopeOptions}
+          options={isMobileApp ? mobileToggleOptions : scopeOptions}
           value={scope}
           onChange={setScope}
         />
@@ -225,7 +201,7 @@ export default function FeedScreen() {
     <View style={[styles.screenInner, isMobileApp && styles.mobileEmptyContainer]}>
       {visible.length === 0 ? (
         // Show a message when the student has no favorite posts.
-        isMobileApp && deferredMobileScope === "Favorites" ? (
+        isMobileApp && deferredScope === "Favorites" && favoritePosts.length === 0 ? (
           <Card style={styles.emptyCard}>
             <Icon
               sf="heart"
@@ -247,13 +223,7 @@ export default function FeedScreen() {
             </ThemedText>
           </Card>
         ) : (
-          (isMobileApp
-            ? deferredMobileScope === "Following" && (deferredMobileCategories.size === 0 || deferredMobileCategories.has("All")) && !deferredQuery.trim()
-            : deferredSelectedFilters.has("Following") &&
-            !deferredSelectedFilters.has("All") &&
-            Array.from(deferredSelectedFilters).filter((o) => o !== "All" && o !== "Following").length === 0 &&
-            !deferredQuery.trim()
-          ) ? (
+          deferredScope === "Following" && deferredCategory === "All" && !deferredQuery.trim() ? (
             <Card style={styles.emptyCard}>
               <Icon sf="sparkles" md="auto_awesome" size={28} color={Brand.gold} />
               <ThemedText type="smallBold">No posts from your followed clubs</ThemedText>
