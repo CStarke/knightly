@@ -7,25 +7,26 @@
  * and university announcements.
  *
  * MINIMUM-CLICKS FILTERING & RESPONSIVE FEED PHILOSOPHY:
- * 1. Mobile App Dedicated Scope Toggle & Category Chips: On the mobile app alone, the feed scope
- *    ("ALL CLUBS" vs "FOLLOWING") is elevated to a wide, prominent Segmented toggle above the category filters.
- *    The horizontal scrolling chip banner is styled to be less wide than the toggle bar and contains
- *    exclusively topic categories, cleanly decoupling audience scope from content filtering.
- * 2. Singular Column on Mobile Alone & Even Grid on Web: On the mobile app alone, the feed
- *    is strictly 1 singular column for optimal phone reading ergonomics and full-width card layout.
- *    On web, posts are grouped into uniform even rows (3 columns on desktop web, 2 columns on tablet/web)
- *    with identical cell widths, equal stretch heights, and alignment spacers.
- * 3. 0-Click Instant Search: Permanent top search field activates live keyword filtering on keystroke,
- *    with a 1-click clear button.
- * 4. Server-Authoritative Timestamps: All filtered posts are strictly sorted by server-assigned
- *    creation times in descending order.
+ * 1. 0-Click Instant Search (SearchField):
+ *    Permanent top search field activates live keyword filtering on keystroke,
+ *    searching across title, body, organization, venue, and category.
+ * 2. Audience Scope Toggle (Segmented):
+ *    Students can switch between "Following" (their followed clubs + campus-wide alerts)
+ *    and "All Campus" (unrestricted university discovery).
+ * 3. Topical Category Filtering (ChipRow):
+ *    Horizontal scrolling chip row containing all 13 official Calvin University categories
+ *    plus "All". Tapping a chip filters the feed instantly; tapping again deselects it.
+ * 4. Responsive Layout:
+ *    - Mobile App (Platform.OS !== 'web'): Strictly 1 column via ScreenFlatList for handheld ergonomics.
+ *    - Web App: Multi-column responsive grid (2-3 columns depending on viewport width) via Screen.
+ * 5. Server-Authoritative Timestamps:
+ *    All posts are strictly sorted by server-assigned timestamps newest-first.
  */
 
-import { useMemo, useState, useDeferredValue } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import {
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   useWindowDimensions,
   View,
@@ -34,7 +35,7 @@ import {
 import { PostCard } from "@/components/post-card";
 import { ThemedText } from "@/components/themed-text";
 import { Card } from "@/components/ui/card";
-import { Chip } from "@/components/ui/chip";
+import { ChipRow } from "@/components/ui/chip";
 import { Icon } from "@/components/ui/icon";
 import { Screen, ScreenFlatList } from "@/components/ui/screen";
 import { SearchField } from "@/components/ui/search-field";
@@ -51,146 +52,56 @@ import {
   type Post,
 } from "@/data/feed";
 
-/**
- * Filter options combining feed scopes ("All", "Following") and categories in a single tier (used for web).
- */
-type FeedFilterOption = "All" | "Following" | FeedCategory;
+const scopeOptions = ["Following", "All Campus"] as const;
+type FeedScope = (typeof scopeOptions)[number];
 
-const allFilterOptions: FeedFilterOption[] = [
-  "All",
-  "Following",
-  ...feedCategories,
-];
-
-const mobileToggleOptions = ["Following", "All Campus"] as const;
-type MobileScope = (typeof mobileToggleOptions)[number];
-
-const mobileCategoryOptions: ("All" | FeedCategory)[] = [
+const categoryOptions: ("All" | FeedCategory)[] = [
   "All",
   ...feedCategories,
 ];
 
-/**
- * Primary Campus Feed screen component.
- *
- * WHAT IT DOES:
- * - On Mobile: Elevates "Following" vs "All Campus" to an animated, wider Segmented toggle positioned directly
- *   above the category filter strip. Search bar is hidden on "Following" and pops up below the toggle on "All Campus".
- *   Category strip scrolls edge-to-edge with "All" as an active filter option.
- * - On Web: Preserves the unified single-tier filter pills row with 1-click multi-select.
- * - Filters and sorts posts newest-first using server-authoritative timestamps.
- * - Renders a singular column feed on the mobile app, and a balanced multi-column grid on web.
- */
 export default function FeedScreen() {
   const { width } = useWindowDimensions();
   const isMobileApp = Platform.OS !== "web";
 
-  // Web unified filter state ("All" | "Following" | specific categories)
-  const [selectedFilters, setSelectedFilters] = useState<Set<FeedFilterOption>>(new Set(["All"]));
-
-  // Mobile dedicated scope toggle ("Following" on left vs "All Campus" on right) and topic category filters
-  const [mobileScope, setMobileScope] = useState<MobileScope>("Following");
-  const [mobileCategories, setMobileCategories] = useState<Set<"All" | FeedCategory>>(new Set(["All"]));
-
+  // Dedicated audience scope ("Following" vs "All Campus")
+  const [scope, setScope] = useState<FeedScope>("Following");
+  // Topical category filter
+  const [category, setCategory] = useState<"All" | FeedCategory>("All");
+  // Live keyword search query
   const [query, setQuery] = useState("");
 
-  const deferredMobileScope = useDeferredValue(mobileScope);
-  const deferredMobileCategories = useDeferredValue(mobileCategories);
+  const deferredScope = useDeferredValue(scope);
+  const deferredCategory = useDeferredValue(category);
   const deferredQuery = useDeferredValue(query);
-  const deferredSelectedFilters = useDeferredValue(selectedFilters);
 
   const { posts: dynamicPosts } = useFeed();
   const { isFollowing, followedCount } = useClubFollow();
   const { openClubsDirectory } = useClubsNavigation();
 
-  // Step 1: Responsive Column Count
+  // Step 1: Responsive Column Count (1 for mobile native, 2-3 for web)
   const numColumns = resolveFeedColumnCount(width, Platform.OS);
 
-  // Step 2a: Web Multi-Selection Filter Toggle Logic
-  const toggleFilter = (option: FeedFilterOption) => {
-    if (option === "All") {
-      setSelectedFilters(new Set(["All"]));
-      return;
+  // Step 2: Category Chip Toggle Logic
+  const handleCategoryChange = (cat: "All" | FeedCategory) => {
+    if (cat === category) {
+      setCategory("All");
+    } else {
+      setCategory(cat);
     }
-
-    setSelectedFilters((prev) => {
-      const next = new Set(prev);
-      next.delete("All");
-
-      if (next.has(option)) {
-        next.delete(option);
-      } else {
-        next.add(option);
-      }
-
-      if (next.size === 0) {
-        return new Set(["All"]);
-      }
-      return next;
-    });
-  };
-
-  // Step 2b: Mobile Scope Change Handler
-  const handleMobileScopeChange = (nextScope: MobileScope) => {
-    setMobileScope(nextScope);
-    // When switching to "Following", clear search text so hidden search does not filter posts
-    if (nextScope === "Following") {
-      setQuery("");
-    }
-  };
-
-  // Step 2c: Mobile Category Filter Toggle Logic
-  const toggleMobileCategory = (cat: "All" | FeedCategory) => {
-    if (cat === "All") {
-      setMobileCategories(new Set(["All"]));
-      return;
-    }
-
-    setMobileCategories((prev) => {
-      const next = new Set(prev);
-      next.delete("All");
-      if (next.has(cat)) {
-        next.delete(cat);
-      } else {
-        next.add(cat);
-      }
-      if (next.size === 0) {
-        return new Set(["All"]);
-      }
-      return next;
-    });
   };
 
   // Step 3: Filtering Pipeline
   const visible = useMemo(() => {
-    if (isMobileApp) {
-      const activeCats = deferredMobileCategories.has("All")
-        ? []
-        : Array.from(deferredMobileCategories).filter((c): c is FeedCategory => c !== "All");
-
-      return filterFeedPosts(dynamicPosts, {
-        scope: deferredMobileScope,
-        categories: activeCats,
-        query: deferredMobileScope === "All Campus" ? deferredQuery : "",
-        isFollowing,
-      });
-    }
-
-    // Web filtering logic
-    const webScope = deferredSelectedFilters.has("Following") ? "Following" : "All";
-    const webCategories = deferredSelectedFilters.has("All")
-      ? []
-      : Array.from(deferredSelectedFilters).filter(
-          (opt): opt is FeedCategory => opt !== "All" && opt !== "Following"
-        );
+    const activeCats = deferredCategory === "All" ? [] : [deferredCategory];
 
     return filterFeedPosts(dynamicPosts, {
-      scope: webScope,
-      categories: webCategories,
+      scope: deferredScope,
+      categories: activeCats,
       query: deferredQuery,
       isFollowing,
     });
-  }, [dynamicPosts, isMobileApp, deferredMobileScope, deferredMobileCategories, deferredSelectedFilters, deferredQuery, isFollowing]);
+  }, [dynamicPosts, deferredScope, deferredCategory, deferredQuery, isFollowing]);
 
   // Step 4: Chunk visible posts into even rows of `numColumns` items
   const evenRows = useMemo(() => {
@@ -201,194 +112,79 @@ export default function FeedScreen() {
     return rows;
   }, [visible, numColumns]);
 
-  const isFilterActive = isMobileApp
-    ? (mobileScope === "All Campus" && query.trim().length > 0) ||
-      (mobileCategories.size > 0 && !mobileCategories.has("All"))
-    : query.trim().length > 0 || !selectedFilters.has("All");
+  const isFilterActive = query.trim().length > 0 || category !== "All";
 
   // Step 5: Reset handler
   const handleClear = () => {
     setQuery("");
-    if (isMobileApp) {
-      setMobileCategories(new Set(["All"]));
-    } else {
-      setSelectedFilters(new Set(["All"]));
-    }
+    setCategory("All");
   };
 
   const listHeader = (
     <View style={styles.filterSection}>
-      {isMobileApp ? (
-        <>
-          <View style={styles.mobileToggleWrapper}>
-            <Segmented
-              options={mobileToggleOptions}
-              value={mobileScope}
-              onChange={handleMobileScopeChange}
-            />
-          </View>
+      {/* Step A: Live Keyword Search Input */}
+      <SearchField
+        value={query}
+        onChangeText={setQuery}
+        placeholder={
+          scope === "Following"
+            ? "Search followed clubs & campus alerts..."
+            : "Search all events, clubs, locations..."
+        }
+      />
 
-          {mobileScope === "All Campus" && (
-            <SearchField
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Search all events, clubs, locations..."
-            />
-          )}
+      {/* Step B: Audience Scope Toggle */}
+      <View style={styles.scopeToggleWrapper}>
+        <Segmented
+          options={scopeOptions}
+          value={scope}
+          onChange={setScope}
+        />
+      </View>
 
-          <View style={styles.mobileFiltersBanner}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.mobileFiltersContent}
-            >
-              {mobileCategoryOptions.map((cat) => {
-                const selected =
-                  cat === "All"
-                    ? mobileCategories.size === 0 || mobileCategories.has("All")
-                    : mobileCategories.has(cat) && !mobileCategories.has("All");
-                return (
-                  <Chip
-                    key={cat}
-                    label={cat}
-                    selected={selected}
-                    onPress={() => toggleMobileCategory(cat)}
-                    tone="gold"
-                  />
-                );
-              })}
+      {/* Step C: Topical Category Filter Chips */}
+      <View style={styles.chipRowWrapper}>
+        <ChipRow
+          options={categoryOptions}
+          value={category}
+          onChange={handleCategoryChange}
+          tone="gold"
+        />
+      </View>
 
-              {isFilterActive && (
-                <Pressable
-                  onPress={handleClear}
-                  accessibilityRole="button"
-                  accessibilityLabel="Clear active filters"
-                  style={({ pressed }) => [styles.resetPill, pressed && styles.pressed]}
-                >
-                  <Icon sf="xmark.circle.fill" md="cancel" size={13} color={Brand.brightRed} />
-                  <ThemedText style={styles.resetPillText}>Clear</ThemedText>
-                </Pressable>
-              )}
-            </ScrollView>
-          </View>
+      {/* Step D: Active Filter Indicator & Reset */}
+      {isFilterActive && (
+        <View style={styles.clearRow}>
+          <Pressable
+            onPress={handleClear}
+            accessibilityRole="button"
+            accessibilityLabel="Clear active filters"
+            style={({ pressed }) => [styles.resetPill, pressed && styles.pressed]}
+          >
+            <Icon sf="xmark.circle.fill" md="cancel" size={13} color={Brand.brightRed} />
+            <ThemedText style={styles.resetPillText}>Clear Filters</ThemedText>
+          </Pressable>
+        </View>
+      )}
 
-          {mobileScope === "Following" && (
-            <Pressable
-              onPress={openClubsDirectory}
-              accessibilityRole="button"
-              accessibilityLabel={`Following ${followedCount} clubs. Campus-wide events included.`}
-              style={({ pressed }) => [styles.followingBar, pressed && styles.pressed]}
-            >
-              <ThemedText
-                type="caption"
-                themeColor="textMuted"
-                numberOfLines={1}
-                style={styles.followingCaption}
-              >
-                Following {followedCount} {followedCount === 1 ? "club" : "clubs"} · campus-wide events included
-              </ThemedText>
-            </Pressable>
-          )}
-        </>
-      ) : (
-        <>
-          <SearchField
-            value={query}
-            onChangeText={setQuery}
-            placeholder={
-              selectedFilters.has("Following") && !selectedFilters.has("All")
-                ? "Search your followed clubs & campus alerts..."
-                : "Search all events, clubs, locations..."
-            }
-          />
-
-          {width >= 720 ? (
-            <View style={styles.desktopWrapRow}>
-              {allFilterOptions.map((opt) => {
-                const label =
-                  opt === "Following" ? `★ Following (${followedCount})` : opt;
-                const selected = selectedFilters.has(opt);
-
-                return (
-                  <Chip
-                    key={opt}
-                    label={label}
-                    selected={selected}
-                    onPress={() => toggleFilter(opt)}
-                    tone="gold"
-                  />
-                );
-              })}
-
-              {isFilterActive && (
-                <Pressable
-                  onPress={handleClear}
-                  accessibilityRole="button"
-                  accessibilityLabel="Clear active filters"
-                  style={({ pressed }) => [styles.resetPill, pressed && styles.pressed]}
-                >
-                  <Icon sf="xmark.circle.fill" md="cancel" size={13} color={Brand.brightRed} />
-                  <ThemedText style={styles.resetPillText}>Clear</ThemedText>
-                </Pressable>
-              )}
-            </View>
-          ) : (
-            <View style={styles.mobileScrollContainer}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.mobileScrollContent}
-              >
-                {allFilterOptions.map((opt) => {
-                  const label =
-                    opt === "Following" ? `★ Following (${followedCount})` : opt;
-                  const selected = selectedFilters.has(opt);
-
-                  return (
-                    <Chip
-                      key={opt}
-                      label={label}
-                      selected={selected}
-                      onPress={() => toggleFilter(opt)}
-                      tone="gold"
-                    />
-                  );
-                })}
-
-                {isFilterActive && (
-                  <Pressable
-                    onPress={handleClear}
-                    accessibilityRole="button"
-                    accessibilityLabel="Clear active filters"
-                    style={({ pressed }) => [styles.resetPill, pressed && styles.pressed]}
-                  >
-                    <Icon sf="xmark.circle.fill" md="cancel" size={13} color={Brand.brightRed} />
-                    <ThemedText style={styles.resetPillText}>Clear</ThemedText>
-                  </Pressable>
-                )}
-              </ScrollView>
-            </View>
-          )}
-
-          {selectedFilters.has("Following") && (
-            <Pressable
-              onPress={openClubsDirectory}
-              accessibilityRole="button"
-              accessibilityLabel={`Following ${followedCount} clubs. Tap to view and explore campus clubs.`}
-              style={({ pressed }) => [styles.followingBar, pressed && styles.pressed]}
-            >
-              <Icon sf="star.fill" md="star" size={13} color={Brand.gold} />
-              <ThemedText
-                type="caption"
-                themeColor="textMuted"
-                numberOfLines={1}
-                style={styles.followingCaption}
-              >
-                Following {followedCount} {followedCount === 1 ? "club" : "clubs"} · campus-wide events included (tap to browse clubs)
-              </ThemedText>
-            </Pressable>
-          )}
-        </>
+      {/* Step E: Following Context Banner */}
+      {scope === "Following" && (
+        <Pressable
+          onPress={openClubsDirectory}
+          accessibilityRole="button"
+          accessibilityLabel={`Following ${followedCount} clubs. Campus-wide events included.`}
+          style={({ pressed }) => [styles.followingBar, pressed && styles.pressed]}
+        >
+          <Icon sf="star.fill" md="star" size={13} color={Brand.gold} />
+          <ThemedText
+            type="caption"
+            themeColor="textMuted"
+            numberOfLines={1}
+            style={styles.followingCaption}
+          >
+            Following {followedCount} {followedCount === 1 ? "club" : "clubs"} · campus-wide events included (tap to browse clubs)
+          </ThemedText>
+        </Pressable>
       )}
     </View>
   );
@@ -396,13 +192,7 @@ export default function FeedScreen() {
   const listEmpty = (
     <View style={[styles.screenInner, isMobileApp && styles.mobileEmptyContainer]}>
       {visible.length === 0 ? (
-        (isMobileApp
-          ? deferredMobileScope === "Following" && (deferredMobileCategories.size === 0 || deferredMobileCategories.has("All")) && !deferredQuery.trim()
-          : deferredSelectedFilters.has("Following") &&
-            !deferredSelectedFilters.has("All") &&
-            Array.from(deferredSelectedFilters).filter((o) => o !== "All" && o !== "Following").length === 0 &&
-            !deferredQuery.trim()
-        ) ? (
+        scope === "Following" && category === "All" && !query.trim() ? (
           <Card style={styles.emptyCard}>
             <Icon sf="sparkles" md="auto_awesome" size={28} color={Brand.gold} />
             <ThemedText type="smallBold">No posts from your followed clubs</ThemedText>
@@ -447,7 +237,7 @@ export default function FeedScreen() {
         removeClippedSubviews={true}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={listEmpty}
-        renderItem={({ item: row, index: rowIdx }) => (
+        renderItem={({ item: row }) => (
           <View style={[styles.evenGridRow, styles.mobileCardRow]}>
             {row.map((post) => (
               <View key={post.id} style={styles.evenGridCell}>
@@ -460,7 +250,7 @@ export default function FeedScreen() {
     );
   }
 
-  // Web Layout (Scroll View)
+  // Web Layout (Scroll View with multi-column grid)
   return (
     <Screen style={styles.screenInner}>
       {listHeader}
@@ -491,36 +281,17 @@ const styles = StyleSheet.create({
   },
   filterSection: {
     gap: Spacing.two,
-    marginBottom: Spacing.one,
+    marginBottom: Spacing.two,
   },
-  mobileToggleWrapper: {
-    marginHorizontal: -Spacing.two - 2,
+  scopeToggleWrapper: {
     alignSelf: "stretch",
   },
-  mobileFiltersBanner: {
+  chipRowWrapper: {
     marginHorizontal: -Spacing.three,
   },
-  mobileFiltersContent: {
-    paddingHorizontal: Spacing.three,
-    gap: Spacing.one + 2,
-    alignItems: "center",
-    paddingVertical: Spacing.half,
-  },
-  desktopWrapRow: {
+  clearRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.one + 3,
     alignItems: "center",
-    paddingVertical: Spacing.half,
-  },
-  mobileScrollContainer: {
-    marginHorizontal: -Spacing.three,
-  },
-  mobileScrollContent: {
-    paddingHorizontal: Spacing.three,
-    gap: Spacing.one + 2,
-    alignItems: "center",
-    paddingVertical: Spacing.half,
   },
   resetPill: {
     flexDirection: "row",
@@ -584,11 +355,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   mobileCardRow: {
-    // Step: Mobile screen margin for feed posts
-    // WHY HORIZONTAL MARGIN ON MOBILE POSTS:
-    // Cards feature rounded corners (Radius.lg). Applying Spacing.three (16px) horizontal padding
-    // provides clean breathing room from the device display edges, aligns the card boundaries with
-    // the top search field, and prevents full-bleed border clipping on handheld screens.
     paddingHorizontal: Spacing.three,
     marginBottom: Spacing.three,
     alignSelf: "center",
