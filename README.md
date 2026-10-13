@@ -1,4 +1,3 @@
-test
 # Knightly — Calvin University Student App
 
 > **Current Version:** `v.0.3.1`
