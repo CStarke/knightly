@@ -29,7 +29,6 @@ import { SectionHeader } from "@/components/ui/section-header";
 import { Spacing } from "@/constants/theme";
 import { emergencyContacts, safetyAlerts } from "@/data/safety";
 import { useTheme } from "@/hooks/use-theme";
-import { router } from "expo-router";
 
 const severityTone = {
   critical: "danger",
@@ -68,20 +67,12 @@ export default function SafetyScreen() {
           md="report"
           onPress={() => {}}
         />
-                <ListRow
+        <ListRow
           title="Blue light phones"
           subtitle="31 locations across campus"
           sf="light.beacon.max.fill"
           md="emergency"
           onPress={() => {}}
-        />
-        {/* Open the building map on its own screen for more viewing space. */}
-        <ListRow
-          title="Campus map"
-          subtitle="View campus buildings and paths"
-          sf="map.fill"
-          md="map"
-          onPress={() => router.push("/campus-map")}
           last
         />
       </Card>
