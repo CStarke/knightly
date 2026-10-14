@@ -5,6 +5,28 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
+## [0.6.0] - Unreleased
+
+## Added
+- Added a Campus map entry on the Safety screen.
+- Added an in-app campus building map with zoom buttons, dragging, keyboard controls, and a Fit map button.
+- Added a Calvin maroon-and-gold header and floating map controls.
+- Added separate web and native viewers using the same bundled SVG map.
+
+## Changed
+- Added comments explaining map rendering, coordinates, zooming, and pointer handling.
+- Declared react-native-webview in the client dependencies.
+
+## Testing
+- Manually checked the map on web.
+- Existing client suite: 511 tests passed.
+- Existing server suite: 20 tests passed using Node 22.
+- TypeScript check passed.
+- Mobile testing remains pending.
+
+## Limitations
+- The map shows campus buildings, not blue-light emergency-phone locations.
+
 ## [0.5.1] - Unreleased
 
 ### Added
