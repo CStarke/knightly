@@ -130,4 +130,5 @@ Knightly uses strict semantic application versioning defined in `client/src/cons
 - **Bugfix / Hotfix:** Increment the **last digit** (`0.0.#`) (e.g., `v.0.1.0` → `v.0.1.1`).
 - **Major Release:** Increment the **first digit** (`#.0.0`) when major application overhauls occur (e.g., `v.0.9.0` → `v.1.0.0`).
 
+
 All contributors and AI agents must update `client/src/constants/version.ts` and `client/package.json` according to these rules before pushing changes.
