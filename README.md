@@ -1,6 +1,6 @@
 # Knightly — Calvin University Student App
 
-> **Current Version:** `v.0.3.1`
+> **Current Version:** `v.0.5.1`
 
 Knightly is a mobile application built for Calvin University students, providing a centralized hub for everyday campus life, student organizations, dining, safety, and campus resources.
 
