@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+// Web uses campus-map-view.web.tsx; native uses campus-map-view.tsx.
 import CampusMapView from '@/components/campus-map-view';
 import { HeaderBackButton } from '@/components/ui/header-back-button';
 import { Brand, Spacing } from '@/constants/theme';
@@ -12,9 +13,12 @@ import { createCampusMapHtml } from '@/utils/campus-map-html';
 /** Shows the bundled campus building map with zoom and pan controls. */
 export default function CampusMapScreen() {
   const theme = useTheme();
+
+  // Keep the screen clear of the device's top and bottom safe areas.
   const insets = useSafeAreaInsets();
 
   // Keep the document stable so unrelated renders do not reset the zoom.
+  // A changed theme creates new HTML so the viewer uses the current colors.
   const html = useMemo(() => createCampusMapHtml(theme), [theme]);
 
   return (
@@ -49,6 +53,7 @@ export default function CampusMapScreen() {
         </View>
       </View>
 
+      {/* Both platform viewers receive the same map and interaction code. */}
       <CampusMapView html={html} />
     </View>
   );

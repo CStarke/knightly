@@ -4,6 +4,11 @@ import { campusMapSvg } from '@/data/campus-map-svg';
 /**
  * Builds a self-contained viewer using trusted theme colors and the bundled SVG.
  * Returns HTML for the web iframe or native WebView; no network request is needed.
+ *
+ * @param theme - App theme colors. This viewer currently uses background and text.
+ * @returns A complete HTML document with styles, map artwork, and controls.
+ *
+ * Use this with the bundled map and app theme, not untrusted HTML or user input.
  */
 export function createCampusMapHtml(theme: {
   background: string;
@@ -21,6 +26,7 @@ export function createCampusMapHtml(theme: {
   box-sizing: border-box;
 }
 
+/* Keep scrolling inside the map controls rather than moving the whole page. */
 html, body {
   margin: 0;
   height: 100%;
@@ -50,6 +56,7 @@ p {
   overflow: hidden;
 }
 
+/* Pointer handlers below manage dragging and pinching inside this area. */
 #viewport {
   flex: 1;
   min-width: 0;
@@ -87,6 +94,7 @@ nav {
   border-radius: ${Radius.md}px;
 }
 
+/* Keep the controls large enough to press on a touch screen. */
 button {
   flex-shrink: 0;
   width: 48px;
@@ -104,6 +112,7 @@ button:hover:not(:disabled) {
   background: ${Brand.goldSoft};
 }
 
+/* Show keyboard users which button currently has focus. */
 button:focus-visible {
   outline: 2px solid ${Brand.maroon};
   outline-offset: -3px;
@@ -140,6 +149,7 @@ button:disabled {
 </p>
 
 <div class="map-layout">
+  <!-- tabindex lets keyboard users focus the map and use its shortcuts. -->
   <div
     id="viewport"
     tabindex="0"
@@ -147,6 +157,7 @@ button:disabled {
     aria-label="Campus building map. Use the zoom controls to read building labels."
   >${campusMapSvg}</div>
 
+  <!-- Controls are outside the drag area so button presses do not drag the map. -->
   <nav aria-label="Map zoom controls">
     <button id="in" aria-label="Zoom in">+</button>
     <output id="level" aria-live="polite">100%</output>
@@ -167,19 +178,27 @@ const svg = area.querySelector('svg');
 const minus = document.getElementById('out');
 const plus = document.getElementById('in');
 
+// The original map is 1224 by 792 SVG units, centered at (612, 396).
+// These dimensions must match the bundled SVG if the source map is replaced.
+// scale = 1 means the whole map fits; scale = 8 is the maximum zoom.
 let scale = 1;
 let cx = 612;
 let cy = 396;
+
+// fit() adjusts these dimensions to match the shape of the viewing area.
 let baseW = 1224;
 let baseH = 792;
 
+// Store up to two active pointers by ID, with positions in screen pixels.
 const pointers = new Map();
 
 function draw() {
+  // A smaller visible rectangle makes the map appear more enlarged.
   const w = baseW / scale;
   const h = baseH / scale;
 
   // Keep the map reachable when users drag beyond an edge.
+  // If an entire dimension already fits, keep that dimension centered.
   cx = w >= 1224
     ? 612
     : Math.max(w / 2, Math.min(1224 - w / 2, cx));
@@ -188,11 +207,13 @@ function draw() {
     ? 396
     : Math.max(h / 2, Math.min(792 - h / 2, cy));
 
+  // SVG viewBox takes the visible rectangle's left, top, width, and height.
   svg.setAttribute(
     'viewBox',
     [cx - w / 2, cy - h / 2, w, h].join(' ')
   );
 
+  // The percentage is relative to Fit map, not the PDF's printed size.
   document.getElementById('level').textContent =
     Math.round(scale * 100) + '%';
 
@@ -203,10 +224,13 @@ function draw() {
 function fit() {
   const r = area.getBoundingClientRect();
 
+  // The viewer may briefly have no size while the screen is loading.
   if (!r.width || !r.height) {
     return;
   }
 
+  // Match the screen's proportions while keeping the entire map visible.
+  // Different screen shapes can leave empty space around the map.
   const ratio = r.width / r.height;
   baseW = Math.max(1224, 792 * ratio);
   baseH = baseW / ratio;
@@ -224,6 +248,7 @@ function fillViewport() {
 
   // Enlarge the map until it fills both dimensions without stretching it.
   // Some edges may be outside the view; Fit map still shows everything.
+  // The same maximum zoom of 8 applies on unusually shaped screens.
   scale = Math.min(
     8,
     Math.max(1, baseW / 1224, baseH / 792)
@@ -236,6 +261,8 @@ function fillViewport() {
 function zoom(factor, x, y) {
   const r = area.getBoundingClientRect();
 
+  // Convert the pointer position to an offset from the viewport center.
+  // Missing coordinates mean zoom around the center, as the buttons do.
   const px = x === undefined
     ? 0
     : (x - r.left) / r.width - 0.5;
@@ -244,8 +271,11 @@ function zoom(factor, x, y) {
     ? 0
     : (y - r.top) / r.height - 0.5;
 
+  // Keep zoom between the whole-map view and eight times that scale.
   const next = Math.max(1, Math.min(8, scale * factor));
 
+  // Move the center to keep the point under the pointer in the same place.
+  // draw() may limit this movement when the map reaches an edge.
   cx += px * baseW * (1 / scale - 1 / next);
   cy += py * baseH * (1 / scale - 1 / next);
 
@@ -253,6 +283,7 @@ function zoom(factor, x, y) {
   draw();
 }
 
+// Each button press multiplies or divides the current scale by 1.5.
 plus.onclick = () => zoom(1.5);
 minus.onclick = () => zoom(1 / 1.5);
 document.getElementById('fit').onclick = fit;
@@ -260,19 +291,29 @@ document.getElementById('fit').onclick = fit;
 area.addEventListener(
   'wheel',
   (e) => {
+    // Use the wheel for map zoom rather than scrolling the page.
     e.preventDefault();
+
+    // Turn wheel movement into a positive zoom multiplier.
+    // Negative movement zooms in; positive movement zooms out.
     zoom(Math.exp(-e.deltaY * 0.002), e.clientX, e.clientY);
   },
+
+  // Allow preventDefault() to cancel the browser's usual wheel behavior.
   { passive: false }
 );
 
 // Step 3: One pointer drags; two pointers pan and pinch together.
 function sample() {
+  // Called only while at least one pointer is being tracked.
   const a = Array.from(pointers.values());
 
   return {
+    // Average positions to get one pointer's location or two pointers' midpoint.
     x: a.reduce((sum, p) => sum + p.x, 0) / a.length,
     y: a.reduce((sum, p) => sum + p.y, 0) / a.length,
+
+    // The distance between two pointers tells us how much a pinch changes.
     distance: a.length === 2
       ? Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y)
       : 0,
@@ -280,10 +321,12 @@ function sample() {
 }
 
 area.addEventListener('pointerdown', (e) => {
+  // Only the main mouse button should begin dragging.
   if (e.pointerType === 'mouse' && e.button !== 0) {
     return;
   }
 
+  // Two pointers are enough for pinching; ignore additional touches.
   if (pointers.size >= 2) {
     return;
   }
@@ -293,11 +336,15 @@ area.addEventListener('pointerdown', (e) => {
     y: e.clientY,
   });
 
+  // Keep receiving movement if the pointer leaves the map while dragging.
   area.setPointerCapture(e.pointerId);
+
+  // Give the map focus so its keyboard shortcuts can be used.
   area.focus();
 });
 
 area.addEventListener('pointermove', (e) => {
+  // Ignore hovering and pointers that did not start a map interaction.
   if (!pointers.has(e.pointerId)) {
     return;
   }
@@ -312,10 +359,13 @@ area.addEventListener('pointermove', (e) => {
   const after = sample();
   const r = area.getBoundingClientRect();
 
+  // Convert movement from screen pixels to map units at the current zoom.
+  // Subtract it from the center so the artwork follows the user's drag.
   cx -= (after.x - before.x) * baseW / scale / r.width;
   cy -= (after.y - before.y) * baseH / scale / r.height;
 
   if (before.distance > 0 && after.distance > 0) {
+    // Fingers moving apart enlarge the map; moving together makes it smaller.
     zoom(
       after.distance / before.distance,
       after.x,
@@ -326,6 +376,7 @@ area.addEventListener('pointermove', (e) => {
   }
 });
 
+// Stop tracking pointers when released, canceled, or no longer captured.
 for (const event of [
   'pointerup',
   'pointercancel',
@@ -337,6 +388,7 @@ for (const event of [
 }
 
 area.addEventListener('keydown', (e) => {
+  // Move by about 60 screen pixels per arrow-key press, regardless of zoom.
   const step = 60;
   const r = area.getBoundingClientRect();
 
@@ -358,11 +410,13 @@ area.addEventListener('keydown', (e) => {
     return;
   }
 
+  // Prevent handled keys from also scrolling the browser page.
   e.preventDefault();
   draw();
 });
 
 // Fill the viewing area when opening the map or resizing the screen.
+// Resizing resets the center and zoom instead of preserving the previous view.
 new ResizeObserver(fillViewport).observe(area);
 fillViewport();
 </script>
