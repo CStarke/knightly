@@ -16,6 +16,7 @@ and this project adheres to semantic application versioning defined in `AGENTS.m
 ## Changed
 - Added comments explaining map rendering, coordinates, zooming, and pointer handling.
 - Declared react-native-webview in the client dependencies.
+- **SRS Document Comprehensive Overhaul**: Extensively overhauled and updated `docs/SRS_Document.md` to cover all subsystems, domain invariants (13-category taxonomy, server timestamps, placeholder fingerprinting, 16:9 crop geometry, collegiate banners, starfield density, phantom tabs), database schemas, hardware interfaces, and complete traceability matrix to user stories and tests.
 
 ## Testing
 - Manually checked the map on web.
