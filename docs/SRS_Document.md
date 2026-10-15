@@ -59,6 +59,30 @@ Campus dining, printing, campus safety, news and other student services
 - **FR-10:** If the device has no network connection, then the system shall display the most recently cached content with a notice that it may be outdated.
 - **FR-11:** When an administrator publishes a content update, the system shall make the update visible to users on their next content refresh.
 - **FR-12:** If a Campus Service fails to load, then the system shall display an error message and a retry option.
+- **FR-13:** If a sign-in attempt fails, then the system shall display a message explaining that sign-in was unsuccessful and allow the user to try again.
+- **FR-14:** When a signed-in user selects Sign Out, the system shall end the user's authenticated session and return the app to public-content-only access.
+- **FR-15:** When dining content is refreshed while the device is online, the system shall automatically retrieve the available dining hours and menus from the configured official dining data source.
+- **FR-16:** When news content is refreshed while the device is online, the system shall automatically retrieve the available articles from the configured official Calvin news source.
+- **FR-17:** When the user selects a news article, the system shall open the full article at its source.
+- **FR-18:** When the user opens Clubs, the system shall display a list of clubs registered in the app.
+- **FR-19:** When the user selects a club, the system shall display its name, description, category, and published posts.
+- **FR-20:** When a signed-in user selects Follow for a club, the system shall add that club to the user's followed clubs.
+- **FR-21:** When a signed-in user selects Unfollow for a followed club, the system shall remove that club from the user's followed clubs.
+- **FR-22:** The system shall save each user's followed clubs to their account and restore those selections when the user signs in again.
+- **FR-23:** When a signed-in user opens their followed-club feed, the system shall display published posts from clubs they follow, with the newest posts first.
+- **FR-24:** If a user follows no clubs, then the system shall display a message in the followed-club feed with an option to browse clubs.
+- **FR-25:** When an administrator creates a club record with a name, description, and category, the system shall add that club to the club list.
+- **FR-26:** When an authorized club leader saves changes to their assigned club's description or category, the system shall store those changes and display them on the next refresh of the club's details.
+- **FR-27:** When an authorized club leader publishes an event or meeting post for their assigned club, the system shall require a title, description, event date, start time, and location before publishing it.
+- **FR-28:** When an authorized club leader edits a post belonging to their assigned club, the system shall save the changes and display the updated post on the next content refresh.
+- **FR-29:** When an authorized club leader deletes a post belonging to their assigned club, the system shall remove that post from the club page and followed-club feeds on the next content refresh.
+- **FR-30:** The system shall reject attempts by users without administrator privileges to modify club information or manage club posts unless they are assigned as a leader of that club.
+- **FR-31:** When an administrator deletes a post, the system shall remove it from student-facing views on the next content refresh and record the administrator, affected post, and action time in the audit log.
+- **FR-32:** When an administrator assigns or removes a user's club-leader role for a specified club, the system shall update that user's permissions for the club and record the administrator, affected user, club, action, and action time in the audit log.
+- **FR-33:** When the user selects Campus Map, the system shall display the campus map within the app.
+- **FR-34:** While viewing the campus map, the system should allow the user to zoom in, zoom out, and pan across the map.
+- **FR-35:** When the user selects a campus safety phone number on a device that supports phone dialing, the system should open the device's phone dialer with that number filled in.
+- **FR-36:** If the device has no network connection and no cached content is available for the requested section, then the system should display a message stating that the content is unavailable offline and provide a retry option.
 
 ### 3.2 Non-Functional Requirements
 
