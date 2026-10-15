@@ -93,21 +93,45 @@ function getInitialPosts(): Post[] {
   return sortPostsByDate(populated);
 }
 
+const FAVORITES_STORAGE_KEY = 'knightly_favorite_post_ids';
+
+/**
+ * Loads saved favorite post IDs from browser localStorage on web, or returns empty array.
+ */
+function getInitialFavoriteIds(): string[] {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const raw = window.localStorage.getItem(FAVORITES_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+  }
+  return [];
+}
+
 export function FeedProvider({ children }: { children: React.ReactNode }) {
   const [feedPosts, setFeedPosts] = useState<Post[]>(getInitialPosts);
-  // Store the IDs of posts saved by the student. -- duo2
-  // Start with an empty list because no posts are favorited yet.
-  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  // Store the IDs of posts saved by the student. Initialized from localStorage on web.
+  const [favoriteIds, setFavoriteIds] = useState<string[]>(getInitialFavoriteIds);
 
-  // Add a post to favorites or remove it if already saved.
+  // Add a post to favorites or remove it if already saved, syncing to localStorage on web.
   const toggleFavorite = useCallback((id: string) => {
-    setFavoriteIds((previousIds) =>
-      previousIds.includes(id)
+    setFavoriteIds((previousIds) => {
+      const next = previousIds.includes(id)
         // Remove the post if it is already a favorite.
         ? previousIds.filter((savedId) => savedId !== id)
         // Otherwise, add the post to favorites.
-        : [...previousIds, id]
-    );
+        : [...previousIds, id];
+
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          window.localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(next));
+        } catch {}
+      }
+      return next;
+    });
   }, []);
 
   // Check whether a post is already saved as a favorite.

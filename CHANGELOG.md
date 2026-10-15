@@ -18,11 +18,20 @@ and this project adheres to semantic application versioning defined in `AGENTS.m
 - Declared react-native-webview in the client dependencies.
 - **SRS Document Comprehensive Overhaul**: Extensively overhauled and updated `docs/SRS_Document.md` to cover all subsystems, domain invariants (13-category taxonomy, server timestamps, placeholder fingerprinting, 16:9 crop geometry, collegiate banners, starfield density, phantom tabs), database schemas, hardware interfaces, and complete traceability matrix to user stories and tests.
 
+## Fixed
+- **Web App Favorites Toggle Integration**: Unified `scopeOptions` in `client/src/app/(tabs)/index.tsx` so "Favorites" is rendered and selectable in the segmented toggle bar on desktop web as well as mobile.
+- **Web Favorites Feed Filtering & Empty State**: Enabled the favorites filtering pipeline and dedicated "No favorite posts yet" empty state on web (`Platform.OS === 'web'`).
+- **Post Card Favorite Button Usability & Styling**:
+  - Enriched the favorite `Pressable` in `client/src/components/post-card.tsx` with dedicated hit padding, active press feedback, and `cursor: 'pointer'` on desktop web.
+  - Upgraded the active heart color to high-contrast `Brand.brightRed` (`#C2002F`), preventing active hearts from dimming into near-invisibility on dark backgrounds.
+  - Added `localStorage` persistence in `client/src/context/feed-context.tsx` (`knightly_favorite_post_ids`) to preserve saved favorite posts across web browser sessions.
+
 ## Testing
 - Manually checked the map on web.
 - Existing client suite: 511 tests passed.
 - Existing server suite: 20 tests passed using Node 22.
 - TypeScript check passed.
+- Verified web and mobile favorites filtering in automated unit test suite.
 - Mobile testing remains pending.
 
 ## Limitations
