@@ -103,18 +103,33 @@ test('feed screen reconciles mobile favorites with shared mobile/web filters', (
     favorites = [];
     assert.equal(mobilePosts(render()).length, 0);
 
-    // Web keeps its two audience options and responsive three-column layout.
+    // Web layout shares all three toggle options (including Favorites) and responsive three-column layout.
     platform = 'web'; width = 1200;
     state[0] = 'All Campus';
     screen = render();
     assert.equal(screen.type, 'Screen');
-    assert.deepEqual(find(header(screen), 'Segmented').props.options, ['Following', 'All Campus']);
+    assert.deepEqual(find(header(screen), 'Segmented').props.options, ['Following', 'All Campus', 'Favorites']);
     assert.ok(find(screen, 'PostCard'));
     assert.equal(screen.props.children[1].props.children[0].props.children[0].length, 3);
     width = 800;
     assert.equal(render().props.children[1].props.children[0].props.children[0].length, 2);
     find(header(screen), 'SearchField').props.onChangeText('no matching campus post');
     assert.equal(find(render(), 'PostCard'), undefined);
+    find(header(screen), 'SearchField').props.onChangeText('');
+
+    // Web filtering also supports Favorites
+    state[0] = 'Favorites';
+    favorites = [samplePosts[2]];
+    const webFavScreen = render();
+    const postCards: any[] = [];
+    const collectPostCards = (node: any) => {
+      if (!node) return;
+      if (Array.isArray(node)) { node.forEach(collectPostCards); return; }
+      if (node.type === 'PostCard') postCards.push(node);
+      collectPostCards(node.props?.children);
+    };
+    collectPostCards(webFavScreen);
+    assert.deepEqual(postCards.map(c => c.props.post.id), [samplePosts[2].id]);
   } finally {
     loadMock.mock.restore();
   }

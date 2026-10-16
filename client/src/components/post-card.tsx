@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Badge, type BadgeTone } from '@/components/ui/badge';
@@ -264,12 +264,16 @@ export function PostCard({ post, onPressOrg }: PostCardProps) {
             accessibilityLabel={favorited ? 'Remove from favorites' : 'Add to favorites'}
             accessibilityState={{ selected: favorited }}
             hitSlop={10}
+            style={({ pressed }) => [
+              styles.favoriteButton,
+              pressed && styles.pressedPill,
+            ]}
           >
             <Icon
               sf={favorited ? 'heart.fill' : 'heart'}
               md={favorited ? 'favorite' : 'favorite_border'}
               size={22}
-              color={favorited ? Brand.maroon : theme.text}
+              color={favorited ? Brand.brightRed : theme.textMuted}
             />
           </Pressable>
         </View>
@@ -399,6 +403,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: Spacing.one,
+  },
+  favoriteButton: {
+    padding: 6,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
   },
   pressedPill: {
     opacity: 0.75,
