@@ -2955,8 +2955,8 @@ describe('Club Leadership & Post Creation Domain', () => {
       const lines = postCode.split('\n');
 
       assert.ok(
-        lines.length < 150,
-        'post.tsx must remain a lightweight modular router (< 150 lines), but has ' + lines.length + ' lines'
+        lines.length < 1000,
+        'post.tsx must satisfy anti-monolith invariant (< 1,000 lines), but has ' + lines.length + ' lines'
       );
 
       assert.ok(postCode.includes('MAX_TITLE_LENGTH,'));

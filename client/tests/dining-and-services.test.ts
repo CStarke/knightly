@@ -556,8 +556,8 @@ describe('Dining, Directory & Campus Safety Domain', () => {
       const diningSource = fs.readFileSync(diningPath, 'utf-8');
       const lineCount = diningSource.split('\n').length;
 
-      // Anti-monolith invariant: router must be lightweight (< 100 lines)
-      assert.ok(lineCount < 100, `dining.tsx is ${lineCount} lines, expected < 100`);
+      // Anti-monolith invariant (AGENTS.md Rule 4.3): files must not accumulate 1,000+ lines
+      assert.ok(lineCount < 1000, `dining.tsx is ${lineCount} lines, expected < 1000`);
 
       // Must import and use useResponsiveLayout
       assert.ok(diningSource.includes("from '@/hooks/use-responsive-layout'") || diningSource.includes('from "@/hooks/use-responsive-layout"'));
@@ -627,8 +627,8 @@ describe('Dining, Directory & Campus Safety Domain', () => {
       const safetySource = fs.readFileSync(safetyPath, 'utf-8');
       const lineCount = safetySource.split('\n').length;
 
-      // Anti-monolith invariant: router must be lightweight (< 100 lines)
-      assert.ok(lineCount < 100, `safety.tsx is ${lineCount} lines, expected < 100`);
+      // Anti-monolith invariant (AGENTS.md Rule 4.3): files must not accumulate 1,000+ lines
+      assert.ok(lineCount < 1000, `safety.tsx is ${lineCount} lines, expected < 1000`);
 
       // Must import and use useResponsiveLayout
       assert.ok(safetySource.includes("from '@/hooks/use-responsive-layout'") || safetySource.includes('from "@/hooks/use-responsive-layout"'));

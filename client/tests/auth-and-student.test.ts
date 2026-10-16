@@ -1,5 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
+import fs from 'node:fs';
+import path from 'node:path';
 import { student, fullName, fullLegalName, greeting, formatBarcode } from '@/data/student';
 import {
   PASSWORD_MASK_DELAY_MS,
@@ -575,6 +577,54 @@ describe('Auth, Student Profile & Theme System Domain', () => {
         assert.strictEqual(counts.foreground, counts.baseUnit * 1);
       });
     }
+  });
+
+  // ==========================================================================
+  // Suite 10: LoginScreen Modularization & Anti-Monolith Invariants
+  // ==========================================================================
+  describe('LoginScreen Modularization & Anti-Monolith Invariants', () => {
+    it('verifies login-screen.tsx satisfies anti-monolith invariant (<1,000 lines)', () => {
+      const loginPath = path.resolve(__dirname, '../src/components/login-screen.tsx');
+      const loginSource = fs.readFileSync(loginPath, 'utf-8');
+      const lineCount = loginSource.split('\n').length;
+
+      // Anti-monolith invariant (AGENTS.md Rule 4.3): files must not accumulate 1,000+ lines
+      assert.ok(lineCount < 1000, `login-screen.tsx is ${lineCount} lines, expected < 1000`);
+
+      // Must compose modular subcomponents
+      assert.ok(loginSource.includes('<LoginFlightContainer'));
+      assert.ok(loginSource.includes('<LoginFormFields'));
+      assert.ok(loginSource.includes('<LoginFooter'));
+      assert.ok(loginSource.includes('useLoginFlight('));
+    });
+
+    it('verifies all modular login subcomponents exist and satisfy anti-monolith invariant (<1,000 lines)', () => {
+      const files = [
+        '../src/hooks/use-login-flight.ts',
+        '../src/components/login-flight-container.tsx',
+        '../src/components/login-form-fields.tsx',
+        '../src/components/login-footer.tsx',
+      ];
+
+      for (const rel of files) {
+        const filePath = path.resolve(__dirname, rel);
+        assert.ok(fs.existsSync(filePath), `File ${rel} should exist`);
+        const source = fs.readFileSync(filePath, 'utf-8');
+        const count = source.split('\n').length;
+        assert.ok(count < 1000, `${rel} has ${count} lines, expected < 1000`);
+      }
+    });
+
+    it('verifies useLoginFlight exports animated styles and lifecycle triggers', () => {
+      const hookPath = path.resolve(__dirname, '../src/hooks/use-login-flight.ts');
+      const hookSource = fs.readFileSync(hookPath, 'utf-8');
+
+      assert.ok(hookSource.includes('export function useLoginFlight('));
+      assert.ok(hookSource.includes('startFlight'));
+      assert.ok(hookSource.includes('rootOverlayStyle'));
+      assert.ok(hookSource.includes('maroonContainerStyle'));
+      assert.ok(hookSource.includes('flyingWordmarkStyle'));
+    });
   });
 });
 
