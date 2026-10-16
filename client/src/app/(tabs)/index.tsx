@@ -52,10 +52,8 @@ import {
   type Post,
 } from "@/data/feed";
 
-const scopeOptions = ["Following", "All Campus"] as const;
-
-const mobileToggleOptions = ["Following", "All Campus", "Favorites"] as const;
-type MobileScope = (typeof mobileToggleOptions)[number];
+const scopeOptions = ["Following", "All Campus", "Favorites"] as const;
+type FeedScope = (typeof scopeOptions)[number];
 
 const categoryOptions: ("All" | FeedCategory)[] = [
   "All",
@@ -66,9 +64,9 @@ export default function FeedScreen() {
   const { width } = useWindowDimensions();
   const isMobileApp = Platform.OS !== "web";
 
-  // Dedicated audience scope ("Following" vs "All Campus")
-  // Favorites extends the mobile toggle while both platforms share the same filter state.
-  const [scope, setScope] = useState<MobileScope>("Following");
+  // Dedicated audience scope ("Following" vs "All Campus" vs "Favorites")
+  // Favorites is accessible across both web and mobile toggle bars.
+  const [scope, setScope] = useState<FeedScope>("Following");
   // Topical category filter
   const [category, setCategory] = useState<"All" | FeedCategory>("All");
   // Live keyword search query
@@ -78,7 +76,7 @@ export default function FeedScreen() {
   const deferredCategory = useDeferredValue(category);
   const deferredQuery = useDeferredValue(query);
 
-  //Get all feed posts and the student's saved favorite posts.
+  // Get all feed posts and the student's saved favorite posts.
   const { posts: dynamicPosts, favoritePosts } = useFeed();
   const { isFollowing, followedCount } = useClubFollow();
   const { openClubsDirectory } = useClubsNavigation();
@@ -98,18 +96,18 @@ export default function FeedScreen() {
   // Step 3: Filtering Pipeline
   const visible = useMemo(() => {
     const activeCats = deferredCategory === "All" ? [] : [deferredCategory];
-    //show only saved posts when the students selects Favorites.
+    // Show only saved posts when the student selects Favorites.
     // Saved posts must remain visible regardless of whether their club is followed.
-    const showFavorites = isMobileApp && deferredScope === "Favorites";
+    const showFavorites = deferredScope === "Favorites";
 
-    // Web filtering logic shares main's category and keyword pipeline with mobile.
+    // Filtering logic shares category and keyword pipeline across both platforms.
     return filterFeedPosts(showFavorites ? favoritePosts : dynamicPosts, {
       scope: deferredScope === "Favorites" ? "All Campus" : deferredScope,
       categories: activeCats,
       query: deferredQuery,
       isFollowing,
     });
-  }, [dynamicPosts, favoritePosts, isMobileApp, deferredScope, deferredCategory, deferredQuery, isFollowing]);
+  }, [dynamicPosts, favoritePosts, deferredScope, deferredCategory, deferredQuery, isFollowing]);
 
   // Step 4: Chunk visible posts into even rows of `numColumns` items
   const evenRows = useMemo(() => {
@@ -135,7 +133,9 @@ export default function FeedScreen() {
         value={query}
         onChangeText={setQuery}
         placeholder={
-          scope === "Following"
+          scope === "Favorites"
+            ? "Search saved favorite posts..."
+            : scope === "Following"
             ? "Search followed clubs & campus alerts..."
             : "Search all events, clubs, locations..."
         }
@@ -144,7 +144,7 @@ export default function FeedScreen() {
       {/* Step B: Audience Scope Toggle */}
       <View style={styles.scopeToggleWrapper}>
         <Segmented
-          options={isMobileApp ? mobileToggleOptions : scopeOptions}
+          options={scopeOptions}
           value={scope}
           onChange={setScope}
         />
@@ -201,13 +201,13 @@ export default function FeedScreen() {
     <View style={[styles.screenInner, isMobileApp && styles.mobileEmptyContainer]}>
       {visible.length === 0 ? (
         // Show a message when the student has no favorite posts.
-        isMobileApp && deferredScope === "Favorites" && favoritePosts.length === 0 ? (
+        deferredScope === "Favorites" && favoritePosts.length === 0 ? (
           <Card style={styles.emptyCard}>
             <Icon
               sf="heart"
               md="favorite_border"
               size={28}
-              color={Brand.maroon}
+              color={Brand.brightRed}
             />
 
             <ThemedText type="smallBold">
