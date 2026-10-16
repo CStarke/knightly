@@ -31,18 +31,15 @@ Knightly uses strict semantic application versioning defined in `client/src/cons
 
 - **Baseline:** `v.0.1.0`
 - **Feature Push:** Increment the **center digit** (`0.#.0`) and reset the last digit to 0.
-  - *Example:* `v.0.1.0` -> `v.0.2.0`
 - **Bugfix / Hotfix:** Increment the **last digit** (`0.0.#`).
-  - *Example:* `v.0.1.0` -> `v.0.1.1`
 - **Major Release:** Increment the **first digit** (`#.0.0`) when major application overhauls occur.
-  - *Example:* `v.0.9.0` -> `v.1.0.0`
 
 ### Cadence & Rules for AI Agents & Contributors:
-- You do **NOT** have to increment the version on every single prompt or minor tweak.
-- AI agents only have to change the version number **once between commits**.
-- Each commit corresponds to a new version, and each commit should only have **1 number go up** (increment either feature center digit `0.#.0` or bugfix last digit `0.0.#`).
-- If the current uncommitted batch of changes has already incremented the version since the last git commit, do **not** increment it again for subsequent tweaks within the same commit.
-- Keep `APP_VERSION` in `client/src/constants/version.ts` and `version` in `client/package.json` in parity.
+- **Baseline Anchoring**: The version is calculated strictly relative to the current version of the `main` branch.
+- **Single Increment on Commit & PR**: Regardless of how many commits are made on a branch, or how many times `main` has been updated, when committing and opening a pull request, the version must update exactly once in the correct digit.
+- **Digit Selection**: Increment the center digit (`0.#.0`) and reset the last digit to 0 for feature work, or increment the last digit (`0.0.#`) for bugfixes, polish, and refactors.
+- **Rebase Reconciliation**: When rebasing onto `origin/main`, recalculate the single increment directly on top of `main`'s latest baseline.
+- **Keep Parity**: Keep `APP_VERSION` in `client/src/constants/version.ts` and `version` in `client/package.json` in parity.
 
 ---
 
@@ -55,9 +52,8 @@ Multiple developers work in parallel against `origin`. To prevent merge conflict
 - Rebase frequently onto `origin/main` using `git pull --rebase origin main`.
 
 ### 4.2 Version Collision Prevention
-- Do not bump the version on every intermediate commit on a feature branch.
-- Bump the version **only on the final commit or PR boundary**.
-- If `origin/main` advanced with another developer's version bump, rebase on `origin/main` and bump your version on top of the new baseline.
+- Regardless of how many commits are made on a feature branch, or how many times `main` has been updated, the version increments exactly once in the correct digit relative to `main` upon commit and pull request.
+- When rebasing onto `origin/main`, recalculate that single version increment directly on top of `main`'s updated baseline.
 
 ### 4.3 Anti-Monolith Component Modularization
 - Never accumulate 1,000+ lines in a single screen file (e.g. `client/src/app/(tabs)/post.tsx`).
@@ -70,6 +66,12 @@ Multiple developers work in parallel against `origin`. To prevent merge conflict
 - Keep `events-api.ts` gracefully wrapped in try/catch with timeout fallback to `CALVIN_EVENTS_SEED`.
 - Use `node server/scripts/sync-calvin-events.js` to refresh seed snapshots.
 
+### 4.5 Template-Level Feature Implementation & Broad Consolidation
+- **Consolidation First**: Wherever possible, elements appearing multiple times **must strictly be consolidated into reusable templates** under `client/src/components/ui/` (e.g. `Button`, `FormTextInput`, `ModalDialog`, `Screen`, sliders, normal and phantom tabs).
+- Cross-cutting behaviors intended across controls (e.g. software keyboard avoidance/elevation, web outline suppression, caret color tokens, edge-to-edge status/navigation bar translucency, backdrop dismissal, accessibility boundaries) **must strictly be implemented at the template level** (`client/src/components/ui/modal-dialog.tsx`, `client/src/components/ui/screen.tsx`, `client/src/components/ui/form-text-input.tsx`).
+- Leaf components (`PostMobileView`, `PostWebView`, `SuccessModal`, `DatePickerModal`, `ClaimClubModal`, `LocationInfoModal`, etc.) **must inherit these features by default without duplicated code or inline element drift**.
+- Never implement ad-hoc keyboard listeners, manual elevation math, custom `<Modal>` tags, duplicate backdrops, or raw unstyled `<TextInput>` tags inside leaf components.
+
 ---
 
 ## 5. Non-Negotiable Domain Invariants
@@ -77,6 +79,7 @@ Multiple developers work in parallel against `origin`. To prevent merge conflict
 | Invariant | Strict Rule & Rationale | Guarded By |
 | :--- | :--- | :--- |
 | **Feed Taxonomy** | Standard 13 categories: `Faith`, `Academics`, `Athletics`, `Music`, `The Arts`, `Career`, `Outdoors`, `Service`, `Wellness`, `Social`, `Culture`, `Official`, `Gaming`. | `client/src/data/feed.ts`<br>`server/services/category-mapper.js` |
+| **Template-Level Feature Inheritance** | Cross-cutting features across all modals, pages, or views **must be implemented at the template level** (`ModalDialog`, `Screen`) so child views inherit them automatically by default (`avoidKeyboard = true`). Never write duplicate `<Modal>` wrappers or per-component keyboard listeners. | `client/src/components/ui/modal-dialog.tsx`<br>`client/tests/modal-edge-to-edge.test.ts`<br>`client/tests/templates-and-debloat.test.ts` |
 | **Server-Authoritative Timestamps** | Post creation timestamps (`postedAt` ISO 8601 string and `createdAt` UTC epoch ms) **must be generated server-side** (e.g. `DEFAULT NOW()`). Never accept client creation timestamps, preventing clock manipulation feed tampering. | `server/server.js`<br>`docs/api.md` |
 | **Placeholder Fingerprinting & Same-Filename Immunity** | Generic Calvin Drupal line-art placeholders are identified by exact canonical paths (`/sites/default/files/2025-10/{name}.png`) and cryptographic SHA-256 hashes (`athletics.png` = `f8cecb98...`). **Never replace custom user photos even if they share the exact same filename**. | `server/services/image-fingerprint.js`<br>`client/src/utils/image-fingerprint.ts` |
 | **Pure React Native SVG** | Simple banners and vector icons **must strictly avoid `<defs>` and `<use>` tags**. Use direct `<path>`, `<circle>`, `<rect>`, and `<polygon>` elements to prevent native GPU cache blackouts on iOS/Android. | `client/src/constants/preset-banners.ts`<br>`client/src/components/post-card.tsx` |

@@ -23,10 +23,18 @@ const defaultContext: ClubsNavigationContextType = {
     });
   },
   closeClubDetail: () => {
-    router.back();
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/clubs/index');
+    }
   },
   closeClubsDirectory: () => {
-    router.back();
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)');
+    }
   },
 };
 

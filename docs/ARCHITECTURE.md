@@ -148,6 +148,11 @@ Knightly features a 13-category campus taxonomy:
 - **Rule**: When posts are published (`POST /api/posts`), the creation timestamp (`postedAt` ISO 8601 string and `createdAt` UTC epoch ms) must be assigned by the server clock, never accepted from the client request body.
 - *Rationale*: Clock manipulation immunity—prevents students from changing device clocks to manipulate feed order.
 
+### 3.7 UI Template System & Cross-Cutting Feature Inheritance
+- **Rule**: When implementing a feature intended to operate across every modal, screen, or club view (e.g. software keyboard avoidance/elevation, edge-to-edge status/navigation bar translucency, accessible backdrop dismissals, card boundaries), it **must be implemented once at the template level** (`client/src/components/ui/modal-dialog.tsx`, `client/src/components/ui/screen.tsx`).
+- **Inheritance by Default**: Leaf components (`SuccessModal`, `DatePickerModal`, `ClaimClubModal`, `LocationInfoModal`, etc.) inherit template capabilities automatically (`avoidKeyboard = true` by default) with zero duplicate code.
+- **Prohibitions**: Never write ad-hoc keyboard listeners, manual elevation translateY state, custom `<Modal>` wrappers, or duplicated backdrops across individual modal screens.
+
 ---
 
 ## 4. Verification & Testing Playbook

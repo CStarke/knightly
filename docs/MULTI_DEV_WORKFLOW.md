@@ -45,20 +45,18 @@ When 2–3 developers write code simultaneously, certain files are high-risk col
 
 ### 2.1 The Version Collision Protocol
 Knightly enforces semantic versioning (`v.0.#.#`). To avoid constant merge conflicts on the version line:
-- **Do not bump the version on every minor commit on your feature branch.**
-- Keep your local branch at the current baseline during active development.
-- **Increment the version only once**, right before opening your Pull Request or executing the final commit of the feature.
-- **If `main` moved forward while you were working**:
+- The version is calculated strictly relative to the current version of the `main` branch.
+- Regardless of how many commits are made on a branch, or how many times `main` has been updated, when committing and opening a pull request, the version updates exactly once in the correct digit.
+- **When rebasing onto `origin/main`**:
   ```bash
   git fetch origin
   git rebase origin/main
   ```
   If git flags a conflict in `version.ts`:
-  1. Inspect the version on `main` (e.g. `0.4.0`).
-  2. If your branch introduces a new feature, increment the center digit above `main` (e.g. `0.5.0`).
-  3. If your branch is a bugfix, increment the last digit above `main` (e.g. `0.4.1`).
-  4. Synchronize `APP_VERSION` in `version.ts` and `version` in `client/package.json`.
-  5. Stage and continue rebase: `git add client/src/constants/version.ts client/package.json && git rebase --continue`.
+  1. Inspect the latest version on `main`.
+  2. Apply the single increment on top of `main`'s baseline (center digit for new features, last digit for bugfixes/refactors).
+  3. Synchronize `APP_VERSION` in `version.ts` and `version` in `client/package.json`.
+  4. Stage and continue rebase: `git add client/src/constants/version.ts client/package.json && git rebase --continue`.
 
 ### 2.2 Component Modularization (The Anti-Monolith Rule)
 To prevent developers from colliding in the same file:

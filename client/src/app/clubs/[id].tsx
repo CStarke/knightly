@@ -29,6 +29,14 @@ export default function ClubDetailScreen() {
     return <ClubsDirectoryScreen />;
   }
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/clubs/index');
+    }
+  };
+
   return (
     <StarfieldContext.Provider value={{ translateX, scrollY }}>
       <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -45,7 +53,7 @@ export default function ClubDetailScreen() {
           subtitle={club ? club.category : 'Not found'}
           left={
             <HeaderBackButton
-              onPress={() => router.back()}
+              onPress={handleBack}
               accessibilityLabel="Go back"
             />
           }

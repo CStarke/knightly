@@ -24,8 +24,7 @@
 
 import { useEffect } from 'react';
 import {
-  Modal,
-  Pressable,
+  Keyboard,
   StyleSheet,
   View,
   type StyleProp,
@@ -42,6 +41,7 @@ import Animated, {
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Icon, type MaterialSymbolName, type SfSymbolName } from '@/components/ui/icon';
+import { ModalDialog } from '@/components/ui/modal-dialog';
 import { Brand, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -89,12 +89,15 @@ export function SuccessModal({
   style,
 }: SuccessModalProps) {
   const theme = useTheme();
+
   const scale = useSharedValue(0.3);
   const opacity = useSharedValue(0);
 
   // Playful spring entrance for the icon ring whenever the modal becomes visible
   useEffect(() => {
     if (visible) {
+      // Dismiss any open software keyboard immediately upon modal presentation
+      Keyboard.dismiss();
       scale.value = 0.3;
       opacity.value = 0;
       scale.value = withSpring(1, { damping: 11, stiffness: 160, mass: 0.8 });
@@ -110,118 +113,90 @@ export function SuccessModal({
   if (!visible) return null;
 
   return (
-    <Modal
-      transparent
+    <ModalDialog
       visible={visible}
-      animationType="fade"
-      statusBarTranslucent
-      navigationBarTranslucent
-      onRequestClose={onClose}
+      onClose={onClose}
+      cardStyle={[
+        styles.card,
+        {
+          borderColor: accentColor,
+        },
+        style,
+      ]}
     >
-      <View style={styles.backdrop}>
-        {/* Dimmed backdrop pressable to dismiss */}
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={onClose}
-          accessibilityRole="button"
-          accessibilityLabel="Dismiss dialog"
-        />
-
-        {/* Centered Modal Card */}
+      {/* Animated Spring Halo Ring & Centered Icon */}
+      <Animated.View style={[styles.checkContainer, animatedCheckStyle]}>
         <View
           style={[
-            styles.card,
+            styles.checkRing,
             {
-              backgroundColor: theme.backgroundElement,
               borderColor: accentColor,
+              backgroundColor:
+                accentColor === Brand.renewGreen
+                  ? 'rgba(162, 214, 131, 0.14)'
+                  : `${accentColor}1A`,
             },
-            style,
           ]}
         >
-          {/* Animated Spring Halo Ring & Centered Icon */}
-          <Animated.View style={[styles.checkContainer, animatedCheckStyle]}>
-            <View
-              style={[
-                styles.checkRing,
-                {
-                  borderColor: accentColor,
-                  backgroundColor:
-                    accentColor === Brand.renewGreen
-                      ? 'rgba(162, 214, 131, 0.14)'
-                      : `${accentColor}1A`,
-                },
-              ]}
-            >
-              <Icon
-                sf={icon.sf}
-                md={icon.md}
-                size={52}
-                color={accentColor}
-                weight="bold"
-                style={styles.iconCentering}
-              />
-            </View>
-          </Animated.View>
-
-          {/* Headline Title */}
-          <ThemedText type="headline" style={styles.title}>
-            {title}
-          </ThemedText>
-
-          {/* Subtitle / Body Description */}
-          {message ? (
-            typeof message === 'string' ? (
-              <ThemedText
-                type="default"
-                themeColor="textMuted"
-                style={styles.subtitle}
-              >
-                {message}
-              </ThemedText>
-            ) : (
-              <View style={styles.customMessageContainer}>{message}</View>
-            )
-          ) : null}
-
-          {/* Primary Action Button */}
-          {primaryButton ? (
-            <Button
-              label={primaryButton.label}
-              variant={primaryButton.variant ?? 'primary'}
-              sf={primaryButton.sf}
-              md={primaryButton.md}
-              onPress={primaryButton.onPress}
-              style={styles.primaryButton}
-            />
-          ) : null}
-
-          {/* Secondary Action Button */}
-          {secondaryButton ? (
-            <Button
-              label={secondaryButton.label}
-              variant={secondaryButton.variant ?? 'secondary'}
-              sf={secondaryButton.sf}
-              md={secondaryButton.md}
-              onPress={secondaryButton.onPress}
-              style={styles.secondaryButton}
-            />
-          ) : null}
+          <Icon
+            sf={icon.sf}
+            md={icon.md}
+            size={52}
+            color={accentColor}
+            weight="bold"
+            style={styles.iconCentering}
+          />
         </View>
-      </View>
-    </Modal>
+      </Animated.View>
+
+      {/* Headline Title */}
+      <ThemedText type="headline" style={styles.title}>
+        {title}
+      </ThemedText>
+
+      {/* Subtitle / Body Description */}
+      {message ? (
+        typeof message === 'string' ? (
+          <ThemedText
+            type="default"
+            themeColor="textMuted"
+            style={styles.subtitle}
+          >
+            {message}
+          </ThemedText>
+        ) : (
+          <View style={styles.customMessageContainer}>{message}</View>
+        )
+      ) : null}
+
+      {/* Primary Action Button */}
+      {primaryButton ? (
+        <Button
+          label={primaryButton.label}
+          variant={primaryButton.variant ?? 'primary'}
+          sf={primaryButton.sf}
+          md={primaryButton.md}
+          onPress={primaryButton.onPress}
+          style={styles.primaryButton}
+        />
+      ) : null}
+
+      {/* Secondary Action Button */}
+      {secondaryButton ? (
+        <Button
+          label={secondaryButton.label}
+          variant={secondaryButton.variant ?? 'secondary'}
+          sf={secondaryButton.sf}
+          md={secondaryButton.md}
+          onPress={secondaryButton.onPress}
+          style={styles.secondaryButton}
+        />
+      ) : null}
+    </ModalDialog>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.four,
-  },
   card: {
     width: '100%',
     maxWidth: 380,

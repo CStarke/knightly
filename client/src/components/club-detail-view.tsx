@@ -33,6 +33,7 @@ import { useClubsNavigation } from '@/context/clubs-navigation-context';
 import { useOptionalFeed } from '@/context/feed-context';
 import { getClubById } from '@/data/clubs';
 import { getPostsByClubId } from '@/data/feed';
+import { useResponsiveLayout } from '@/hooks/use-responsive-layout';
 
 /**
  * Renders the in-pager subpage showing a single club's profile, logistics, and activity feed.
@@ -45,6 +46,7 @@ export function ClubDetailView({ clubId }: { clubId: string }) {
   const { isFollowing, toggleFollow } = useClubFollow();
   const { closeClubDetail } = useClubsNavigation();
   const feed = useOptionalFeed();
+  const { isCompact } = useResponsiveLayout();
 
   // Step 2: Club Data Resolution & Posts Memoization
   const club = clubId ? getClubById(clubId) : undefined;
@@ -105,146 +107,155 @@ export function ClubDetailView({ clubId }: { clubId: string }) {
   const following = isFollowing(club.id);
 
   return (
-    <Screen scrollViewRef={scrollRef} style={styles.screenInner}>
-      {/*
-        Step 4: Hero Header Card
-        Renders either a photo banner or a solid brand-color fallback, an overlapping avatar
-        squircle with the club's official icon, category badge, title, tagline, and prominent Follow button.
-      */}
-      <Card flush style={styles.heroCard}>
-        {club.image ? (
-          <View style={styles.heroImageContainer}>
-            <Image
-              source={{ uri: club.image }}
-              style={styles.heroImage}
-              contentFit="cover"
-              transition={250}
-            />
-            <View style={styles.heroScrim} />
-          </View>
-        ) : (
-          <View
-            style={[
-              styles.fallbackBanner,
-              { backgroundColor: club.colors[0] },
-            ]}
-          />
-        )}
+    <Screen
+      scrollViewRef={scrollRef}
+      style={[styles.screenInner, { maxWidth: isCompact ? undefined : 1200 }]}
+    >
+      <View style={isCompact ? styles.mobileStack : styles.desktopSplit}>
+        <View style={isCompact ? styles.mobileCol : styles.desktopLeftCol}>
+          {/*
+            Step 4: Hero Header Card
+            Renders either a photo banner or a solid brand-color fallback, an overlapping avatar
+            squircle with the club's official icon, category badge, title, tagline, and prominent Follow button.
+          */}
+          <Card flush style={styles.heroCard}>
+            {club.image ? (
+              <View style={styles.heroImageContainer}>
+                <Image
+                  source={{ uri: club.image }}
+                  style={styles.heroImage}
+                  contentFit="cover"
+                  transition={250}
+                />
+                <View style={styles.heroScrim} />
+              </View>
+            ) : (
+              <View
+                style={[
+                  styles.fallbackBanner,
+                  { backgroundColor: club.colors[0] },
+                ]}
+              />
+            )}
 
-        <View style={styles.heroBody}>
-          <View style={styles.avatarRow}>
-            {/* Overlapping Club Icon Squircle */}
-            <View
-              style={[
-                styles.avatarLarge,
-                { backgroundColor: club.colors[0] },
-              ]}
-            >
-              <Icon sf={club.sf} md={club.md} size={30} color="#FFFFFF" />
+            <View style={styles.heroBody}>
+              <View style={styles.avatarRow}>
+                {/* Overlapping Club Icon Squircle */}
+                <View
+                  style={[
+                    styles.avatarLarge,
+                    { backgroundColor: club.colors[0] },
+                  ]}
+                >
+                  <Icon sf={club.sf} md={club.md} size={30} color="#FFFFFF" />
+                </View>
+
+                <Badge label={club.category} tone="gold" />
+              </View>
+
+              <View style={styles.heroTitles}>
+                <ThemedText style={styles.heroTitle}>{club.name}</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary" style={styles.heroTagline}>
+                  {club.tagline}
+                </ThemedText>
+              </View>
+
+              {/* Prominent Follow Button */}
+              <FollowButton
+                following={following}
+                onPress={() => toggleFollow(club.id)}
+                clubName={club.name}
+                variant="prominent"
+              />
+            </View>
+          </Card>
+
+          {/*
+            Step 5: About & Logistics Card
+            Presents the organization's mission statement alongside verified meeting schedule,
+            meeting location, officer leadership, and official contact email.
+          */}
+          <Card style={styles.aboutCard}>
+            <ThemedText type="smallBold" style={styles.sectionHeader}>
+              About
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary" style={styles.aboutBody}>
+              {club.description}
+            </ThemedText>
+
+            <View style={styles.metaList}>
+              {club.meetingSchedule ? (
+                <MetaItem
+                  sf="calendar"
+                  md="event"
+                  color={Brand.gold}
+                  label="Meeting Schedule"
+                  value={club.meetingSchedule}
+                />
+              ) : null}
+
+              {club.location ? (
+                <MetaItem
+                  sf="mappin.and.ellipse"
+                  md="place"
+                  color={Brand.maroon}
+                  label="Location"
+                  value={club.location}
+                />
+              ) : null}
+
+              {club.leader ? (
+                <MetaItem
+                  sf="person.fill"
+                  md="person"
+                  color={Brand.renewBlue}
+                  label="Leadership"
+                  value={club.leader}
+                />
+              ) : null}
+
+              <MetaItem
+                sf="envelope.fill"
+                md="mail"
+                color={Brand.trueGreen}
+                label="Contact"
+                value={club.contactEmail}
+              />
+            </View>
+          </Card>
+        </View>
+
+        <View style={isCompact ? styles.mobileCol : styles.desktopRightCol}>
+          {/*
+            Step 6: Club Posts & Activity Stream
+            Renders all historical and newly posted announcements for this club.
+            If no announcements exist yet, renders an encouraging empty state card.
+          */}
+          <View style={styles.postsSection}>
+            <View style={styles.postsHeaderRow}>
+              <ThemedText type="smallBold" style={styles.sectionHeader}>
+                Recent Updates & Announcements
+              </ThemedText>
+              <ThemedText type="caption" themeColor="textMuted">
+                {clubPosts.length} {clubPosts.length === 1 ? 'post' : 'posts'}
+              </ThemedText>
             </View>
 
-            <Badge label={club.category} tone="gold" />
+            {clubPosts.map((post) => (
+              <PostCard key={post.id} post={post} onPressOrg={handlePressPostOrg} />
+            ))}
+
+            {clubPosts.length === 0 ? (
+              <Card style={styles.noPostsCard}>
+                <Icon sf="sparkles" md="auto_awesome" size={24} color={Brand.gold} />
+                <ThemedText type="smallBold">No announcements yet</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary" style={styles.noPostsSub}>
+                  {`${club.name} hasn't posted any updates or upcoming events recently. Follow to stay informed!`}
+                </ThemedText>
+              </Card>
+            ) : null}
           </View>
-
-          <View style={styles.heroTitles}>
-            <ThemedText style={styles.heroTitle}>{club.name}</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary" style={styles.heroTagline}>
-              {club.tagline}
-            </ThemedText>
-          </View>
-
-          {/* Prominent Follow Button */}
-          <FollowButton
-            following={following}
-            onPress={() => toggleFollow(club.id)}
-            clubName={club.name}
-            variant="prominent"
-          />
         </View>
-      </Card>
-
-      {/*
-        Step 5: About & Logistics Card
-        Presents the organization's mission statement alongside verified meeting schedule,
-        meeting location, officer leadership, and official contact email.
-      */}
-      <Card style={styles.aboutCard}>
-        <ThemedText type="smallBold" style={styles.sectionHeader}>
-          About
-        </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.aboutBody}>
-          {club.description}
-        </ThemedText>
-
-        <View style={styles.metaList}>
-          {club.meetingSchedule ? (
-            <MetaItem
-              sf="calendar"
-              md="event"
-              color={Brand.gold}
-              label="Meeting Schedule"
-              value={club.meetingSchedule}
-            />
-          ) : null}
-
-          {club.location ? (
-            <MetaItem
-              sf="mappin.and.ellipse"
-              md="place"
-              color={Brand.maroon}
-              label="Location"
-              value={club.location}
-            />
-          ) : null}
-
-          {club.leader ? (
-            <MetaItem
-              sf="person.fill"
-              md="person"
-              color={Brand.renewBlue}
-              label="Leadership"
-              value={club.leader}
-            />
-          ) : null}
-
-          <MetaItem
-            sf="envelope.fill"
-            md="mail"
-            color={Brand.trueGreen}
-            label="Contact"
-            value={club.contactEmail}
-          />
-        </View>
-      </Card>
-
-      {/*
-        Step 6: Club Posts & Activity Stream
-        Renders all historical and newly posted announcements for this club.
-        If no announcements exist yet, renders an encouraging empty state card.
-      */}
-      <View style={styles.postsSection}>
-        <View style={styles.postsHeaderRow}>
-          <ThemedText type="smallBold" style={styles.sectionHeader}>
-            Recent Updates & Announcements
-          </ThemedText>
-          <ThemedText type="caption" themeColor="textMuted">
-            {clubPosts.length} {clubPosts.length === 1 ? 'post' : 'posts'}
-          </ThemedText>
-        </View>
-
-        {clubPosts.map((post) => (
-          <PostCard key={post.id} post={post} onPressOrg={handlePressPostOrg} />
-        ))}
-
-        {clubPosts.length === 0 ? (
-          <Card style={styles.noPostsCard}>
-            <Icon sf="sparkles" md="auto_awesome" size={24} color={Brand.gold} />
-            <ThemedText type="smallBold">No announcements yet</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary" style={styles.noPostsSub}>
-              {`${club.name} hasn't posted any updates or upcoming events recently. Follow to stay informed!`}
-            </ThemedText>
-          </Card>
-        ) : null}
       </View>
     </Screen>
   );
@@ -252,6 +263,30 @@ export function ClubDetailView({ clubId }: { clubId: string }) {
 
 const styles = StyleSheet.create({
   screenInner: {
+    gap: Spacing.three,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  mobileStack: {
+    gap: Spacing.three,
+    width: '100%',
+  },
+  mobileCol: {
+    gap: Spacing.three,
+    width: '100%',
+  },
+  desktopSplit: {
+    flexDirection: 'row',
+    gap: Spacing.four,
+    alignItems: 'flex-start',
+    width: '100%',
+  },
+  desktopLeftCol: {
+    width: 380,
+    gap: Spacing.three,
+  },
+  desktopRightCol: {
+    flex: 1,
     gap: Spacing.three,
   },
   heroCard: {

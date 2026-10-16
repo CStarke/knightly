@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Pressable, StyleSheet, TextInput } from 'react-native';
+import { Platform, Pressable, StyleSheet, TextInput } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
 import { Brand, Radius, Spacing } from '@/constants/theme';
@@ -83,5 +83,9 @@ const styles = StyleSheet.create({
     textAlignVertical: 'center',
     outlineWidth: 0,
     outlineColor: 'transparent',
+    ...(Platform.OS === 'web' && {
+      outlineStyle: 'none' as any,
+      caretColor: Brand.gold,
+    }),
   },
 });

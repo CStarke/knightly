@@ -15,6 +15,7 @@ import { AccessoryButton } from '@/components/ui/accessory-button';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { FieldLabel } from '@/components/ui/field-label';
+import { FormTextInput } from '@/components/ui/form-text-input';
 import { Icon } from '@/components/ui/icon';
 import { ModalDialog, ModalHeader } from '@/components/ui/modal-dialog';
 import { Segmented } from '@/components/ui/segmented';
@@ -55,6 +56,7 @@ export interface PostDateTimeSectionProps {
   onCustomWhenFocus: (e: any) => void;
   onCustomWhenBlur: () => void;
   whenError: string | null;
+  flat?: boolean;
   onLayout?: (e: LayoutChangeEvent) => void;
 }
 
@@ -90,10 +92,13 @@ export function PostDateTimeSection({
   onCustomWhenFocus,
   onCustomWhenBlur,
   whenError,
+  flat = false,
   onLayout,
 }: PostDateTimeSectionProps) {
   const theme = useTheme();
   const [showInfoModal, setShowInfoModal] = useState(false);
+
+  const SubCardContainer = flat ? View : Card;
 
   return (
     <View style={styles.section} onLayout={onLayout}>
@@ -116,7 +121,7 @@ export function PostDateTimeSection({
         }
       />
 
-      <Card style={styles.eventSubCard}>
+      <SubCardContainer style={flat ? styles.eventSubCardFlat : styles.eventSubCard}>
         {/* Segmented Mode Selector: Standard Time vs Custom Text */}
         <Segmented
           options={['Standard Time', 'Custom Text'] as const}
@@ -201,29 +206,17 @@ export function PostDateTimeSection({
               currentLength={customWhenText.length}
               maxLength={MAX_CUSTOM_WHEN_LENGTH}
             />
-            <TextInput
+            <FormTextInput
               value={customWhenText}
               onChangeText={onCustomWhenTextChange}
               onFocus={onCustomWhenFocus}
               onBlur={onCustomWhenBlur}
-              cursorColor={Brand.gold}
-              selectionColor={Brand.gold}
+              isFocused={isCustomWhenFocused}
+              hasError={customWhenText.length > MAX_CUSTOM_WHEN_LENGTH}
               placeholder="e.g. Starts this weekend"
-              placeholderTextColor={theme.textMuted}
               maxLength={MAX_CUSTOM_WHEN_LENGTH}
-              style={[
-                styles.smallInput,
-                {
-                  color: theme.text,
-                  backgroundColor: theme.backgroundElement,
-                  borderColor:
-                    customWhenText.length > MAX_CUSTOM_WHEN_LENGTH
-                      ? Brand.brightRed
-                      : isCustomWhenFocused
-                      ? Brand.gold
-                      : theme.border,
-                },
-              ]}
+              variant="small"
+              style={styles.smallInput}
             />
           </View>
         )}
@@ -237,7 +230,7 @@ export function PostDateTimeSection({
             </ThemedText>
           </View>
         ) : null}
-      </Card>
+      </SubCardContainer>
 
       {/* Date & Time Guidance Modal */}
       <ModalDialog
@@ -306,6 +299,10 @@ const styles = StyleSheet.create({
   },
   eventSubCard: {
     padding: Spacing.two + 2,
+    gap: Spacing.two,
+  },
+  eventSubCardFlat: {
+    padding: 0,
     gap: Spacing.two,
   },
   dateBlock: {

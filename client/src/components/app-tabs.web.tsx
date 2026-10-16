@@ -42,10 +42,14 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
+import { BottomBar, TabButton } from '@/components/bottom-tab-bar';
 import { HeaderAvatar } from '@/components/header-avatar';
+import { SmartAppBanner } from '@/components/smart-app-banner';
 import { ThemedText } from '@/components/themed-text';
+import { AppHeader } from '@/components/ui/app-header';
 import { Icon, type MaterialSymbolName, type SfSymbolName } from '@/components/ui/icon';
 import { ParallaxStarfield } from '@/components/ui/starfield';
+import { getTabHeader } from '@/constants/tab-headers';
 import { Brand, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
 import { ClubsNavigationProvider, useClubsNavigation } from '@/context/clubs-navigation-context';
@@ -60,6 +64,7 @@ import {
   type TabNavigationContextValue,
   type TabMeta,
 } from '@/context/tab-navigation-context';
+import { useResponsiveLayout } from '@/hooks/use-responsive-layout';
 import { useTheme } from '@/hooks/use-theme';
 
 export {
@@ -68,6 +73,50 @@ export {
   type TabNavigationContextValue,
   type TabMeta,
 };
+
+const BASE_TABS: TabMeta[] = [
+  {
+    name: 'index',
+    href: '/',
+    label: 'Knightly',
+    sf: 'sparkles',
+    md: 'auto_awesome',
+  },
+  {
+    name: 'dining',
+    href: '/dining',
+    label: 'Dining',
+    sf: 'fork.knife',
+    md: 'restaurant',
+  },
+  {
+    name: 'safety',
+    href: '/safety',
+    label: 'Safety',
+    sf: 'shield',
+    md: 'shield',
+  },
+  {
+    name: 'directory',
+    href: '/directory',
+    label: 'Directory',
+    sf: 'person.2',
+    md: 'people',
+  },
+];
+
+const LEADER_TABS: TabMeta[] = [
+  ...BASE_TABS,
+  {
+    name: 'post',
+    href: '/post',
+    label: 'Post',
+    sf: 'plus.circle',
+    sfActive: 'plus.circle.fill',
+    md: 'add_circle',
+    mdActive: 'add_circle',
+  },
+];
 
 const dummySharedValue = { value: 0 } as SharedValue<number>;
 
@@ -174,6 +223,9 @@ export default function AppTabs() {
   }, [claimSetupState.isOpen, claimSetupState.code, cancelClaimSetup]);
 
   const isInnerScrollActive = useSharedValue(false);
+  const { isCompact } = useResponsiveLayout();
+  const currentHeader = useMemo(() => getTabHeader(pathname), [pathname]);
+  const tabs = isLeader ? LEADER_TABS : BASE_TABS;
 
   // Synchronize TabNavigationContext with Expo Router web pathname
   const tabNavValue = useMemo<TabNavigationContextValue>(() => ({
@@ -183,8 +235,8 @@ export default function AppTabs() {
       const href = targetHref || '/';
       router.navigate(href as any);
     },
-    tabs: [],
-  }), [pathname]);
+    tabs,
+  }), [pathname, tabs]);
 
   return (
     <SidebarContext.Provider
@@ -207,8 +259,20 @@ export default function AppTabs() {
             activeClubId: null,
             openClubsDirectory: () => { router.push('/clubs/index'); },
             openClubDetail: (clubId: string) => { router.push({ pathname: '/clubs/[id]', params: { id: clubId } }); },
-            closeClubDetail: () => { router.back(); },
-            closeClubsDirectory: () => { router.back(); },
+            closeClubDetail: () => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/clubs/index');
+              }
+            },
+            closeClubsDirectory: () => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/(tabs)');
+              }
+            },
           }}>
             <TabPagerPriorityProvider value={{
               isInnerScrollActive,
@@ -218,59 +282,117 @@ export default function AppTabs() {
                 <View style={styles.rootWrapper}>
                   <ParallaxStarfield translateX={translateX} scrollY={scrollY} />
 
-                  <Tabs style={styles.tabsLayout}>
-                    {/* Left Desktop Navigation Menu Sidebar */}
-                    <TabList asChild>
-                      <Sidebar>
-                        <TabTrigger name="index" href="/" asChild>
-                          <SidebarTabButton
-                            label="Knightly"
-                            description="Campus events & feed"
-                            sf="sparkles"
-                            md="auto_awesome"
-                          />
-                        </TabTrigger>
-                        <TabTrigger name="dining" href="/dining" asChild>
-                          <SidebarTabButton
-                            label="Dining"
-                            description="Menus & meal plan"
-                            sf="fork.knife"
-                            md="restaurant"
-                          />
-                        </TabTrigger>
-                        <TabTrigger name="safety" href="/safety" asChild>
-                          <SidebarTabButton
-                            label="Safety"
-                            description="Campus safety & alerts"
-                            sf="shield"
-                            md="shield"
-                          />
-                        </TabTrigger>
-                        <TabTrigger name="directory" href="/directory" asChild>
-                          <SidebarTabButton
-                            label="Directory"
-                            description="Students, faculty & staff"
-                            sf="person.2"
-                            md="people"
-                          />
-                        </TabTrigger>
-                        {isLeader ? (
-                          <TabTrigger name="post" href="/post" asChild>
-                            <SidebarTabButton
-                              label="Post"
-                              description="Publish announcement"
-                              sf="plus.circle"
-                              md="add_circle"
-                            />
-                          </TabTrigger>
-                        ) : null}
-                      </Sidebar>
-                    </TabList>
+                  <Tabs style={[styles.tabsLayout, isCompact && styles.tabsLayoutMobile]}>
+                    {isCompact ? (
+                      /* Mobile Web Viewport (< 768px): Header + Scrollable Viewport + Grounded Bottom Bar */
+                      <>
+                        <SmartAppBanner />
+                        <AppHeader
+                          title={currentHeader.title}
+                          subtitle={currentHeader.subtitle}
+                          right={currentHeader.right}
+                        />
+                        <View style={styles.mobileContentArea}>
+                          <TabSlot style={styles.slot} />
+                        </View>
+                        <TabList asChild>
+                          <BottomBar>
+                            <TabTrigger name="index" href="/" asChild>
+                              <TabButton
+                                meta={tabs[0]}
+                                index={0}
+                                activeTabIndex={tabNavValue.activeTabIndex}
+                              />
+                            </TabTrigger>
+                            <TabTrigger name="dining" href="/dining" asChild>
+                              <TabButton
+                                meta={tabs[1]}
+                                index={1}
+                                activeTabIndex={tabNavValue.activeTabIndex}
+                              />
+                            </TabTrigger>
+                            <TabTrigger name="safety" href="/safety" asChild>
+                              <TabButton
+                                meta={tabs[2]}
+                                index={2}
+                                activeTabIndex={tabNavValue.activeTabIndex}
+                              />
+                            </TabTrigger>
+                            <TabTrigger name="directory" href="/directory" asChild>
+                              <TabButton
+                                meta={tabs[3]}
+                                index={3}
+                                activeTabIndex={tabNavValue.activeTabIndex}
+                              />
+                            </TabTrigger>
+                            {isLeader ? (
+                              <TabTrigger name="post" href="/post" asChild>
+                                <TabButton
+                                  meta={tabs[4]}
+                                  index={4}
+                                  activeTabIndex={tabNavValue.activeTabIndex}
+                                />
+                              </TabTrigger>
+                            ) : null}
+                          </BottomBar>
+                        </TabList>
+                      </>
+                    ) : (
+                      /* Desktop / Tablet Web Viewport (>= 768px): Left Sidebar + Right Viewport */
+                      <>
+                        <TabList asChild>
+                          <Sidebar>
+                            <TabTrigger name="index" href="/" asChild>
+                              <SidebarTabButton
+                                label="Knightly"
+                                description="Campus events & feed"
+                                sf="sparkles"
+                                md="auto_awesome"
+                              />
+                            </TabTrigger>
+                            <TabTrigger name="dining" href="/dining" asChild>
+                              <SidebarTabButton
+                                label="Dining"
+                                description="Menus & meal plan"
+                                sf="fork.knife"
+                                md="restaurant"
+                              />
+                            </TabTrigger>
+                            <TabTrigger name="safety" href="/safety" asChild>
+                              <SidebarTabButton
+                                label="Safety"
+                                description="Campus safety & alerts"
+                                sf="shield"
+                                md="shield"
+                              />
+                            </TabTrigger>
+                            <TabTrigger name="directory" href="/directory" asChild>
+                              <SidebarTabButton
+                                label="Directory"
+                                description="Students, faculty & staff"
+                                sf="person.2"
+                                md="people"
+                              />
+                            </TabTrigger>
+                            {isLeader ? (
+                              <TabTrigger name="post" href="/post" asChild>
+                                <SidebarTabButton
+                                  label="Post"
+                                  description="Publish announcement"
+                                  sf="plus.circle"
+                                  md="add_circle"
+                                />
+                              </TabTrigger>
+                            ) : null}
+                          </Sidebar>
+                        </TabList>
 
-                    {/* Main Screen Content Viewport (Right) */}
-                    <View style={styles.contentArea}>
-                      <TabSlot style={styles.slot} />
-                    </View>
+                        {/* Main Screen Content Viewport (Right) */}
+                        <View style={styles.contentArea}>
+                          <TabSlot style={styles.slot} />
+                        </View>
+                      </>
+                    )}
                   </Tabs>
                 </View>
               </StarfieldContext.Provider>
@@ -691,6 +813,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     height: '100%',
     width: '100%',
+  },
+  tabsLayoutMobile: {
+    flexDirection: 'column',
+  },
+  mobileContentArea: {
+    flex: 1,
+    width: '100%',
+    position: 'relative',
+    overflow: 'hidden',
   },
   sidebar: {
     marginVertical: 12,

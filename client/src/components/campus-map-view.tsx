@@ -27,7 +27,7 @@ export default function CampusMapView({ html }: { html: string }) {
       source={{ html }}
       // Inline HTML needs this whitelist; navigation is restricted below.
       originWhitelist={['*']}
-      onShouldStartLoadWithRequest={({ url }) => url === 'about:blank'}
+      onShouldStartLoadWithRequest={({ url }: { url: string }) => url === 'about:blank'}
       onError={() => setFailed(true)}
       onContentProcessDidTerminate={() => setFailed(true)}
       scrollEnabled={false}

@@ -1,7 +1,14 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import React, {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   Platform,
-  Pressable,
   StyleSheet,
   TextInput,
   View,
@@ -11,8 +18,8 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { BlinkingCursor } from '@/components/ui/blinking-cursor';
 import { ThemedText } from '@/components/themed-text';
+import { BlinkingCursor } from '@/components/ui/blinking-cursor';
 import { Brand, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import {
@@ -20,82 +27,338 @@ import {
   getMaxDaysForMonth,
   parseDateSegments,
 } from '@/utils/date-format';
-import { isAllowedNumericKey } from '@/utils/numeric-input';
+
+// ============================================================================
+// Types & Contracts
+// ============================================================================
 
 export interface SegmentedDateInputProps {
-  value: string; // raw digits string: MMDDYYYY, MMDDYY, or partial
+  /** Raw digit string or formatted date string (e.g. "09182026" or "09 / 18 / 2026") */
+  value: string;
+  /** Invoked when raw digits change, providing both compact digits and structured segments */
   onChange: (rawDigits: string, segments?: { month: string; day: string; year: string }) => void;
+  /** Invoked on input blur */
   onBlur?: (segments?: { month: string; day: string; year: string }) => void;
+  /** Invoked on input focus */
   onFocus?: (e?: any) => void;
+  /** Whether the field is in an error state (renders bright red border) */
   hasError?: boolean;
+  /** Whether the input is disabled */
   disabled?: boolean;
+  /** Optional custom container styles */
   style?: StyleProp<ViewStyle>;
 }
 
-const SegmentCursor = BlinkingCursor;
-
-function syncNode(ref: RefObject<TextInput | null>, val: string) {
-  if (!ref.current) return;
-  const node = (ref.current as any)._node || (ref.current as any);
-  if (node && 'value' in node && node.value !== val) {
-    node.value = val;
-  }
-}
-
-function getEffectiveMaxDays(monthStr: string): number {
-  const m = parseInt(monthStr, 10);
-  if (!isNaN(m) && m >= 1 && m <= 12) {
-    return getMaxDaysForMonth(m);
-  }
-  return 31;
-}
-
-function getEl(ref: RefObject<TextInput | null>): HTMLInputElement | null {
-  const element: any = ref.current;
-  if (!element) return null;
-  if (typeof element.addEventListener === 'function') return element;
-  if (element._node && typeof element._node.addEventListener === 'function') return element._node;
-  if (typeof element.getNativeRef === 'function') return element.getNativeRef();
-  return null;
-}
-
-function setCaretAtEnd(ref: RefObject<TextInput | null>) {
-  if (Platform.OS !== 'web') return;
-  setTimeout(() => {
-    try {
-      const el = getEl(ref);
-      if (el && typeof el.setSelectionRange === 'function') {
-        const len = el.value.length;
-        el.setSelectionRange(len, len);
-      }
-    } catch {}
-  }, 0);
-}
-
 export type DateSegmentCellProps = {
-  inputRef: RefObject<TextInput | null>;
-  value: string;
-  placeholder: string;
-  accessibilityLabel: string;
-  isFocused: boolean;
-  maxLength: number;
-  widthStyle: any;
+  inputRef?: React.RefObject<TextInput | null>;
+  value?: string;
+  placeholder?: string;
+  accessibilityLabel?: string;
+  isFocused?: boolean;
+  maxLength?: number;
+  widthStyle?: any;
   disabled?: boolean;
-  textColor: string;
-  placeholderColor: string;
-  onChangeText: (text: string) => void;
+  textColor?: string;
+  placeholderColor?: string;
+  onChangeText?: (text: string) => void;
   onKeyPress?: (e: NativeSyntheticEvent<TextInputKeyPressEventData>) => void;
-  onFocus: (e: any) => void;
-  onBlur: () => void;
+  onFocus?: (e: any) => void;
+  onBlur?: () => void;
 };
+
+export interface DateSegmentsMask {
+  rawDigits: string;
+  month: string;
+  showSlash1: boolean;
+  day: string;
+  showSlash2: boolean;
+  year: string;
+  formatted: string;
+}
+
+// ============================================================================
+// Display Formatter & Mask Pipeline
+// ============================================================================
+
+/**
+ * Parses raw or partial date input into discrete display chunks with dynamic slashes.
+ * Matches the seamless Claim Club modal masking architecture:
+ * 1. Single-digit month (2-9) auto-pads immediately to 02..09 /
+ * 2. Atomic rollover (16 -> 01 / 06 / , 13 -> 01 / 3) without intermediate visual flicker
+ * 3. Day overflow cascading (1035 -> 10 / 03 / 5, 0230 -> 02 / 03 / 0)
+ * 4. Delimited (slashes, hyphens, dots, spaces) and ISO 8601 compatibility
+ */
+export function formatRawDateSegments(rawInput: string): DateSegmentsMask {
+  if (!rawInput || !rawInput.trim()) {
+    return {
+      rawDigits: '',
+      month: '',
+      showSlash1: false,
+      day: '',
+      showSlash2: false,
+      year: '',
+      formatted: '',
+    };
+  }
+
+  const trimmed = rawInput.trim();
+
+  // Delimited inputs (slashes, hyphens, dots, spaces)
+  if (trimmed.includes('/') || trimmed.includes('-') || trimmed.includes('.') || trimmed.includes(' ')) {
+    const parts = trimmed.split(/[/.\s-]+/).filter(Boolean);
+
+    // ISO format: YYYY-MM-DD
+    if (parts.length >= 3 && parts[0].length === 4) {
+      const y = parts[0].slice(0, 4);
+      let m = parts[1].replace(/[^0-9]/g, '').slice(0, 2);
+      if (m.length === 1 && parseInt(m, 10) >= 1 && parseInt(m, 10) <= 9) m = `0${m}`;
+      let d = parts[2].replace(/[^0-9]/g, '').slice(0, 2);
+      if (d.length === 1 && parseInt(d, 10) >= 1 && parseInt(d, 10) <= 9) d = `0${d}`;
+      return {
+        rawDigits: `${m}${d}${y}`,
+        month: m,
+        showSlash1: true,
+        day: d,
+        showSlash2: true,
+        year: y,
+        formatted: `${m} / ${d} / ${y}`,
+      };
+    }
+
+    let m = (parts[0] || '').replace(/[^0-9]/g, '');
+    let d = (parts[1] || '').replace(/[^0-9]/g, '');
+    let y = (parts[2] || '').replace(/[^0-9]/g, '');
+
+    if (m.length === 1 && parts.length > 1 && parseInt(m, 10) >= 1 && parseInt(m, 10) <= 9) {
+      m = `0${m}`;
+    }
+    if (d.length === 1 && parts.length > 2 && parseInt(d, 10) >= 1 && parseInt(d, 10) <= 9) {
+      d = `0${d}`;
+    }
+
+    m = m.slice(0, 2);
+    d = d.slice(0, 2);
+    y = y.slice(0, 4);
+
+    const showSlash1 = parts.length > 1 || m.length === 2;
+    const showSlash2 = parts.length > 2 || d.length === 2;
+
+    let formatted = m;
+    if (showSlash1) {
+      formatted += ` / ${d}`;
+      if (showSlash2) {
+        formatted += ` / ${y}`;
+      }
+    }
+
+    return {
+      rawDigits: `${m}${d}${y}`,
+      month: m,
+      showSlash1,
+      day: d,
+      showSlash2,
+      year: y,
+      formatted: formatted.trim(),
+    };
+  }
+
+  // Pure digits handling
+  let digits = trimmed.replace(/[^0-9]/g, '').slice(0, 8);
+  if (!digits) {
+    return {
+      rawDigits: '',
+      month: '',
+      showSlash1: false,
+      day: '',
+      showSlash2: false,
+      year: '',
+      formatted: '',
+    };
+  }
+
+  let m = '';
+  let d = '';
+  let y = '';
+  let showSlash1 = false;
+  let showSlash2 = false;
+
+  const firstM = parseInt(digits[0], 10);
+  if (digits.length === 1) {
+    if (firstM >= 2 && firstM <= 9) {
+      m = `0${firstM}`;
+      digits = m;
+      showSlash1 = true;
+    } else {
+      m = digits;
+      return {
+        rawDigits: digits,
+        month: m,
+        showSlash1: false,
+        day: '',
+        showSlash2: false,
+        year: '',
+        formatted: m,
+      };
+    }
+  } else {
+    if (firstM >= 2 && firstM <= 9) {
+      m = `0${firstM}`;
+      digits = m + digits.slice(1);
+      showSlash1 = true;
+    } else {
+      const mNum = parseInt(digits.slice(0, 2), 10);
+      if (mNum >= 1 && mNum <= 12) {
+        m = digits.slice(0, 2);
+        showSlash1 = true;
+      } else {
+        // Month rollover (13..19 -> 01, second char rolls to day)
+        m = '01';
+        showSlash1 = true;
+        const rollChar = digits[1];
+        digits = m + rollChar + digits.slice(2);
+      }
+    }
+  }
+
+  const restAfterM = digits.slice(2);
+  if (!restAfterM) {
+    return {
+      rawDigits: m,
+      month: m,
+      showSlash1,
+      day: '',
+      showSlash2: false,
+      year: '',
+      formatted: `${m} / `,
+    };
+  }
+
+  // Resolve Day
+  const firstD = parseInt(restAfterM[0], 10);
+  if (restAfterM.length === 1) {
+    if (firstD >= 4 && firstD <= 9) {
+      d = `0${firstD}`;
+      showSlash2 = true;
+      return {
+        rawDigits: `${m}${d}`,
+        month: m,
+        showSlash1: true,
+        day: d,
+        showSlash2: true,
+        year: '',
+        formatted: `${m} / ${d} / `,
+      };
+    } else {
+      d = restAfterM;
+      return {
+        rawDigits: `${m}${d}`,
+        month: m,
+        showSlash1: true,
+        day: d,
+        showSlash2: false,
+        year: '',
+        formatted: `${m} / ${d}`,
+      };
+    }
+  }
+
+  // Two or more digits in restAfterM
+  if (firstD >= 4 && firstD <= 9) {
+    d = `0${firstD}`;
+    showSlash2 = true;
+    y = restAfterM.slice(1, 5);
+  } else {
+    const dayCandidate = parseInt(restAfterM.slice(0, 2), 10);
+    const maxDays = getMaxDaysForMonth(m);
+    if (firstD === 3 && dayCandidate > maxDays) {
+      d = '03';
+      showSlash2 = true;
+      y = restAfterM.slice(1, 5);
+    } else {
+      d = restAfterM.slice(0, 2);
+      showSlash2 = true;
+      y = restAfterM.slice(2, 6);
+    }
+  }
+
+  let formatted = `${m} / ${d}`;
+  if (showSlash2) {
+    formatted += ' / ';
+    if (y) formatted += y;
+  }
+
+  const rawDigits = `${m}${d}${y}`;
+  return {
+    rawDigits,
+    month: m,
+    showSlash1: true,
+    day: d,
+    showSlash2,
+    year: y,
+    formatted,
+  };
+}
+
+/**
+ * Backward-compatible formatDisplayDate helper.
+ */
+export function formatDisplayDate(raw: string): string {
+  return formatRawDateSegments(raw).formatted;
+}
+
+/**
+ * Backward-compatible formatSingleDateInput helper.
+ */
+export function formatSingleDateInput(
+  input: string,
+  prevInput: string = ''
+): {
+  formatted: string;
+  rawDigits: string;
+  segments: { month: string; day: string; year: string };
+} {
+  // Handle delimiter boundary backspacing: seamlessly drop delimiter and preceding character
+  if (prevInput && input.length < prevInput.length) {
+    if (
+      prevInput.endsWith(' / ') &&
+      (input === prevInput.slice(0, -1) || input === prevInput.trimEnd() || input === prevInput.slice(0, -2))
+    ) {
+      const withoutDelim = prevInput.slice(0, -3).trimEnd();
+      const droppedChar = withoutDelim.slice(0, -1);
+      return formatSingleDateInput(droppedChar);
+    }
+    if (
+      prevInput.endsWith(' /') &&
+      (input === prevInput.slice(0, -1) || input === prevInput.trimEnd())
+    ) {
+      const withoutDelim = prevInput.slice(0, -2).trimEnd();
+      const droppedChar = withoutDelim.slice(0, -1);
+      return formatSingleDateInput(droppedChar);
+    }
+  }
+
+  const result = formatRawDateSegments(input);
+  return {
+    formatted: result.formatted,
+    rawDigits: result.rawDigits,
+    segments: {
+      month: result.month,
+      day: result.day,
+      year: result.year,
+    },
+  };
+}
+
+// ============================================================================
+// Backward-Compatible Cell Contract
+// ============================================================================
 
 export function DateSegmentCell({
   inputRef,
-  value,
-  placeholder,
-  accessibilityLabel,
-  isFocused,
-  maxLength,
+  value = '',
+  placeholder = '',
+  accessibilityLabel = '',
+  maxLength = 2,
   widthStyle,
   disabled,
   textColor,
@@ -106,732 +369,273 @@ export function DateSegmentCell({
   onBlur,
 }: DateSegmentCellProps) {
   return (
-    <View style={[styles.segmentCell, widthStyle]}>
+    <View style={[styles.legacyCell, widthStyle]}>
       <TextInput
         ref={inputRef as any}
         value={value}
-        selection={Platform.OS !== 'web' ? { start: value.length, end: value.length } : undefined}
+        placeholder={placeholder}
+        placeholderTextColor={placeholderColor}
+        accessibilityLabel={accessibilityLabel}
+        maxLength={maxLength}
+        editable={!disabled}
         onChangeText={onChangeText}
         onKeyPress={onKeyPress}
         onFocus={onFocus}
         onBlur={onBlur}
-        keyboardType="number-pad"
-        inputMode="numeric"
-        maxLength={maxLength}
-        caretHidden={true}
-        selectionColor="transparent"
-        autoCorrect={false}
-        editable={!disabled}
-        accessibilityLabel={accessibilityLabel}
-        style={styles.invisibleInput}
+        style={[styles.legacyInput, { color: textColor }]}
       />
-      <View pointerEvents="none" style={styles.segmentDisplay}>
-        {value.length === 0 ? (
-          <View style={styles.displayRow}>
-            {isFocused && (
-              <View style={styles.cursorAbsolute}>
-                <SegmentCursor color={Brand.gold} />
-              </View>
-            )}
-            <ThemedText style={[styles.segmentPlaceholderText, { color: placeholderColor }]}>
-              {placeholder}
-            </ThemedText>
-          </View>
-        ) : (
-          <View style={styles.displayRow}>
-            <ThemedText style={[styles.segmentDigitText, { color: textColor }]}>
-              {value}
-            </ThemedText>
-            {isFocused && (
-              <View style={styles.cursorTrailing}>
-                <SegmentCursor color={Brand.gold} />
-              </View>
-            )}
-          </View>
-        )}
-      </View>
     </View>
   );
 }
 
-export function SegmentedDateInput({
-  value,
-  onChange,
-  onBlur,
-  onFocus,
-  hasError = false,
-  disabled = false,
-  style,
-}: SegmentedDateInputProps) {
-  const theme = useTheme();
+// ============================================================================
+// Main Component: SegmentedDateInput
+// (Masked Architecture: Invisible TextInput + Themed Presentation Layer)
+// ============================================================================
 
-  const monthRef = useRef<TextInput>(null);
-  const dayRef = useRef<TextInput>(null);
-  const yearRef = useRef<TextInput>(null);
-
-  const [month, setMonth] = useState('');
-  const [day, setDay] = useState('');
-  const [year, setYear] = useState('');
-  const [focusedSegment, setFocusedSegment] = useState<'month' | 'day' | 'year' | null>(null);
-
-  const segmentsRef = useRef({ month: '', day: '', year: '' });
-  segmentsRef.current = { month, day, year };
-
-  const isInternalChangeRef = useRef(false);
-
-  useEffect(() => {
-    if (isInternalChangeRef.current) {
-      isInternalChangeRef.current = false;
-      return;
-    }
-    const segs = parseDateSegments(value || '');
-    setMonth(segs.month);
-    setDay(segs.day);
-    setYear(segs.year);
-    syncNode(monthRef, segs.month);
-    syncNode(dayRef, segs.day);
-    syncNode(yearRef, segs.year);
-  }, [value]);
-
-  const emitChange = useCallback(
-    (m: string, d: string, y: string) => {
-      isInternalChangeRef.current = true;
-      let combined = m;
-      if (m.length === 2) {
-        combined += d;
-        if (d.length === 2) {
-          combined += y;
-        }
-      }
-      onChange(combined, { month: m, day: d, year: y });
+/**
+ * Masked Segmented Date Input
+ *
+ * Implements the proven Claim Club Modal architecture:
+ * 1. An invisible, caret-hidden <TextInput> captures raw unformatted keystrokes.
+ * 2. A pointerEvents="none" presentation layer displays characters divided into
+ *    discrete chunks (month, day, year) with non-interactive separator slashes.
+ * 3. A custom BlinkingCursor simulates a native cursor at the active insertion point.
+ *
+ * RATIONALE & ZERO-FLICKER GUARANTEE:
+ * Because the native TextInput is completely invisible, the browser/OS DOM NEVER
+ * renders raw keystrokes (e.g. "16" or unformatted slashes) before React can format them.
+ * React computes the presentation layer synchronously in render, so separators and
+ * rollovers appear instantly in the EXACT same frame as the keystroke with zero flicker.
+ */
+export const SegmentedDateInput = forwardRef<TextInput, SegmentedDateInputProps>(
+  function SegmentedDateInput(
+    {
+      value,
+      onChange,
+      onBlur,
+      onFocus,
+      hasError = false,
+      disabled = false,
+      style,
     },
-    [onChange]
-  );
+    ref
+  ) {
+    const theme = useTheme();
+    const inputRef = useRef<TextInput>(null);
+    useImperativeHandle(ref, () => inputRef.current as TextInput);
 
-  const handlePasteFull = (rawText: string): boolean => {
-    const digits = rawText.replace(/[^0-9]/g, '');
-    if (digits.length >= 4) {
-      const m = digits.slice(0, 2);
-      const d = digits.slice(2, 4);
-      let y = digits.slice(4, 8);
+    const [rawDigits, setRawDigits] = useState(() => {
+      const init = formatRawDateSegments(value || '');
+      return init.rawDigits;
+    });
+    const [isFocused, setIsFocused] = useState(false);
+
+    // Keep internal raw digits synchronized with incoming external value (e.g. calendar picker)
+    useEffect(() => {
+      const parsed = formatRawDateSegments(value || '');
+      setRawDigits(parsed.rawDigits);
+    }, [value]);
+
+    // Derive formatted segments synchronously in render
+    const segments = useMemo(() => formatRawDateSegments(rawDigits), [rawDigits]);
+
+    const handleRawChange = useCallback(
+      (text: string) => {
+        // Strip non-digits
+        const cleaned = text.replace(/[^0-9]/g, '').slice(0, 8);
+        const parsed = formatRawDateSegments(cleaned);
+
+        setRawDigits(parsed.rawDigits);
+        onChange(parsed.rawDigits, {
+          month: parsed.month,
+          day: parsed.day,
+          year: parsed.year,
+        });
+      },
+      [onChange]
+    );
+
+    const handleInputFocus = useCallback(
+      (e: any) => {
+        setIsFocused(true);
+        onFocus?.(e);
+      },
+      [onFocus]
+    );
+
+    const handleInputBlur = useCallback(() => {
+      setIsFocused(false);
+
+      // On blur: re-pad single digits and expand 2-digit years
+      let m = segments.month;
+      let d = segments.day;
+      let y = segments.year;
+
+      if (m.length === 1 && parseInt(m, 10) >= 1 && parseInt(m, 10) <= 9) {
+        m = `0${m}`;
+      }
+      if (d.length === 1 && parseInt(d, 10) >= 1 && parseInt(d, 10) <= 9) {
+        d = `0${d}`;
+      }
       if (y.length === 2) {
         y = String(expandTwoDigitYear(y));
       }
-      setMonth(m);
-      setDay(d);
-      setYear(y);
-      syncNode(monthRef, m);
-      syncNode(dayRef, d);
-      syncNode(yearRef, y);
-      emitChange(m, d, y);
-      yearRef.current?.focus();
-      setCaretAtEnd(yearRef);
-      return true;
-    }
-    return false;
-  };
 
-  const handleMonthChange = (rawText: string) => {
-    isInternalChangeRef.current = true;
-    const text = rawText.replace(/[^0-9]/g, '');
-
-    if (text.length >= 4) {
-      if (handlePasteFull(text)) return;
-    }
-
-    if (text.length === 0) {
-      setMonth('');
-      syncNode(monthRef, '');
-      emitChange('', day, year);
-      return;
-    }
-
-    if (text.length === 1) {
-      const digit = parseInt(text, 10);
-      if (digit >= 2 && digit <= 9) {
-        const padded = `0${digit}`;
-        setMonth(padded);
-        syncNode(monthRef, padded);
-        emitChange(padded, day, year);
-        dayRef.current?.focus();
-        setCaretAtEnd(dayRef);
-        return;
-      }
-      setMonth(text);
-      syncNode(monthRef, text);
-      emitChange(text, day, year);
-      return;
-    }
-
-    if (text.length === 2) {
-      if (text[0] === '0') {
-        const d2 = parseInt(text[1], 10);
-        if (d2 === 0) {
-          setMonth('0');
-          syncNode(monthRef, '0');
-          emitChange('0', day, year);
-          return;
-        }
-        setMonth(text);
-        syncNode(monthRef, text);
-        emitChange(text, day, year);
-        dayRef.current?.focus();
-        setCaretAtEnd(dayRef);
-        return;
+      const nextRaw = `${m}${d}${y}`;
+      if (nextRaw !== rawDigits) {
+        setRawDigits(nextRaw);
+        onChange(nextRaw, { month: m, day: d, year: y });
       }
 
-      if (text[0] === '1') {
-        const d2 = parseInt(text[1], 10);
-        if (d2 >= 0 && d2 <= 2) {
-          setMonth(text);
-          syncNode(monthRef, text);
-          emitChange(text, day, year);
-          dayRef.current?.focus();
-          setCaretAtEnd(dayRef);
-          return;
-        }
-        if (d2 >= 3 && d2 <= 9) {
-          setMonth('01');
-          syncNode(monthRef, '01');
-          if (d2 * 10 > 31) {
-            const paddedDay = `0${d2}`;
-            setDay(paddedDay);
-            syncNode(dayRef, paddedDay);
-            emitChange('01', paddedDay, year);
-            yearRef.current?.focus();
-            setCaretAtEnd(yearRef);
-          } else {
-            const dayDigit = `${d2}`;
-            setDay(dayDigit);
-            syncNode(dayRef, dayDigit);
-            emitChange('01', dayDigit, year);
-            dayRef.current?.focus();
-            setCaretAtEnd(dayRef);
+      onBlur?.({ month: m, day: d, year: y });
+    }, [segments, rawDigits, onChange, onBlur]);
+
+    const handleKeyDown = useCallback(
+      (e: any) => {
+        const key = e.key;
+        // Delimiter jump on slash or space
+        if (key === '/' || key === ' ') {
+          e.preventDefault();
+          if (rawDigits.length === 1) {
+            handleRawChange(`0${rawDigits}`);
+          } else if (rawDigits.length === 3) {
+            const m = rawDigits.slice(0, 2);
+            const d = rawDigits[2];
+            handleRawChange(`${m}0${d}`);
           }
-          return;
         }
-      }
+      },
+      [rawDigits, handleRawChange]
+    );
 
-      setMonth(text[0]);
-      syncNode(monthRef, text[0]);
-      emitChange(text[0], day, year);
-    }
-  };
+    const isFieldEmpty = rawDigits.length === 0;
 
-  const handleDayChange = (rawText: string) => {
-    isInternalChangeRef.current = true;
-    const text = rawText.replace(/[^0-9]/g, '');
+    return (
+      <View
+        style={[
+          styles.container,
+          {
+            backgroundColor: theme.backgroundElement,
+            borderColor: hasError
+              ? Brand.brightRed
+              : isFocused
+              ? Brand.gold
+              : theme.border,
+          },
+          style,
+        ]}
+      >
+        {/* Invisible TextInput: captures keystrokes without displaying raw DOM caret/text */}
+        <TextInput
+          ref={inputRef}
+          value={rawDigits}
+          onChangeText={handleRawChange}
+          onFocus={handleInputFocus}
+          onBlur={handleInputBlur}
+          {...(Platform.OS === 'web' ? ({ onKeyDown: handleKeyDown } as any) : {})}
+          editable={!disabled}
+          caretHidden={true}
+          selectionColor="transparent"
+          keyboardType="number-pad"
+          inputMode="numeric"
+          maxLength={8}
+          autoCorrect={false}
+          autoCapitalize="none"
+          accessibilityLabel="Event date"
+          style={styles.input}
+        />
 
-    if (text.length >= 4) {
-      if (handlePasteFull(`${month}${text}`)) return;
-    }
+        {/* Presentation Layer: displays discrete chunks with static separators and BlinkingCursor */}
+        <View pointerEvents="none" style={styles.displayLayer}>
+          {isFieldEmpty ? (
+            <View style={styles.placeholderRow}>
+              {isFocused && (
+                <BlinkingCursor
+                  color={Brand.gold}
+                  height={18}
+                  style={styles.emptyAbsoluteCursor}
+                />
+              )}
+              <ThemedText
+                style={[
+                  styles.placeholderText,
+                  { color: theme.textMuted },
+                ]}
+              >
+                MM / DD / YYYY
+              </ThemedText>
+            </View>
+          ) : (
+            <View style={styles.digitsRow}>
+              {/* Month */}
+              <ThemedText style={[styles.charText, { color: theme.text }]}>
+                {segments.month}
+              </ThemedText>
 
-    if (text.length === 0) {
-      setDay('');
-      syncNode(dayRef, '');
-      emitChange(month, '', year);
-      return;
-    }
+              {/* Slash 1 */}
+              {segments.showSlash1 && (
+                <ThemedText style={[styles.separatorText, { color: theme.textMuted }]}>
+                  {' / '}
+                </ThemedText>
+              )}
 
-    const maxDays = getEffectiveMaxDays(month);
+              {/* Day */}
+              {segments.day ? (
+                <ThemedText style={[styles.charText, { color: theme.text }]}>
+                  {segments.day}
+                </ThemedText>
+              ) : null}
 
-    if (text.length === 1) {
-      const digit = parseInt(text, 10);
-      if (digit * 10 > maxDays) {
-        const paddedDay = `0${digit}`;
-        setDay(paddedDay);
-        syncNode(dayRef, paddedDay);
-        emitChange(month, paddedDay, year);
-        yearRef.current?.focus();
-        setCaretAtEnd(yearRef);
-        return;
-      }
-      setDay(text);
-      syncNode(dayRef, text);
-      emitChange(month, text, year);
-      return;
-    }
+              {/* Slash 2 */}
+              {segments.showSlash2 && (
+                <ThemedText style={[styles.separatorText, { color: theme.textMuted }]}>
+                  {' / '}
+                </ThemedText>
+              )}
 
-    if (text.length === 2) {
-      const num = parseInt(text, 10);
-      if (num === 0) {
-        setDay('0');
-        syncNode(dayRef, '0');
-        emitChange(month, '0', year);
-        return;
-      }
+              {/* Year */}
+              {segments.year ? (
+                <ThemedText style={[styles.charText, { color: theme.text }]}>
+                  {segments.year}
+                </ThemedText>
+              ) : null}
 
-      if (num >= 1 && num <= maxDays) {
-        setDay(text);
-        syncNode(dayRef, text);
-        emitChange(month, text, year);
-        yearRef.current?.focus();
-        setCaretAtEnd(yearRef);
-        return;
-      }
+              {/* High-fidelity Blinking Cursor at insertion point */}
+              {isFocused && (
+                <BlinkingCursor
+                  color={Brand.gold}
+                  height={18}
+                  style={styles.trailingCursor}
+                />
+              )}
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  }
+);
 
-      setDay(text[0]);
-      syncNode(dayRef, text[0]);
-      emitChange(month, text[0], year);
-    }
-  };
-
-  const handleYearChange = (rawText: string) => {
-    isInternalChangeRef.current = true;
-    const text = rawText.replace(/[^0-9]/g, '');
-
-    if (text.length === 0) {
-      setYear('');
-      syncNode(yearRef, '');
-      emitChange(month, day, '');
-      return;
-    }
-
-    if (text[0] !== '2') {
-      const limited = text.slice(0, 2);
-      setYear(limited);
-      syncNode(yearRef, limited);
-      emitChange(month, day, limited);
-      return;
-    }
-
-    const limited = text.slice(0, 4);
-    setYear(limited);
-    syncNode(yearRef, limited);
-    emitChange(month, day, limited);
-  };
-
-  const handleDayKeyPress = (e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
-    if (e.nativeEvent.key === 'Backspace' && day.length === 0) {
-      monthRef.current?.focus();
-      setCaretAtEnd(monthRef);
-      const m = segmentsRef.current.month;
-      if (m.length > 0) {
-        const updatedM = m.slice(0, -1);
-        setMonth(updatedM);
-        syncNode(monthRef, updatedM);
-        emitChange(updatedM, '', segmentsRef.current.year);
-      }
-    }
-  };
-
-  const handleYearKeyPress = (e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
-    if (e.nativeEvent.key === 'Backspace' && year.length === 0) {
-      const d = segmentsRef.current.day;
-      const m = segmentsRef.current.month;
-      if (d.length > 0) {
-        dayRef.current?.focus();
-        setCaretAtEnd(dayRef);
-        const updatedD = d.slice(0, -1);
-        setDay(updatedD);
-        syncNode(dayRef, updatedD);
-        emitChange(m, updatedD, '');
-      } else {
-        monthRef.current?.focus();
-        setCaretAtEnd(monthRef);
-        if (m.length > 0) {
-          const updatedM = m.slice(0, -1);
-          setMonth(updatedM);
-          syncNode(monthRef, updatedM);
-          emitChange(updatedM, '', '');
-        }
-      }
-    }
-  };
-
-  const checkContainerBlur = () => {
-    setTimeout(() => {
-      let isStillFocused = false;
-      if (Platform.OS === 'web' && typeof document !== 'undefined') {
-        const active = document.activeElement;
-        const monthEl = getEl(monthRef);
-        const dayEl = getEl(dayRef);
-        const yearEl = getEl(yearRef);
-        isStillFocused = active === monthEl || active === dayEl || active === yearEl;
-      } else {
-        isStillFocused = Boolean(
-          (monthRef.current as any)?.isFocused?.() ||
-          (dayRef.current as any)?.isFocused?.() ||
-          (yearRef.current as any)?.isFocused?.()
-        );
-      }
-      if (!isStillFocused) {
-        setFocusedSegment(null);
-        onBlur?.(segmentsRef.current);
-      }
-    }, 100);
-  };
-
-  const handleSegmentBlur = (segment: 'month' | 'day' | 'year') => {
-    const { month: m, day: d, year: y } = segmentsRef.current;
-    if (segment === 'month' && m.length === 1 && parseInt(m, 10) >= 1) {
-      const padded = `0${m}`;
-      setMonth(padded);
-      syncNode(monthRef, padded);
-      emitChange(padded, d, y);
-    } else if (segment === 'day' && d.length === 1 && parseInt(d, 10) >= 1) {
-      const padded = `0${d}`;
-      setDay(padded);
-      syncNode(dayRef, padded);
-      emitChange(m, padded, y);
-    } else if (segment === 'year' && y.length === 2) {
-      const expanded = String(expandTwoDigitYear(y));
-      setYear(expanded);
-      syncNode(yearRef, expanded);
-      emitChange(m, d, expanded);
-    }
-    checkContainerBlur();
-  };
-
-  const handleWebBackspace = (segment: 'month' | 'day' | 'year', el: HTMLInputElement | null) => {
-    const { month: m, day: d, year: y } = segmentsRef.current;
-    const start = el ? el.selectionStart ?? 0 : 0;
-    const end = el ? el.selectionEnd ?? 0 : 0;
-
-    if (start !== end && el) {
-      if (segment === 'month') {
-        const next = m.slice(0, start) + m.slice(end);
-        setMonth(next);
-        syncNode(monthRef, next);
-        emitChange(next, d, y);
-        setCaretAtEnd(monthRef);
-      } else if (segment === 'day') {
-        const next = d.slice(0, start) + d.slice(end);
-        setDay(next);
-        syncNode(dayRef, next);
-        emitChange(m, next, y);
-        setCaretAtEnd(dayRef);
-      } else {
-        const next = y.slice(0, start) + y.slice(end);
-        setYear(next);
-        syncNode(yearRef, next);
-        emitChange(m, d, next);
-        setCaretAtEnd(yearRef);
-      }
-      return;
-    }
-
-    if (segment === 'month') {
-      if (m.length > 0) {
-        const next = m.slice(0, -1);
-        setMonth(next);
-        syncNode(monthRef, next);
-        emitChange(next, d, y);
-        setCaretAtEnd(monthRef);
-      }
-    } else if (segment === 'day') {
-      if (d.length > 0) {
-        const next = d.slice(0, -1);
-        setDay(next);
-        syncNode(dayRef, next);
-        emitChange(m, next, y);
-        setCaretAtEnd(dayRef);
-      } else {
-        monthRef.current?.focus();
-        setCaretAtEnd(monthRef);
-        if (m.length > 0) {
-          const nextM = m.slice(0, -1);
-          setMonth(nextM);
-          syncNode(monthRef, nextM);
-          emitChange(nextM, '', y);
-          setCaretAtEnd(monthRef);
-        }
-      }
-    } else if (segment === 'year') {
-      if (y.length > 0) {
-        const next = y.slice(0, -1);
-        setYear(next);
-        syncNode(yearRef, next);
-        emitChange(m, d, next);
-        setCaretAtEnd(yearRef);
-      } else if (d.length > 0) {
-        dayRef.current?.focus();
-        setCaretAtEnd(dayRef);
-        const nextD = d.slice(0, -1);
-        setDay(nextD);
-        syncNode(dayRef, nextD);
-        emitChange(m, nextD, '');
-        setCaretAtEnd(dayRef);
-      } else {
-        monthRef.current?.focus();
-        setCaretAtEnd(monthRef);
-        if (m.length > 0) {
-          const nextM = m.slice(0, -1);
-          setMonth(nextM);
-          syncNode(monthRef, nextM);
-          emitChange(nextM, '', '');
-          setCaretAtEnd(monthRef);
-        }
-      }
-    }
-  };
-
-  useEffect(() => {
-    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
-
-    const monthEl = getEl(monthRef);
-    const dayEl = getEl(dayRef);
-    const yearEl = getEl(yearRef);
-
-    const onMonthKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Backspace' || e.key === 'Delete') {
-        e.preventDefault();
-        handleWebBackspace('month', monthEl);
-        return;
-      }
-      if (!isAllowedNumericKey(e.key, { ctrlKey: e.ctrlKey, metaKey: e.metaKey, altKey: e.altKey })) {
-        e.preventDefault();
-        return;
-      }
-      if (/^[0-9]$/.test(e.key)) {
-        const start = monthEl ? monthEl.selectionStart ?? 0 : 0;
-        const end = monthEl ? monthEl.selectionEnd ?? 0 : 0;
-        if (start !== end) {
-          e.preventDefault();
-          handleMonthChange(e.key);
-          return;
-        }
-        const { month: m } = segmentsRef.current;
-        if (m.length === 0) return;
-        if (m === '0') {
-          if (e.key === '0') e.preventDefault();
-          return;
-        }
-        if (m === '1') return;
-        if (m.length >= 2) e.preventDefault();
-      }
-    };
-
-    const onDayKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Backspace' || e.key === 'Delete') {
-        e.preventDefault();
-        handleWebBackspace('day', dayEl);
-        return;
-      }
-      if (!isAllowedNumericKey(e.key, { ctrlKey: e.ctrlKey, metaKey: e.metaKey, altKey: e.altKey })) {
-        e.preventDefault();
-        return;
-      }
-      if (/^[0-9]$/.test(e.key)) {
-        const start = dayEl ? dayEl.selectionStart ?? 0 : 0;
-        const end = dayEl ? dayEl.selectionEnd ?? 0 : 0;
-        if (start !== end) {
-          e.preventDefault();
-          handleDayChange(e.key);
-          return;
-        }
-        const { month: m, day: d } = segmentsRef.current;
-        if (d.length === 0) return;
-        const maxDays = getEffectiveMaxDays(m);
-        const potential = parseInt(d + e.key, 10);
-        if (potential === 0 || potential > maxDays) {
-          e.preventDefault();
-          return;
-        }
-        if (d.length >= 2) e.preventDefault();
-      }
-    };
-
-    const onYearKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Backspace' || e.key === 'Delete') {
-        e.preventDefault();
-        handleWebBackspace('year', yearEl);
-        return;
-      }
-      if (!isAllowedNumericKey(e.key, { ctrlKey: e.ctrlKey, metaKey: e.metaKey, altKey: e.altKey })) {
-        e.preventDefault();
-        return;
-      }
-      if (/^[0-9]$/.test(e.key)) {
-        const start = yearEl ? yearEl.selectionStart ?? 0 : 0;
-        const end = yearEl ? yearEl.selectionEnd ?? 0 : 0;
-        if (start !== end) {
-          e.preventDefault();
-          handleYearChange(e.key);
-          return;
-        }
-        const { year: y } = segmentsRef.current;
-        if (y.length === 0 || y.length === 1) return;
-        if (y.length === 2) {
-          if (y[0] !== '2') e.preventDefault();
-          return;
-        }
-        if (y.length === 3) return;
-        if (y.length >= 4) e.preventDefault();
-      }
-    };
-
-    const onBeforeInput = (e: any) => {
-      if (e.data && !/^[0-9]+$/.test(e.data)) {
-        e.preventDefault();
-      }
-    };
-
-    const attachCaretListeners = (el: HTMLInputElement | null, ref: React.RefObject<TextInput | null>) => {
-      if (!el) return () => {};
-      const onFocusOrClick = () => setCaretAtEnd(ref);
-      el.addEventListener('focus', onFocusOrClick);
-      el.addEventListener('click', onFocusOrClick);
-      el.addEventListener('mouseup', onFocusOrClick);
-      return () => {
-        el.removeEventListener('focus', onFocusOrClick);
-        el.removeEventListener('click', onFocusOrClick);
-        el.removeEventListener('mouseup', onFocusOrClick);
-      };
-    };
-
-    monthEl?.addEventListener('keydown', onMonthKeyDown);
-    monthEl?.addEventListener('beforeinput', onBeforeInput);
-    const cleanMonthCaret = attachCaretListeners(monthEl, monthRef);
-
-    dayEl?.addEventListener('keydown', onDayKeyDown);
-    dayEl?.addEventListener('beforeinput', onBeforeInput);
-    const cleanDayCaret = attachCaretListeners(dayEl, dayRef);
-
-    yearEl?.addEventListener('keydown', onYearKeyDown);
-    yearEl?.addEventListener('beforeinput', onBeforeInput);
-    const cleanYearCaret = attachCaretListeners(yearEl, yearRef);
-
-    return () => {
-      monthEl?.removeEventListener('keydown', onMonthKeyDown);
-      monthEl?.removeEventListener('beforeinput', onBeforeInput);
-      cleanMonthCaret();
-
-      dayEl?.removeEventListener('keydown', onDayKeyDown);
-      dayEl?.removeEventListener('beforeinput', onBeforeInput);
-      cleanDayCaret();
-
-      yearEl?.removeEventListener('keydown', onYearKeyDown);
-      yearEl?.removeEventListener('beforeinput', onBeforeInput);
-      cleanYearCaret();
-    };
-  }, []);
-
-  const isFocused = focusedSegment !== null;
-
-  return (
-    <Pressable
-      onPress={(e) => {
-        if (disabled) return;
-        onFocus?.(e);
-        if (!month) {
-          monthRef.current?.focus();
-          setCaretAtEnd(monthRef);
-        } else if (!day) {
-          dayRef.current?.focus();
-          setCaretAtEnd(dayRef);
-        } else {
-          yearRef.current?.focus();
-          setCaretAtEnd(yearRef);
-        }
-      }}
-      style={[
-        styles.container,
-        {
-          backgroundColor: theme.backgroundElement,
-          borderColor: hasError
-            ? Brand.brightRed
-            : isFocused
-            ? Brand.gold
-            : theme.border,
-        },
-        style,
-      ]}
-    >
-      <DateSegmentCell
-        inputRef={monthRef}
-        value={month}
-        placeholder="MM"
-        accessibilityLabel="Event month"
-        isFocused={focusedSegment === 'month'}
-        maxLength={2}
-        widthStyle={styles.twoDigitCell}
-        disabled={disabled}
-        textColor={theme.text}
-        placeholderColor={theme.textMuted}
-        onChangeText={handleMonthChange}
-        onFocus={(e) => {
-          setFocusedSegment('month');
-          onFocus?.(e);
-          setCaretAtEnd(monthRef);
-        }}
-        onBlur={() => handleSegmentBlur('month')}
-      />
-
-      <ThemedText style={[styles.separator, { color: theme.textMuted }]}>/</ThemedText>
-
-      <DateSegmentCell
-        inputRef={dayRef}
-        value={day}
-        placeholder="DD"
-        accessibilityLabel="Event day"
-        isFocused={focusedSegment === 'day'}
-        maxLength={2}
-        widthStyle={styles.twoDigitCell}
-        disabled={disabled}
-        textColor={theme.text}
-        placeholderColor={theme.textMuted}
-        onChangeText={handleDayChange}
-        onKeyPress={handleDayKeyPress}
-        onFocus={(e) => {
-          setFocusedSegment('day');
-          onFocus?.(e);
-          setCaretAtEnd(dayRef);
-        }}
-        onBlur={() => handleSegmentBlur('day')}
-      />
-
-      <ThemedText style={[styles.separator, { color: theme.textMuted }]}>/</ThemedText>
-
-      <DateSegmentCell
-        inputRef={yearRef}
-        value={year}
-        placeholder="YYYY"
-        accessibilityLabel="Event year"
-        isFocused={focusedSegment === 'year'}
-        maxLength={4}
-        widthStyle={styles.yearCell}
-        disabled={disabled}
-        textColor={theme.text}
-        placeholderColor={theme.textMuted}
-        onChangeText={handleYearChange}
-        onKeyPress={handleYearKeyPress}
-        onFocus={(e) => {
-          setFocusedSegment('year');
-          onFocus?.(e);
-          setCaretAtEnd(yearRef);
-        }}
-        onBlur={() => handleSegmentBlur('year')}
-      />
-    </Pressable>
-  );
-}
+// ============================================================================
+// Styles
+// ============================================================================
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    height: 40,
-    borderWidth: 1,
+    height: 48,
     borderRadius: Radius.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.two,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  segmentCell: {
-    height: 38,
-    alignItems: 'center',
+    borderWidth: 1,
     justifyContent: 'center',
+    alignItems: 'flex-start',
+    paddingHorizontal: Spacing.three,
     position: 'relative',
+    overflow: 'hidden',
   },
-  twoDigitCell: {
-    width: 28,
-  },
-  yearCell: {
-    width: 48,
-  },
-  invisibleInput: {
+  input: {
+    flex: 1,
+    textAlign: 'left',
     position: 'absolute',
     top: 0,
     left: 0,
@@ -841,53 +645,67 @@ const styles = StyleSheet.create({
     zIndex: 2,
     outlineWidth: 0,
     outlineColor: 'transparent',
-    ...Platform.select({
-      web: {
-        outlineStyle: 'none',
-      } as any,
+    ...(Platform.OS === 'web' && {
+      outlineStyle: 'none' as any,
     }),
   },
-  segmentDisplay: {
+  displayLayer: {
     position: 'absolute',
     top: 0,
-    left: 0,
-    right: 0,
     bottom: 0,
-    alignItems: 'center',
+    left: Spacing.three,
+    right: Spacing.three,
     justifyContent: 'center',
+    alignItems: 'flex-start',
+    flexDirection: 'row',
     zIndex: 1,
   },
-  displayRow: {
+  placeholderRow: {
+    flex: 1,
+    height: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     position: 'relative',
   },
-  segmentDigitText: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  segmentPlaceholderText: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  separator: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '500',
-    marginHorizontal: 1,
-    userSelect: 'none',
-  },
-  cursorTrailing: {
-    marginLeft: 1,
-  },
-  cursorAbsolute: {
+  emptyAbsoluteCursor: {
     position: 'absolute',
-    left: 0,
-    top: 2,
+    left: -4,
+  },
+  placeholderText: {
+    fontSize: 16,
+    lineHeight: 22,
+    textAlign: 'left',
+  },
+  digitsRow: {
+    flex: 1,
+    height: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    position: 'relative',
+  },
+  charText: {
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '500',
+    textAlign: 'left',
+  },
+  separatorText: {
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '400',
+    textAlign: 'left',
+  },
+  trailingCursor: {
+    marginLeft: 2,
+  },
+  legacyCell: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  legacyInput: {
+    fontSize: 16,
+    textAlign: 'center',
   },
 });

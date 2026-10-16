@@ -934,9 +934,9 @@ export function parseDateSegments(rawDate: string): DateSegments {
   if (trimmed.includes('/') || trimmed.includes('-') || trimmed.includes('.')) {
     const parts = trimmed.split(/[/.-]/);
     return {
-      month: parts[0] || '',
-      day: parts[1] || '',
-      year: parts[2] || '',
+      month: (parts[0] || '').trim(),
+      day: (parts[1] || '').trim(),
+      year: (parts[2] || '').trim(),
     };
   }
   const digits = trimmed.replace(/[^0-9]/g, '');

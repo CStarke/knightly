@@ -21,8 +21,7 @@ type AppHeaderProps = PropsWithChildren<{
 }>;
 
 export function getAppHeaderHeight(insetsTop: number): number {
-  const paddingTop =
-    Platform.OS === "web" ? WebHeaderInset : insetsTop + Spacing.one;
+  const paddingTop = insetsTop > 0 ? insetsTop + Spacing.one : Spacing.three;
   return paddingTop + 50 + Spacing.three + 3;
 }
 
@@ -39,8 +38,7 @@ export function AppHeader({
   onLayout,
 }: AppHeaderProps) {
   const insets = useSafeAreaInsets();
-  const paddingTop =
-    Platform.OS === "web" ? WebHeaderInset : insets.top + Spacing.one;
+  const paddingTop = insets.top > 0 ? insets.top + Spacing.one : Spacing.three;
 
   return (
     <View
