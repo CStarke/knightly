@@ -38,22 +38,20 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useTheme } from "@/hooks/use-theme";
 
 import {
-  BASE_CANVAS_AREA,
-  BASE_FOREGROUND_COUNT,
   calculateStarCounts,
   generateStars,
-  PIXEL_9A_HEIGHT,
-  PIXEL_9A_WIDTH,
+  MAX_TOTAL_STARS,
+  STAR_DENSITY_UNIT_AREA_PX,
+  STARS_PER_10K_PX,
   type Star,
 } from "@/constants/starfield";
 
 export {
-  BASE_CANVAS_AREA,
-  BASE_FOREGROUND_COUNT,
   calculateStarCounts,
   generateStars,
-  PIXEL_9A_HEIGHT,
-  PIXEL_9A_WIDTH,
+  MAX_TOTAL_STARS,
+  STAR_DENSITY_UNIT_AREA_PX,
+  STARS_PER_10K_PX,
   type Star,
 };
 

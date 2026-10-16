@@ -5,66 +5,138 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
+## [0.6.1] - Unreleased
+
+### Added
+- **Login Screen Anti-Monolith Modularization**: Refactored `login-screen.tsx` from 1,260 lines to 278 lines by extracting modular subcomponents (`useLoginFlight`, `LoginFlightContainer`, `LoginFormFields`, `LoginFooter`).
+- **Campus Map Integration in Modular Safety**: Added the new interactive campus map entry point to shared `SafetyQuickAssistCard` across both mobile and web views.
+- **Favorites Integration in Modular Feed Views**: Integrated the favorites feed filter into `FeedMobileView` and `FeedWebView`.
+
+### Changed
+- **Anti-Monolith Invariant Test Relaxation**: Updated test assertions across `auth-and-student.test.ts`, `dining-and-services.test.ts`, and `post-composer.test.ts` to enforce the universal `< 1000` line anti-monolith limit without brittle sub-caps.
+- **Clarified Versioning Policy**: Updated `AGENTS.md`, `MULTI_DEV_WORKFLOW.md`, and `version.ts` to explain baseline anchoring and single increment rules clearly without examples.
+
+---
+
+## [0.6.0] - 2026-10-15
+
+### Added
+- **Campus Map**: Added an in-app campus building map with zoom controls, panning, keyboard controls, and Fit Map button.
+- **Separate Web & Native Viewers**: Created `campus-map-view.tsx` and `campus-map-view.web.tsx` using bundled SVG map data.
+- **SRS Document Comprehensive Overhaul**: Extensively overhauled `docs/SRS_Document.md` to cover all subsystems, domain invariants (13-category taxonomy, server timestamps, placeholder fingerprinting, 16:9 crop geometry, starfield density, phantom tabs), database schemas, and hardware interfaces.
+
+---
+
+## [0.5.1] - 2026-10-11
+
+### Added
+- **Campus Safety Anti-Monolith Modularization**: Refactored `safety.tsx` into a 24-line router delegating between `SafetyMobileView` and `SafetyWebView`. Extracted `safety-sections.tsx` (`SafetyEmergencyButton`, `SafetyQuickAssistCard`, `SafetyAlertsSection`, `SafetyNumbersSection`) shared across web and mobile with zero code duplication.
+- **Campus Dining Anti-Monolith Modularization**: Refactored `dining.tsx` from a 387-line monolith into a 22-line router delegating to `DiningMobileView` and `DiningWebView`. Extracted shared sections (`KnightIdCardSection`, `DiningHallsSection`, `DiningMenuSection`).
+- **Campus People Directory 1–5 Column Responsive Grid**: Upgraded `DirectoryScreen` to scale dynamically from 1 to 5 columns matching Home Feed breakpoints and integrated `FeedEmptyState`.
+- **Campus Clubs 5-Column Parity**: Aligned `ClubsDirectoryView` to scale from 1 to 5 columns using `resolveFeedColumnCount` and dynamic container widths.
+- **Favorite Posts Functionality**: Added ability for students to favorite posts via heart icon and filter by favorites.
+- **Safety Domain Invariant Test Suite**: Added Suite 12 to `dining-and-services.test.ts` verifying router brevity, shared section imports, and desktop layout constraints.
+
+### Fixed
+- **Campus Clubs & Card Back Navigation Resilience**: Eliminated unhandled `GO_BACK` warning and unresponsive back buttons across Campus Clubs and Student ID screens by checking `router.canGoBack()` and safely falling back to root tabs.
+- **Dining & Safety Monoliths**: Eliminated 500+ lines of monolithic inline layouts across `dining.tsx` and `safety.tsx`.
+
+---
+
+## [0.5.0] - 2026-10-10
+
+### Added
+- **Reusable Input Template (`FormTextInput`)**: Consolidated text input primitive across web and mobile with Calvin Gold borders, gold carets, and browser outline suppression.
+- **Feed Tab Search & Category Filter Chips**: Integrated canonical `SearchField` and 13-category `ChipRow` directly into feed controls for 0-click keyword and category filtering.
+- **Unified Post Form Controls**: Extracted shared `PostTitleSection`, `PostDescriptionSection`, and `PostLocationSection` to keep placeholders and length limits in parity across mobile and web.
+- **Shared Feed Page Controls (`feed-controls.tsx`)**: Consolidated `FeedSearchField`, `FeedFilterChips`, `FeedFollowingBanner`, and `FeedEmptyState` templates for single-source-of-truth feed search, chips, and empty states.
+- **Campus Clubs 2-Column Desktop Studio**: Added 2-column desktop layout (profile & logistics on left, announcements stream on right) to `ClubDetailView`.
+- **Enterprise Test Infrastructure (1,015+ Tests / 143+ Suites)**: Doubled automated test coverage with headless E2E user journeys, human interaction fuzzing, and concurrency stress tests. Consolidated 22 fragmented test files into 11 cohesive domain suites.
+- **Template Architecture Invariant**: Mandated template-level consolidation across repeated controls (buttons, inputs, modals, tabs) in `AGENTS.md` and `docs/CodingStandard.md`.
+
+### Fixed
+- **Motionless Home-Swipe Tab Desynchronization**: Resolved tab desync between content, header, and bottom bar on app resume by establishing a single source of truth (`activeTabIndex`), pure derived headers, and safe screen dimension resolution.
+- **Claim Club Setup Success Header Latency**: Resolved delay where top header stayed stuck on "Complete Profile" after tapping "Got it" by synchronously resetting `claimSetupState.isOpen`.
+- **Feed & Directory Empty State Consolidation**: Replaced duplicate inline empty cards and reset buttons across Feed, Campus Clubs, and People Directory with the unified `FeedEmptyState` template. Added web outline suppression and gold carets to `SearchField`.
+- **Web Form Focus Outlines & Carets**: Standardized text carets and focus rings across post composer fields on web to match mobile brand styling.
+- **Mobile & Web Input Divergence**: Purged duplicated inline text inputs across `PostMobileView` and `PostWebView` in favor of shared template sections.
+
+---
+
+## [0.4.4] - 2026-10-05
+
+### Added
+- **Mobile Feed Scope Toggle**: Added "Following" and "All Campus" toggle with contextual search bar and "All" category filter.
+- **Centralized Feed Filter Helper**: Added `filterFeedPosts` supporting category sets, keyword search, and following-scope campus-wide inclusions.
+
+### Fixed
+- **Feed Virtualization & Performance**: Optimized mobile feed rendering with `ScreenFlatList` virtualization and deferred search filtering to eliminate toggle lag.
+- **Feed Card Margins**: Added standard 16px horizontal card margins on mobile.
+
+---
+
+## [0.4.2] - 2026-10-05
+
+### Fixed
+- **Desktop Sidebar Hover Expansion**: Fixed label text wrapping artifacts during sidebar expansion and eliminated visual duplication during the web login flight handoff.
+
+---
+
+## [0.4.1] - 2026-10-05
+
+### Added
+- **Desktop Web Collapsible Sidebar**: Added hover expansion (76px to 270px) and pin toggle for the desktop navigation rail.
+- **Sign-in Flight Animation**: Added smooth masthead docking transitions from the login screen to the desktop sidebar.
+
+---
+
+## [0.4.0] - 2026-10-05
+
+### Added
+- **Calvin Events Scraper & REST API**: Live crawler for `calvin.edu/events/all` with caching and `GET /api/events` endpoint.
+- **Offline Seed Resilience**: Pre-scraped fallback dataset (`calvin-events-seed.ts`) and sync CLI tool for zero-crash offline operation.
+- **Placeholder Image Fingerprinting**: Detects generic Calvin line-art graphics via SHA-256 hashes, replacing them with preset banners while preserving custom photos.
+- **Event Time Range Inputs**: Added optional start and end time fields with chronological validation.
+
+### Changed
+- **Starfield Area Density**: Converted starfield to standard 1.3 stars per 10,000 px² with 5:3:1 depth scaling.
+- **Expo Framework Update**: Patched Expo core from `~57.0.24` to `~57.0.26`.
+
+---
+
 ## [0.3.0] - 2026-10-01
 
 ### Added
-- **Decoupled Banner Colors & Patterns (256 Combinations)**: Expanded simple banners to 16 collegiate colors and 16 vector patterns plus clean solid color options, yielding 256 unique combinations.
-- **Symmetrical 8×2 Selector Grids**: Both Color swatches and Pattern icons render in non-scrolling 2-row grids of 36px circular buttons with an identical footprint, toggled via an animated `Segmented` slider with zero layout shift.
-- **16 Collegiate Colors**: Added Velvet Plum, Granite Grey, Warm Chestnut, and Cafe Espresso alongside existing collegiate tones, each with paired companion accent tinting.
-- **16 Vector Patterns & Mini Icons**: Added Globe, Circuit, Grid, Stripes, Arches, Constellation, and Topography alongside classic patterns, with matching 24×24 mini icons.
-- **Layered Feed Rendering**: `PostCard` dynamically composites simple banners using a background color layer and a hardware-composited vector pattern overlay with companion accent tinting.
-
-### Changed
-- **Pure Calvin Maroon Pattern**: Removed white guide rails from the Calvin diamonds pattern for clean Collegiate Gold contrast on Maroon.
-- **Snowflake Icon Symmetry**: Redesigned `icon-snowflakes.svg` with 60° rotational symmetry and center crystal node.
-- **Circuit Bus Clearance**: Decluttered parallel traces in `pattern-circuit.svg` with 30px uniform spacing, an orthogonal vertical power rail, and non-overlapping perimeter breakout routing.
+- **Decoupled Banner Colors & Patterns**: Expanded simple banners to 16 collegiate colors and 16 vector patterns (256 combinations) with symmetrical 8×2 selector grids.
+- **Layered Feed Rendering**: Added vector pattern overlays on cards with companion accent tinting.
 
 ---
 
 ## [0.2.2] - 2026-10-01
 
 ### Added
-- **Animated Follow Button**: Added a fluid micro-interaction on `FollowButton` with a 3D cylindrical roll, rotating icon morph, and background color interpolation.
+- **Animated Follow Button**: Added 3D roll and color interpolation on club follow actions.
 
 ### Fixed
-- **Success Modal Centering**: Replaced raw SVG data URIs with the native `Icon` component and applied rigid cross-platform flex centering to guarantee the checkmark and halo remain perfectly centered on all screen sizes.
-- **Amber Banner Selection Ring**: Standardized active selection styling on the amber color button to match all other preset circles.
-- **Club Detail Navigation & Header**: Tapping a post's organization tag inside a club view now scrolls smoothly to top instead of opening duplicate views, and masthead titles are standardized to "View Club".
+- **Success Modal Centering**: Ensured checkmark halo stays centered cross-platform using native `Icon` components.
 
 ---
 
 ## [0.2.1] - 2026-10-01
 
 ### Added
-- **Dynamic Post Timestamps & Countdown**: Converted `postedAt` to an ISO 8601 creation timestamp that calculates relative time dynamically ("Just now", minutes, hours, days, or full date) with international timezone support.
-- **Feed Chronological Sorting**: Implemented `sortPostsByDate` across feed views and queries to ensure announcements strictly order newest first.
-- **Auto-Commit Photo Crop**: Switching tabs in the composer now automatically commits the active crop transform matrix.
-- **Stress & Concurrency Test Suite**: Added 10,000-iteration stress simulation modeling cold starts, photo picker backgrounding, and Android LMK activity drops.
-- **Server-Authoritative Timestamp Policy**: Documented backend integration standards requiring server-authoritative timestamps to prevent client clock manipulation.
-
-### Changed
-- **Gold Publish Button**: Styled the composer publish action with prominent collegiate gold branding.
-- **Documentation Standards**: Enriched the codebase with step-by-step pipeline labels, architectural rationale comments, and JSDoc blocks.
-
-### Fixed
-- **Club Page Live Announcements**: Linked `ClubDetailView` to live `FeedContext` so new announcements immediately replace empty-state placeholders.
+- **Dynamic Post Timestamps**: Added relative time formatting ("Just now", hours, days) with timezone support.
+- **Feed Chronological Sorting**: Implemented `sortPostsByDate` ensuring announcements order newest first.
+- **Auto-Commit Photo Crop**: Switching tabs in the composer automatically commits active photo crops.
 
 ---
 
 ## [0.2.0] - 2026-10-01
 
 ### Added
-- **Second Claimable Demo Club**: Added Knights Robotics alongside Abstraction in the Claim Club modal with quick-fill buttons and random claim codes.
-- **Directory Staff & Faculty Catalog**: Added 11 faculty and staff profiles across academic and campus departments.
-- **Split Banner Selection**: Replaced full-width upload box with side-by-side "Upload Photo" and "Simple Banners" options, introducing chromatic preset banner options.
-- **Randomized Demo Feed**: Shuffled posts upon app launch to provide fresh content order on each boot.
-
-### Changed
-- **Collegiate Gold Brand Color**: Calibrated `Brand.gold` to collegiate gold (`#E8B019`) with high-contrast companion tones.
-- **Directory Filters & Privacy**: Updated filter chips to Everyone, Faculty, and Staff, and removed student entries for privacy compliance.
-
-### Removed
-- **Student Directory Records**: Removed student entries from the public directory in compliance with student data privacy standards.
+- **Claimable Demo Clubs**: Added Knights Robotics and Abstraction claim codes in the Club Claim modal.
+- **Directory Staff & Faculty Catalog**: Added 11 department profiles with privacy-compliant filtering.
+- **Split Banner Selection**: Added side-by-side photo upload and preset banner pickers.
 
 ---
 

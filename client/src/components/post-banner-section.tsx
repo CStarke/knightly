@@ -134,7 +134,7 @@ export function PostBannerSection({
             source={patternPreset.iconAsset}
             tintColor={isSelected ? Brand.gold : theme.text}
             contentFit="contain"
-            style={{ width: 18, height: 18 }}
+            style={{ width: 20, height: 20 }}
           />
         ) : null}
       </Pressable>
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
   },
   splitUploadBox: {
     flex: 1,
-    minHeight: 110,
+    minHeight: 125,
     paddingVertical: Spacing.three,
     paddingHorizontal: Spacing.two,
     borderRadius: Radius.lg,
@@ -419,9 +419,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   presetCircleButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',

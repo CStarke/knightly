@@ -11,6 +11,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import {
   AppState,
   BackHandler,
+  Dimensions,
   GestureResponderEvent,
   Keyboard,
   Pressable,
@@ -263,11 +264,25 @@ function SwipeableTabPager({
   const pathname = usePathname();
   const { width } = useWindowDimensions();
 
+  /**
+   * Fallback dimension calculator protecting against transient 0 or NaN measurements
+   * during native Android/iOS activity resume passes.
+   */
+  const getEffectiveWidth = useCallback(() => {
+    if (width > 0) return width;
+    try {
+      const windowWidth = Dimensions.get('window').width;
+      if (windowWidth > 0) return windowWidth;
+    } catch {}
+    return 390; // Standard phone viewport fallback
+  }, [width]);
+
   const tabIndex = tabs.findIndex((tab) => tab.href === pathname);
   const activeTabIndexRef = useRef(activeTabIndex);
   activeTabIndexRef.current = activeTabIndex;
 
-  const translateX = useSharedValue(-activeTabIndex * width);
+  const initialEffectiveWidth = getEffectiveWidth();
+  const translateX = useSharedValue(-activeTabIndex * initialEffectiveWidth);
   const scrollY = useSharedValue(0);
   const startX = useSharedValue(0);
   const isGestureActive = useSharedValue(false);
@@ -415,7 +430,8 @@ function SwipeableTabPager({
       (activeTabIndex === 1 && isActivityOpenShared.value);
 
     if (!isSubpageOpen || isIndexChange) {
-      const targetX = -activeTabIndex * width;
+      const validWidth = getEffectiveWidth();
+      const targetX = -activeTabIndex * validWidth;
       if (Math.abs(translateX.value - targetX) >= 1) {
         cancelAnimation(translateX);
         isGestureActive.value = false;
@@ -435,6 +451,7 @@ function SwipeableTabPager({
     }
   }, [
     activeTabIndex,
+    getEffectiveWidth,
     width,
     translateX,
     isGestureActive,
@@ -483,44 +500,62 @@ function SwipeableTabPager({
   // Keep translateX in sync on screen rotation, resize, or insets recalculation
   const prevWidth = useRef(width);
   useEffect(() => {
-    if (prevWidth.current !== width) {
-      prevWidth.current = width;
+    const validWidth = getEffectiveWidth();
+    if (validWidth > 0 && prevWidth.current !== validWidth) {
+      prevWidth.current = validWidth;
       const targetIndex = activeTabIndexRef.current;
       if (targetIndex === 0) {
         if (claimSetupState.isOpen || clubsLevelShared.value === 1) {
-          translateX.value = -1 * width;
+          translateX.value = -1 * validWidth;
         } else if (clubsLevelShared.value === 2) {
-          translateX.value = -2 * width;
+          translateX.value = -2 * validWidth;
         } else {
           translateX.value = 0;
         }
       } else if (targetIndex === 1) {
-        translateX.value = isActivityOpenShared.value ? -2 * width : -1 * width;
+        translateX.value = isActivityOpenShared.value ? -2 * validWidth : -1 * validWidth;
       } else {
-        translateX.value = -targetIndex * width;
+        translateX.value = -targetIndex * validWidth;
       }
     }
-  }, [width, translateX, isActivityOpenShared, clubsLevelShared, claimSetupState.isOpen]);
+  }, [width, getEffectiveWidth, translateX, isActivityOpenShared, clubsLevelShared, claimSetupState.isOpen]);
 
-  // RESUME RECOVERY: When returning from native Android activities (e.g. photo picker or permissions),
-  // immediately re-anchor the camera to activeTabIndexRef.current,
-  // and force route reconciliation if pathname diverged.
+  // ATOMIC THREE-WAY SYNCHRONIZATION BARRIER:
+  // Coordinates AppState backgrounding and foregrounding to guarantee Content === Header === BottomBar congruence.
+  // 1. Backgrounding: Flushes home-indicator touch bleed, cancels animations, and pre-locks camera to active tab.
+  // 2. Foregrounding: Resolves valid screen width, re-anchors camera, clears stuck gesture flags, and synchronizes routes.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (nextState) => {
-      if (nextState === 'active') {
-        const targetIndex = activeTabIndexRef.current;
-        const currentTab = tabs[targetIndex];
-        const isSubpageOpen =
-          (targetIndex === 0 && (clubsLevelShared.value > 0 || claimSetupState.isOpen)) ||
-          (targetIndex === 1 && isActivityOpenShared.value);
+      const effectiveW = getEffectiveWidth();
+      const targetIndex = activeTabIndexRef.current;
+      const currentTab = tabs[targetIndex];
+      const isSubpageOpen =
+        (targetIndex === 0 && (clubsLevelShared.value > 0 || claimSetupState.isOpen)) ||
+        (targetIndex === 1 && isActivityOpenShared.value);
 
+      // STEP 1: BACKGROUND TRANSITION GUARD
+      // When the user swipes up to go home or switches apps, cancel animations and lock camera
+      // before the JS runtime suspends, purging any touch bleed across the bottom bezel.
+      if (nextState === 'inactive' || nextState === 'background') {
+        isGestureActive.value = false;
+        cancelAnimation(translateX);
         if (!isSubpageOpen) {
-          const targetX = -targetIndex * width;
-          cancelAnimation(translateX);
-          isGestureActive.value = false;
-          translateX.value = targetX;
+          translateX.value = -targetIndex * effectiveW;
+        }
+        return;
+      }
+
+      // STEP 2: FOREGROUND RESUME RECOVERY BARRIER
+      if (nextState === 'active') {
+        isGestureActive.value = false;
+        cancelAnimation(translateX);
+
+        // Re-anchor camera to master activeTabIndex using validated screen width
+        if (!isSubpageOpen) {
+          translateX.value = -targetIndex * effectiveW;
         }
 
+        // Reconcile Expo Router route pathname and React Navigation state
         if (currentTab && pathname !== currentTab.href) {
           try {
             navigation?.dispatch({
@@ -528,13 +563,15 @@ function SwipeableTabPager({
               payload: { name: getRouteName(currentTab.href) },
             });
           } catch {}
-          router.replace(currentTab.href as any);
+          try {
+            router.replace(currentTab.href as any);
+          } catch {}
         }
       }
     });
     return () => sub.remove();
   }, [
-    width,
+    getEffectiveWidth,
     translateX,
     isGestureActive,
     clubsLevelShared,
@@ -716,14 +753,18 @@ function SwipeableTabPager({
       cancelClaimSetup();
       setShowClubSetup(false);
     } else {
-      // Smoothly glides back to Knightly Home (Slot 0)
+      // Step: Smoothly glide back to Knightly Home (Slot 0)
+      // WHY SYNCHRONOUS cancelClaimSetup:
+      // Invoking cancelClaimSetup() immediately rather than delaying until the Reanimated completion
+      // callback guarantees the top AppHeader title switches back to "Knightly" instantly on user tap,
+      // eliminating perceptible header lag while the camera smoothly glides back to Slot 0.
       clubsLevelShared.value = 0;
       setClubsLevel(0);
+      cancelClaimSetup();
       isGestureActive.value = false;
       bottomBarTranslateY.value = withTiming(0, { duration: 260, easing: CURVE });
       cancelAnimation(translateX);
       translateX.value = withTiming(0, { duration: DURATION, easing: CURVE }, () => {
-        runOnJS(cancelClaimSetup)();
         runOnJS(setShowClubSetup)(false);
       });
     }
@@ -732,25 +773,36 @@ function SwipeableTabPager({
   const handleDismissSetupFromGesture = useCallback(() => {
     clubsLevelShared.value = 0;
     setClubsLevel(0);
+    cancelClaimSetup();
     isGestureActive.value = false;
     bottomBarTranslateY.value = withTiming(0, { duration: 260, easing: CURVE });
     setTimeout(() => {
-      cancelClaimSetup();
       setShowClubSetup(false);
     }, DURATION);
   }, [cancelClaimSetup, clubsLevelShared, isGestureActive, bottomBarTranslateY]);
 
   const handleSuccessFromSetup = useCallback(() => {
+    // Step 1: Synchronously commit setup completion so the header title switches back to "Knightly" immediately
+    // WHY ZERO-LATENCY completeClaimSetup:
+    // Previously, completeClaimSetup() was deferred inside the withTiming completion callback. Because DURATION
+    // is 340ms and Reanimated worklet -> JS runOnJS bridge dispatch incurs an additional tick, the AppHeader title
+    // was stuck on "Complete Profile" long after the student tapped "Got it" on the success modal.
+    // Triggering completeClaimSetup() synchronously instantly restores headerProps to "Knightly",
+    // while the underlying Slot 1 CompleteClubProfileView stays safely mounted via showClubSetup until the glide completes.
     clubsLevelShared.value = 0;
     setClubsLevel(0);
     setShowClubsDirectory(false);
     setShowClubDetail(false);
     setActiveClubId(null);
+    completeClaimSetup();
     isGestureActive.value = false;
+
+    // Step 2: Animate bottom navigation bar back up into view
     bottomBarTranslateY.value = withTiming(0, { duration: 260, easing: CURVE });
+
+    // Step 3: Glide camera back to Slot 0 (Knightly Home)
     cancelAnimation(translateX);
     translateX.value = withTiming(0, { duration: DURATION, easing: CURVE }, () => {
-      runOnJS(completeClaimSetup)();
       runOnJS(setShowClubSetup)(false);
     });
   }, [completeClaimSetup, clubsLevelShared, bottomBarTranslateY, translateX, isGestureActive]);
@@ -1036,54 +1088,58 @@ function SwipeableTabPager({
   const headerInfo = getTabHeader(currentTab.name);
 
   const headerProps = useMemo(() => {
-    if (pathname === '/' && claimSetupState.isOpen) {
-      return {
-        title: 'Complete Profile',
-        subtitle: 'CLAIM VERIFIED',
-        left: (
-          <HeaderBackButton
-            onPress={handleBackFromSetup}
-            accessibilityLabel={claimSetupState.source === 'banner' ? 'Go back to clubs' : 'Go back to feed'}
-          />
-        ),
-        right: undefined,
-      };
+    // Single Source of Truth: Top header is a pure projection of activeTabIndex and its child subpages
+    if (activeTabIndex === 0) {
+      if (claimSetupState.isOpen) {
+        return {
+          title: 'Complete Profile',
+          subtitle: 'CLAIM VERIFIED',
+          left: (
+            <HeaderBackButton
+              onPress={handleBackFromSetup}
+              accessibilityLabel={claimSetupState.source === 'banner' ? 'Go back to clubs' : 'Go back to feed'}
+            />
+          ),
+          right: undefined,
+        };
+      }
+
+      if (clubsLevel === 2) {
+        // WHY STANDARD "View Club" HEADER:
+        // Club names can be exceptionally long (e.g. "Knightly Robotics & Autonomous Vehicle Engineering"),
+        // which overflows the top masthead. Standardizing the title to "View Club" while showing the
+        // concise category in the subtitle keeps the header clean and uniform, letting the club's full
+        // identity shine in the hero card below.
+        return {
+          title: 'View Club',
+          subtitle: activeClub ? activeClub.category : 'Details',
+          left: (
+            <HeaderBackButton
+              onPress={closeClubDetail}
+              accessibilityLabel="Go back to clubs"
+            />
+          ),
+          right: undefined,
+        };
+      }
+
+      if (clubsLevel === 1) {
+        return {
+          title: 'Campus Clubs',
+          subtitle: 'Student orgs & communities',
+          left: (
+            <HeaderBackButton
+              onPress={closeClubsDirectory}
+              accessibilityLabel="Go back to feed"
+            />
+          ),
+          right: undefined,
+        };
+      }
     }
 
-    if (pathname === '/' && clubsLevel === 2) {
-      // WHY STANDARD "View Club" HEADER:
-      // Club names can be exceptionally long (e.g. "Knightly Robotics & Autonomous Vehicle Engineering"),
-      // which overflows the top masthead. Standardizing the title to "View Club" while showing the
-      // concise category in the subtitle keeps the header clean and uniform, letting the club's full
-      // identity shine in the hero card below.
-      return {
-        title: 'View Club',
-        subtitle: activeClub ? activeClub.category : 'Details',
-        left: (
-          <HeaderBackButton
-            onPress={closeClubDetail}
-            accessibilityLabel="Go back to clubs"
-          />
-        ),
-        right: undefined,
-      };
-    }
-
-    if (pathname === '/' && clubsLevel === 1) {
-      return {
-        title: 'Campus Clubs',
-        subtitle: 'Student orgs & communities',
-        left: (
-          <HeaderBackButton
-            onPress={closeClubsDirectory}
-            accessibilityLabel="Go back to feed"
-          />
-        ),
-        right: undefined,
-      };
-    }
-
-    if (pathname === '/dining' && isActivityOpen) {
+    // Only allow Dining Activity to take over the top header if active tab is Slot 1 (Dining)
+    if (activeTabIndex === 1 && isActivityOpen) {
       return {
         title: 'Activity',
         subtitle: 'LAST 7 DAYS',
@@ -1104,7 +1160,7 @@ function SwipeableTabPager({
       right: headerInfo.right,
     };
   }, [
-    pathname,
+    activeTabIndex,
     claimSetupState.isOpen,
     claimSetupState.source,
     handleBackFromSetup,
@@ -1250,7 +1306,14 @@ function BottomBar({
   });
 
   return (
-    <Animated.View style={[styles.bottomBarWrapper, animatedStyle]}>
+    <Animated.View
+      style={[
+        styles.bottomBarWrapper,
+        {
+          backgroundColor: theme.backgroundElement,
+        },
+        animatedStyle,
+      ]}>
       {/* Signature Calvin Gold rule with 33° brand scaffolding accent separating bottom bar from the screen */}
       <View style={styles.ruleContainer}>
         <View style={styles.rule} />
@@ -1439,6 +1502,7 @@ const styles = StyleSheet.create({
     transform: [{ skewX: '-33deg' }],
   },
   bar: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     paddingTop: Spacing.one + 2,

@@ -1,5 +1,5 @@
 import type { PropsWithChildren, ReactNode } from "react";
-import { type LayoutChangeEvent, Platform, StyleSheet, View } from "react-native";
+import { type LayoutChangeEvent, Platform, type StyleProp, StyleSheet, View, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
@@ -16,12 +16,12 @@ type AppHeaderProps = PropsWithChildren<{
   subtitle?: string;
   left?: ReactNode;
   right?: ReactNode;
+  style?: StyleProp<ViewStyle>;
   onLayout?: (event: LayoutChangeEvent) => void;
 }>;
 
 export function getAppHeaderHeight(insetsTop: number): number {
-  const paddingTop =
-    Platform.OS === "web" ? WebHeaderInset : insetsTop + Spacing.one;
+  const paddingTop = insetsTop > 0 ? insetsTop + Spacing.one : Spacing.three;
   return paddingTop + 50 + Spacing.three + 3;
 }
 
@@ -33,17 +33,17 @@ export function AppHeader({
   subtitle,
   left,
   right,
+  style,
   children,
   onLayout,
 }: AppHeaderProps) {
   const insets = useSafeAreaInsets();
-  const paddingTop =
-    Platform.OS === "web" ? WebHeaderInset : insets.top + Spacing.one;
+  const paddingTop = insets.top > 0 ? insets.top + Spacing.one : Spacing.three;
 
   return (
     <View
       onLayout={onLayout}
-      style={[styles.header, { paddingTop, backgroundColor: Brand.maroon }]}
+      style={[styles.header, { paddingTop, backgroundColor: Brand.maroon }, style]}
     >
       <View style={styles.inner}>
         <View style={styles.titleRow}>

@@ -1,6 +1,8 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
+
+const isWeb = Platform.OS === 'web';
 
 import { ThemedText } from '@/components/themed-text';
 import { Badge, type BadgeTone } from '@/components/ui/badge';
@@ -9,6 +11,7 @@ import { Icon } from '@/components/ui/icon';
 import { Brand, Fonts, Radius, Spacing } from '@/constants/theme';
 import { getPresetBannerDetails, isPresetBanner } from '@/constants/preset-banners';
 import { useClubFollow } from '@/context/club-follow-context';
+import { useFeed } from '@/context/feed-context';
 import type { Post } from '@/data/feed';
 import { useTheme } from '@/hooks/use-theme';
 import { formatRelativeTime } from '@/utils/date-format';
@@ -33,6 +36,8 @@ function categoryBadgeTone(category: string): BadgeTone {
       return 'danger';
     case 'Faith':
       return 'brand';
+    case 'Official':
+      return 'gold';
     default:
       return 'gold';
   }
@@ -56,11 +61,13 @@ function OrgBadge({
   org,
   followed,
   isOverlay,
+  isGrid = false,
   onPress,
 }: {
   org: string;
   followed: boolean;
   isOverlay: boolean;
+  isGrid?: boolean;
   onPress: () => void;
 }) {
   return (
@@ -69,7 +76,7 @@ function OrgBadge({
       accessibilityRole="button"
       accessibilityLabel={`View ${org} club page`}
       style={({ pressed }) => [
-        isOverlay ? styles.orgPill : styles.noImageOrgRow,
+        isOverlay ? (isGrid ? [styles.orgPill, styles.webOrgPill] : styles.orgPill) : styles.noImageOrgRow,
         pressed && styles.pressedPill,
       ]}
     >
@@ -84,7 +91,7 @@ function OrgBadge({
       ) : null}
       <ThemedText
         type={isOverlay ? undefined : 'smallBold'}
-        style={isOverlay ? styles.overlayOrgText : styles.noImageOrgText}
+        style={isOverlay ? (isGrid ? [styles.overlayOrgText, styles.webOverlayOrgText] : styles.overlayOrgText) : styles.noImageOrgText}
         numberOfLines={isOverlay ? 1 : undefined}
       >
         {org}
@@ -111,6 +118,13 @@ function OrgBadge({
 export interface PostCardProps {
   post: Post;
   /**
+   * Layout presentation variant:
+   * - 'editorial': Full-width card with 22px serif headline and unconstrained body (mobile & single-column layouts).
+   * - 'grid': Multi-column balanced card with 18px headline, clamped lines, and flex-1 height (desktop grids).
+   * Defaults to 'editorial'.
+   */
+  variant?: 'editorial' | 'grid';
+  /**
    * Optional custom callback when the organization pill/badge is pressed.
    * If provided, receives the post's canonical clubId.
    * If omitted, defaults to navigating to the club's detail screen (`/clubs/[id]`).
@@ -118,9 +132,16 @@ export interface PostCardProps {
   onPressOrg?: (clubId: string) => void;
 }
 
-export function PostCard({ post, onPressOrg }: PostCardProps) {
+export function PostCard({ post, variant = 'editorial', onPressOrg }: PostCardProps) {
   const theme = useTheme();
   const { isFollowing } = useClubFollow();
+  const isGrid = variant === 'grid';
+
+  // Access the Favorites functions from FeedContext.
+  const { toggleFavorite, isFavorite } = useFeed();
+
+  // Check whether this post is already a favorite.
+  const favorited = isFavorite(post.id);
 
   // Step 1: Derive canonical club ID (fallback slugification for legacy posts without clubId)
   // WHY SLUGIFY FALLBACK:
@@ -149,7 +170,7 @@ export function PostCard({ post, onPressOrg }: PostCardProps) {
   const presetDetails = isPreset ? getPresetBannerDetails(post.image) : null;
 
   return (
-    <Card flush style={styles.card}>
+    <Card flush style={[styles.card, isGrid && styles.webCard]}>
       {/* Step 3: Top Banner Image Container (when image is present) */}
       {post.image ? (
         <View style={styles.imageContainer}>
@@ -180,10 +201,10 @@ export function PostCard({ post, onPressOrg }: PostCardProps) {
             />
           )}
           {/* Subtle top scrim ensuring overlay badges contrast cleanly against bright photos */}
-          <View style={styles.scrim} />
+          <View style={[styles.scrim, isGrid && styles.webScrim]} />
 
           <View style={styles.overlayBar}>
-            <OrgBadge org={post.org} followed={followed} isOverlay onPress={handlePressOrg} />
+            <OrgBadge org={post.org} followed={followed} isOverlay isGrid={isGrid} onPress={handlePressOrg} />
 
             <View style={styles.badgeWrapper}>
               <Badge label={post.category} tone={categoryBadgeTone(post.category)} />
@@ -192,17 +213,19 @@ export function PostCard({ post, onPressOrg }: PostCardProps) {
         </View>
       ) : null}
 
-      <View style={styles.content}>
+      <View style={[styles.content, isGrid && styles.webContent]}>
         {/* Step 4: Editorial header strip for posts without an image */}
         {!post.image ? (
           <View style={styles.noImageHeader}>
-            <OrgBadge org={post.org} followed={followed} isOverlay={false} onPress={handlePressOrg} />
+            <OrgBadge org={post.org} followed={followed} isOverlay={false} isGrid={isGrid} onPress={handlePressOrg} />
             <Badge label={post.category} tone={categoryBadgeTone(post.category)} />
           </View>
         ) : null}
 
         {/* Step 5: Headline typography (largest, most commanding text in serif font) */}
-        <ThemedText style={styles.title}>{post.headline}</ThemedText>
+        <ThemedText style={[styles.title, isGrid && styles.webTitle]} numberOfLines={isGrid ? 3 : undefined}>
+          {post.headline}
+        </ThemedText>
 
         {/* Step 6: Event logistics metadata (When & Where badges) */}
         {post.when || post.where ? (
@@ -227,7 +250,7 @@ export function PostCard({ post, onPressOrg }: PostCardProps) {
         ) : null}
 
         {/* Step 7: Body copy */}
-        <ThemedText type="small" themeColor="textSecondary" style={styles.body}>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.body} numberOfLines={isGrid ? 4 : undefined}>
           {post.body}
         </ThemedText>
 
@@ -241,11 +264,32 @@ export function PostCard({ post, onPressOrg }: PostCardProps) {
           <ThemedText type="caption" themeColor="textMuted">
             {formatRelativeTime(post.postedAt, post.createdAt, post.monotonicCreatedAt)}
           </ThemedText>
+
           {post.campusWide ? (
             <ThemedText type="caption" themeColor="textMuted">
               Campus-wide
             </ThemedText>
           ) : null}
+
+          {/* Allow students to save or remove this post from Favorites. */}
+          <Pressable
+            onPress={() => toggleFavorite(post.id)}
+            accessibilityRole="button"
+            accessibilityLabel={favorited ? 'Remove from favorites' : 'Add to favorites'}
+            accessibilityState={{ selected: favorited }}
+            hitSlop={10}
+            style={({ pressed }) => [
+              styles.favoriteButton,
+              pressed && styles.pressedPill,
+            ]}
+          >
+            <Icon
+              sf={favorited ? 'heart.fill' : 'heart'}
+              md={favorited ? 'favorite' : 'favorite_border'}
+              size={22}
+              color={favorited ? Brand.brightRed : theme.textMuted}
+            />
+          </Pressable>
         </View>
       </View>
     </Card>
@@ -257,9 +301,13 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     overflow: 'hidden',
   },
+  webCard: {
+    flex: 1,
+    height: '100%',
+  },
   imageContainer: {
     width: '100%',
-    height: 195,
+    aspectRatio: 16 / 9,
     position: 'relative',
     backgroundColor: '#1C1D21',
   },
@@ -276,6 +324,9 @@ const styles = StyleSheet.create({
     experimental_backgroundImage:
       'linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 100%)',
   },
+  webScrim: {
+    height: 60,
+  },
   overlayBar: {
     position: 'absolute',
     top: Spacing.two,
@@ -284,7 +335,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: Spacing.two,
+    gap: Spacing.one,
   },
   orgPill: {
     flexDirection: 'row',
@@ -297,6 +348,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.22)',
     maxWidth: '70%',
+    flexShrink: 1,
+  },
+  webOrgPill: {
+    paddingHorizontal: Spacing.two,
+    paddingVertical: 4,
+    maxWidth: '68%',
   },
   overlayOrgText: {
     color: '#FFFFFF',
@@ -304,7 +361,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.2,
   },
+  webOverlayOrgText: {
+    fontSize: 11,
+    letterSpacing: 0.1,
+  },
   badgeWrapper: {
+    flexShrink: 0,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.25,
@@ -332,12 +394,21 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     gap: Spacing.two,
   },
+  webContent: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
   title: {
     fontFamily: Fonts.serif,
     fontSize: 22,
     lineHeight: 28,
     fontWeight: '700',
     letterSpacing: -0.3,
+  },
+  webTitle: {
+    fontSize: 18,
+    lineHeight: 23,
+    minHeight: 46,
   },
   metaSection: {
     gap: 6,
@@ -366,6 +437,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: Spacing.one,
+  },
+  favoriteButton: {
+    padding: 6,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
   },
   pressedPill: {
     opacity: 0.75,

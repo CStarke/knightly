@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  Keyboard,
   Modal,
   Pressable,
   StyleSheet,
@@ -38,7 +39,10 @@ export function HeaderAvatar() {
   return (
     <>
       <Pressable
-        onPress={() => setSheetVisible(true)}
+        onPress={() => {
+          Keyboard.dismiss();
+          setSheetVisible(true);
+        }}
         accessibilityRole="button"
         accessibilityLabel={`View profile and account for ${profile.fullName}`}
         style={({ pressed }) => [styles.avatar, pressed && styles.avatarPressed]}>
