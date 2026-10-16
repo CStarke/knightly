@@ -1,7 +1,7 @@
 {
   "name": "calvinapp",
   "main": "expo-router/entry",
-  "version": "0.5.1",
+  "version": "0.6.1",
   "dependencies": {
     "@expo/ui": "~57.0.19",
     "expo": "~57.0.26",
@@ -28,6 +28,7 @@
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
     "react-native-web": "~0.21.0",
+    "react-native-webview": "13.16.1",
     "react-native-worklets": "0.10.1"
   },
   "devDependencies": {

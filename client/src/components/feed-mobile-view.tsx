@@ -36,7 +36,7 @@ import {
   type Post,
 } from "@/data/feed";
 
-const mobileToggleOptions = ["Following", "All Campus"] as const;
+const mobileToggleOptions = ["Following", "All Campus", "Favorites"] as const;
 type MobileScope = (typeof mobileToggleOptions)[number];
 
 const mobileCategoryOptions: ("All" | FeedCategory)[] = [
@@ -53,7 +53,7 @@ export function FeedMobileView() {
   const deferredMobileCategories = useDeferredValue(mobileCategories);
   const deferredQuery = useDeferredValue(query);
 
-  const { posts: dynamicPosts } = useFeed();
+  const { posts: dynamicPosts, favoritePosts } = useFeed();
   const { isFollowing, followedCount } = useClubFollow();
   const { openClubsDirectory } = useClubsNavigation();
 
@@ -94,16 +94,17 @@ export function FeedMobileView() {
       ? []
       : Array.from(deferredMobileCategories).filter((c): c is FeedCategory => c !== "All");
 
-    return filterFeedPosts(dynamicPosts, {
-      scope: deferredMobileScope,
+    const showFavorites = deferredMobileScope === "Favorites";
+    return filterFeedPosts(showFavorites ? (favoritePosts ?? []) : dynamicPosts, {
+      scope: deferredMobileScope === "Favorites" ? "All Campus" : deferredMobileScope,
       categories: activeCats,
-      query: deferredMobileScope === "All Campus" ? deferredQuery : "",
+      query: deferredMobileScope === "Following" ? "" : deferredQuery,
       isFollowing,
     });
-  }, [dynamicPosts, deferredMobileScope, deferredMobileCategories, deferredQuery, isFollowing]);
+  }, [dynamicPosts, favoritePosts, deferredMobileScope, deferredMobileCategories, deferredQuery, isFollowing]);
 
   const isFilterActive =
-    (mobileScope === "All Campus" && query.trim().length > 0) ||
+    (mobileScope !== "Following" && query.trim().length > 0) ||
     (mobileCategories.size > 0 && !mobileCategories.has("All"));
 
   const handleClear = () => {
@@ -122,10 +123,15 @@ export function FeedMobileView() {
         />
       </View>
 
-      {mobileScope === "All Campus" && (
+      {mobileScope !== "Following" && (
         <FeedSearchField
           value={query}
           onChangeText={setQuery}
+          placeholder={
+            mobileScope === "Favorites"
+              ? "Search saved favorites..."
+              : "Search all events, clubs, locations..."
+          }
         />
       )}
 

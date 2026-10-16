@@ -17,6 +17,7 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { Spacing } from '@/constants/theme';
 import { emergencyContacts, safetyAlerts, type SafetyAlert } from '@/data/safety';
 import { useTheme } from '@/hooks/use-theme';
+import { router } from 'expo-router';
 
 export const severityTone = {
   critical: 'danger',
@@ -73,6 +74,14 @@ export function SafetyQuickAssistCard() {
         sf="light.beacon.max.fill"
         md="emergency"
         onPress={() => {}}
+      />
+      {/* Open the building map on its own screen for more viewing space. */}
+      <ListRow
+        title="Campus map"
+        subtitle="View campus buildings and paths"
+        sf="map.fill"
+        md="map"
+        onPress={() => router.push('/campus-map' as any)}
         last
       />
     </Card>

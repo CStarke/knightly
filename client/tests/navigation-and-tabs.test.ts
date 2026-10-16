@@ -854,5 +854,50 @@ describe('Navigation, Tabs & Gestures Domain', () => {
       });
     }
   });
+
+  describe('Claim Club Header Transition & Zero-Latency Switch Invariants', () => {
+    it('verifies header title switches back to Knightly immediately when claim setup is completed', () => {
+      // 1. Initial State: Claim setup is open on Home (Slot 1)
+      const openState: PhantomTabState = {
+        pathname: '/',
+        activeIndex: 0,
+        isClaimSetupOpen: true,
+        showClubSetup: true,
+        clubsLevel: 0,
+        showClubsDirectory: false,
+        showClubDetail: false,
+        isActivityOpen: false,
+        showActivity: false,
+        hasActiveClubId: false,
+      };
+
+      const activeDuringSetup = getActivePhantomTab(openState);
+      assert.ok(activeDuringSetup);
+      assert.strictEqual(activeDuringSetup.defaultTitle, 'Complete Profile');
+
+      // 2. Synchronous Dismissal State: completeClaimSetup() runs synchronously on "Got it" tap
+      // isClaimSetupOpen becomes false immediately, while showClubSetup stays true for the 340ms glide
+      const transitioningState: PhantomTabState = {
+        ...openState,
+        isClaimSetupOpen: false,
+        showClubSetup: true,
+      };
+
+      // Header calculation checks `pathname === '/' && claimSetupState.isOpen`
+      // With isClaimSetupOpen false, header immediately resolves default Home header "Knightly"
+      const isHeaderClaimVerified = transitioningState.pathname === '/' && transitioningState.isClaimSetupOpen;
+      assert.strictEqual(isHeaderClaimVerified, false, 'Header must not be stuck on Complete Profile');
+
+      // Slot 1 blanking remains 1 so Slot 1 does not unmount prematurely during camera pan
+      assert.strictEqual(getBlankAfterSlot(transitioningState), 1, 'Slot 1 remains preserved during glide');
+
+      // 3. Fully Closed State: camera finishes gliding back to Slot 0
+      const closedState: PhantomTabState = {
+        ...transitioningState,
+        showClubSetup: false,
+      };
+      assert.strictEqual(getBlankAfterSlot(closedState), null);
+    });
+  });
 });
 

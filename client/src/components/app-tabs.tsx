@@ -753,14 +753,18 @@ function SwipeableTabPager({
       cancelClaimSetup();
       setShowClubSetup(false);
     } else {
-      // Smoothly glides back to Knightly Home (Slot 0)
+      // Step: Smoothly glide back to Knightly Home (Slot 0)
+      // WHY SYNCHRONOUS cancelClaimSetup:
+      // Invoking cancelClaimSetup() immediately rather than delaying until the Reanimated completion
+      // callback guarantees the top AppHeader title switches back to "Knightly" instantly on user tap,
+      // eliminating perceptible header lag while the camera smoothly glides back to Slot 0.
       clubsLevelShared.value = 0;
       setClubsLevel(0);
+      cancelClaimSetup();
       isGestureActive.value = false;
       bottomBarTranslateY.value = withTiming(0, { duration: 260, easing: CURVE });
       cancelAnimation(translateX);
       translateX.value = withTiming(0, { duration: DURATION, easing: CURVE }, () => {
-        runOnJS(cancelClaimSetup)();
         runOnJS(setShowClubSetup)(false);
       });
     }
@@ -769,25 +773,36 @@ function SwipeableTabPager({
   const handleDismissSetupFromGesture = useCallback(() => {
     clubsLevelShared.value = 0;
     setClubsLevel(0);
+    cancelClaimSetup();
     isGestureActive.value = false;
     bottomBarTranslateY.value = withTiming(0, { duration: 260, easing: CURVE });
     setTimeout(() => {
-      cancelClaimSetup();
       setShowClubSetup(false);
     }, DURATION);
   }, [cancelClaimSetup, clubsLevelShared, isGestureActive, bottomBarTranslateY]);
 
   const handleSuccessFromSetup = useCallback(() => {
+    // Step 1: Synchronously commit setup completion so the header title switches back to "Knightly" immediately
+    // WHY ZERO-LATENCY completeClaimSetup:
+    // Previously, completeClaimSetup() was deferred inside the withTiming completion callback. Because DURATION
+    // is 340ms and Reanimated worklet -> JS runOnJS bridge dispatch incurs an additional tick, the AppHeader title
+    // was stuck on "Complete Profile" long after the student tapped "Got it" on the success modal.
+    // Triggering completeClaimSetup() synchronously instantly restores headerProps to "Knightly",
+    // while the underlying Slot 1 CompleteClubProfileView stays safely mounted via showClubSetup until the glide completes.
     clubsLevelShared.value = 0;
     setClubsLevel(0);
     setShowClubsDirectory(false);
     setShowClubDetail(false);
     setActiveClubId(null);
+    completeClaimSetup();
     isGestureActive.value = false;
+
+    // Step 2: Animate bottom navigation bar back up into view
     bottomBarTranslateY.value = withTiming(0, { duration: 260, easing: CURVE });
+
+    // Step 3: Glide camera back to Slot 0 (Knightly Home)
     cancelAnimation(translateX);
     translateX.value = withTiming(0, { duration: DURATION, easing: CURVE }, () => {
-      runOnJS(completeClaimSetup)();
       runOnJS(setShowClubSetup)(false);
     });
   }, [completeClaimSetup, clubsLevelShared, bottomBarTranslateY, translateX, isGestureActive]);

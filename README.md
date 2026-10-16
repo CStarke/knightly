@@ -1,6 +1,6 @@
 # Knightly — Calvin University Student App
 
-> **Current Version:** `v.0.3.1`
+> **Current Version:** `v.0.5.1`
 
 Knightly is a mobile application built for Calvin University students, providing a centralized hub for everyday campus life, student organizations, dining, safety, and campus resources.
 
@@ -125,9 +125,10 @@ The application features a custom bottom tab bar with fluid horizontal follow-my
 
 Knightly uses strict semantic application versioning defined in `client/src/constants/version.ts`, package manifests, and displayed on the Login Screen:
 
-- **Current Version:** `v.0.3.1`
+- **Current Version:** `v.0.5.1`
 - **Feature Push:** Increment the **center digit** (`0.#.0`) and reset the last digit to 0 (e.g., `v.0.1.0` → `v.0.2.0`).
 - **Bugfix / Hotfix:** Increment the **last digit** (`0.0.#`) (e.g., `v.0.1.0` → `v.0.1.1`).
 - **Major Release:** Increment the **first digit** (`#.0.0`) when major application overhauls occur (e.g., `v.0.9.0` → `v.1.0.0`).
+
 
 All contributors and AI agents must update `client/src/constants/version.ts` and `client/package.json` according to these rules before pushing changes.

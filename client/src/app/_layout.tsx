@@ -85,6 +85,11 @@ function RootNavigator({ isDark }: { isDark: boolean }) {
             },
           }}>
           <Stack.Screen name="(tabs)" />
+                    {/* Campus map opens above the tabs to use the full screen. */}
+          <Stack.Screen
+            name="campus-map"
+            options={{ animation: 'slide_from_right' }}
+          />
           {/* Lives above the tab bar so the ID really does fill the screen. */}
           <Stack.Screen
             name="card"

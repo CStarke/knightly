@@ -43,25 +43,26 @@ import {
 /**
  * Filter options combining feed scopes ("All", "Following") and categories in a single tier.
  */
-type FeedFilterOption = "All" | "Following" | FeedCategory;
+type FeedFilterOption = "All" | "Following" | "Favorites" | FeedCategory;
 
 const allFilterOptions: FeedFilterOption[] = [
   "All",
   "Following",
+  "Favorites",
   ...feedCategories,
 ];
 
 export function FeedWebView() {
   const { width } = useWindowDimensions();
 
-  // Web unified filter state ("All" | "Following" | specific categories)
+  // Web unified filter state ("All" | "Following" | "Favorites" | specific categories)
   const [selectedFilters, setSelectedFilters] = useState<Set<FeedFilterOption>>(new Set(["All"]));
   const [query, setQuery] = useState("");
 
   const deferredSelectedFilters = useDeferredValue(selectedFilters);
   const deferredQuery = useDeferredValue(query);
 
-  const { posts: dynamicPosts } = useFeed();
+  const { posts: dynamicPosts, favoritePosts } = useFeed();
   const { isFollowing, followedCount } = useClubFollow();
   const { openClubsDirectory } = useClubsNavigation();
 
@@ -94,20 +95,21 @@ export function FeedWebView() {
 
   // Step 3: Filtering Pipeline
   const visible = useMemo(() => {
+    const isFavorites = deferredSelectedFilters.has("Favorites");
     const webScope = deferredSelectedFilters.has("Following") ? "Following" : "All";
     const webCategories = deferredSelectedFilters.has("All")
       ? []
       : Array.from(deferredSelectedFilters).filter(
-          (opt): opt is FeedCategory => opt !== "All" && opt !== "Following"
+          (opt): opt is FeedCategory => opt !== "All" && opt !== "Following" && opt !== "Favorites"
         );
 
-    return filterFeedPosts(dynamicPosts, {
-      scope: webScope,
+    return filterFeedPosts(isFavorites ? (favoritePosts ?? []) : dynamicPosts, {
+      scope: isFavorites ? "All" : webScope,
       categories: webCategories,
       query: deferredQuery,
       isFollowing,
     });
-  }, [dynamicPosts, deferredSelectedFilters, deferredQuery, isFollowing]);
+  }, [dynamicPosts, favoritePosts, deferredSelectedFilters, deferredQuery, isFollowing]);
 
   // Step 4: Chunk visible posts into even rows of `numColumns` items
   const evenRows = useMemo(() => {

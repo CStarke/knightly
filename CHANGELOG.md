@@ -5,6 +5,28 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
+## [0.6.1] - Unreleased
+
+### Added
+- **Login Screen Anti-Monolith Modularization**: Refactored `login-screen.tsx` from 1,260 lines to 278 lines by extracting modular subcomponents (`useLoginFlight`, `LoginFlightContainer`, `LoginFormFields`, `LoginFooter`).
+- **Campus Map Integration in Modular Safety**: Added the new interactive campus map entry point to shared `SafetyQuickAssistCard` across both mobile and web views.
+- **Favorites Integration in Modular Feed Views**: Integrated the favorites feed filter into `FeedMobileView` and `FeedWebView`.
+
+### Changed
+- **Anti-Monolith Invariant Test Relaxation**: Updated test assertions across `auth-and-student.test.ts`, `dining-and-services.test.ts`, and `post-composer.test.ts` to enforce the universal `< 1000` line anti-monolith limit without brittle sub-caps.
+- **Clarified Versioning Policy**: Updated `AGENTS.md`, `MULTI_DEV_WORKFLOW.md`, and `version.ts` to explain baseline anchoring and single increment rules clearly without examples.
+
+---
+
+## [0.6.0] - 2026-10-15
+
+### Added
+- **Campus Map**: Added an in-app campus building map with zoom controls, panning, keyboard controls, and Fit Map button.
+- **Separate Web & Native Viewers**: Created `campus-map-view.tsx` and `campus-map-view.web.tsx` using bundled SVG map data.
+- **SRS Document Comprehensive Overhaul**: Extensively overhauled `docs/SRS_Document.md` to cover all subsystems, domain invariants (13-category taxonomy, server timestamps, placeholder fingerprinting, 16:9 crop geometry, starfield density, phantom tabs), database schemas, and hardware interfaces.
+
+---
+
 ## [0.5.1] - 2026-10-11
 
 ### Added
@@ -12,7 +34,8 @@ and this project adheres to semantic application versioning defined in `AGENTS.m
 - **Campus Dining Anti-Monolith Modularization**: Refactored `dining.tsx` from a 387-line monolith into a 22-line router delegating to `DiningMobileView` and `DiningWebView`. Extracted shared sections (`KnightIdCardSection`, `DiningHallsSection`, `DiningMenuSection`).
 - **Campus People Directory 1–5 Column Responsive Grid**: Upgraded `DirectoryScreen` to scale dynamically from 1 to 5 columns matching Home Feed breakpoints and integrated `FeedEmptyState`.
 - **Campus Clubs 5-Column Parity**: Aligned `ClubsDirectoryView` to scale from 1 to 5 columns using `resolveFeedColumnCount` and dynamic container widths.
-- **Safety Domain Invariant Test Suite**: Added Suite 12 to `dining-and-services.test.ts` verifying router brevity, shared section imports, and desktop layout constraints (1,036 total tests across 147 suites).
+- **Favorite Posts Functionality**: Added ability for students to favorite posts via heart icon and filter by favorites.
+- **Safety Domain Invariant Test Suite**: Added Suite 12 to `dining-and-services.test.ts` verifying router brevity, shared section imports, and desktop layout constraints.
 
 ### Fixed
 - **Campus Clubs & Card Back Navigation Resilience**: Eliminated unhandled `GO_BACK` warning and unresponsive back buttons across Campus Clubs and Student ID screens by checking `router.canGoBack()` and safely falling back to root tabs.
@@ -24,6 +47,7 @@ and this project adheres to semantic application versioning defined in `AGENTS.m
 
 ### Added
 - **Reusable Input Template (`FormTextInput`)**: Consolidated text input primitive across web and mobile with Calvin Gold borders, gold carets, and browser outline suppression.
+- **Feed Tab Search & Category Filter Chips**: Integrated canonical `SearchField` and 13-category `ChipRow` directly into feed controls for 0-click keyword and category filtering.
 - **Unified Post Form Controls**: Extracted shared `PostTitleSection`, `PostDescriptionSection`, and `PostLocationSection` to keep placeholders and length limits in parity across mobile and web.
 - **Shared Feed Page Controls (`feed-controls.tsx`)**: Consolidated `FeedSearchField`, `FeedFilterChips`, `FeedFollowingBanner`, and `FeedEmptyState` templates for single-source-of-truth feed search, chips, and empty states.
 - **Campus Clubs 2-Column Desktop Studio**: Added 2-column desktop layout (profile & logistics on left, announcements stream on right) to `ClubDetailView`.
@@ -32,34 +56,10 @@ and this project adheres to semantic application versioning defined in `AGENTS.m
 
 ### Fixed
 - **Motionless Home-Swipe Tab Desynchronization**: Resolved tab desync between content, header, and bottom bar on app resume by establishing a single source of truth (`activeTabIndex`), pure derived headers, and safe screen dimension resolution.
+- **Claim Club Setup Success Header Latency**: Resolved delay where top header stayed stuck on "Complete Profile" after tapping "Got it" by synchronously resetting `claimSetupState.isOpen`.
 - **Feed & Directory Empty State Consolidation**: Replaced duplicate inline empty cards and reset buttons across Feed, Campus Clubs, and People Directory with the unified `FeedEmptyState` template. Added web outline suppression and gold carets to `SearchField`.
 - **Web Form Focus Outlines & Carets**: Standardized text carets and focus rings across post composer fields on web to match mobile brand styling.
 - **Mobile & Web Input Divergence**: Purged duplicated inline text inputs across `PostMobileView` and `PostWebView` in favor of shared template sections.
-
----
-
-## [0.4.6] - 2026-10-07
-
-### Added
-- **Desktop Web Post Studio**: Responsive 3-column layout for desktop web with hero headline input, live feed card preview, and zero-scroll canvas.
-- **Modular Post Components**: Refactored `post.tsx` into a lightweight router delegating between `PostMobileView`, `PostWebView`, and `PostNotLeaderView`.
-- **Responsive Layout Hook (`useResponsiveLayout`)**: Centralized breakpoint detection and dynamic grid column scaling (up to 5 columns on ultrawide displays).
-- **Mobile Web App Shell & Smart Banner**: Added grounded mobile bottom navigation and a dismissible "Get the Knightly App" banner for mobile web browsers.
-
-### Fixed
-- **Single-Input Segmented Date Field**: Replaced multi-box date inputs with a zero-flicker masked architecture handling month rollovers, leap years, and delimiter navigation without focus thrashing.
-- **Modal Dialog Template Consolidation**: Consolidated modals to inherit edge-to-edge translucency, backdrop dismissal, and keyboard avoidance from the `ModalDialog` template primitive.
-- **Mobile Web Header Spacing**: Removed obsolete desktop header insets to fix spacing below the mobile web banner.
-
----
-
-## [0.4.5] - 2026-10-07
-
-### Fixed
-- **Mobile Navigation Bar Grounding**: Docked the bottom tab bar flush with the screen bottom across handheld devices.
-- **Modular Feed Layouts**: Separated mobile single-column feed (`FeedMobileView`) and desktop multi-column feed (`FeedWebView`) from `(tabs)/index.tsx`.
-- **Card Typography & Platform Isolation**: Isolated mobile serif headline typography and unconstrained body text from desktop grid constraints.
-- **Login Screen Diagnostics**: Fixed duplicate property styles and cleanly separated mobile and desktop layout containers.
 
 ---
 
