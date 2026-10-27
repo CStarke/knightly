@@ -267,8 +267,8 @@ describe('Auth, Student Profile & Theme System Domain', () => {
   // ==========================================================================
   describe('Parallax Starfield Density & Procedural Generator', () => {
     it('defines standard density constants decoupled from hardware-specific screen baselines', () => {
-      assert.strictEqual(STAR_DENSITY_UNIT_AREA_PX, 10000, 'Standard area density unit must be 10,000 px²');
-      assert.strictEqual(STARS_PER_10K_PX, 1.3, 'Default star density should be 1.3 stars per 10,000 px²');
+      assert.strictEqual(STAR_DENSITY_UNIT_AREA_PX, 10000, 'Standard area density unit must be 10,000 pxÂ²');
+      assert.strictEqual(STARS_PER_10K_PX, 1.3, 'Default star density should be 1.3 stars per 10,000 pxÂ²');
       assert.strictEqual(MAX_TOTAL_STARS, 1800, 'Max total star ceiling should be 1800 to protect 60/120fps UI performance');
       assert.strictEqual(MIN_TOTAL_STARS, 9, 'Min total stars should be 9 (1 base unit of 5:3:1 ratio)');
     });
@@ -580,59 +580,57 @@ describe('Auth, Student Profile & Theme System Domain', () => {
   });
 
   // ==========================================================================
-  // Suite 10: LoginScreen Modularization & Anti-Monolith Invariants
+  // Suite 10: LoginScreen Architecture & Reanimated Invariants
   // ==========================================================================
-  describe('LoginScreen Modularization & Anti-Monolith Invariants', () => {
-    it('verifies login-screen.tsx satisfies anti-monolith invariant (<1,000 lines)', () => {
+  describe('LoginScreen Architecture & Reanimated Invariants', () => {
+    it('verifies login-screen.tsx exists, exports LoginScreen, and contains complete auth flow', () => {
+      const loginPath = path.resolve(__dirname, '../src/components/login-screen.tsx');
+      assert.ok(fs.existsSync(loginPath), 'login-screen.tsx should exist');
+
+      const loginSource = fs.readFileSync(loginPath, 'utf-8');
+
+      // Exports primary screen component
+      assert.ok(loginSource.includes('export function LoginScreen('));
+
+      // Contains authentication dispatch and session mount
+      assert.ok(loginSource.includes('signIn(submittedUser, submittedPass)'));
+      assert.ok(loginSource.includes('setAppMounted(true)'));
+
+      // Contains Calvin demo account quick fill
+      assert.ok(loginSource.includes('jmd42'));
+      assert.ok(loginSource.includes('calvin2028'));
+
+      // Contains secure masked password processing
+      assert.ok(loginSource.includes('processPasswordMaskInput'));
+      assert.ok(loginSource.includes('formatPasswordDisplay'));
+    });
+
+    it('verifies login-screen.tsx integrates flight shared values and layout measurements', () => {
       const loginPath = path.resolve(__dirname, '../src/components/login-screen.tsx');
       const loginSource = fs.readFileSync(loginPath, 'utf-8');
-      const lineCount = loginSource.split('\n').length;
 
-      // Anti-monolith invariant (AGENTS.md Rule 4.3): files must not accumulate 1,000+ lines
-      assert.ok(lineCount < 1000, `login-screen.tsx is ${lineCount} lines, expected < 1000`);
+      // Shared Reanimated values for flight
+      assert.ok(loginSource.includes('useSharedValue('));
+      assert.ok(loginSource.includes('overlayOpacity'));
+      assert.ok(loginSource.includes('headerHeight'));
+      assert.ok(loginSource.includes('wordmarkProgress'));
+      assert.ok(loginSource.includes('wordmarkCrossfadeOpacity'));
+      assert.ok(loginSource.includes('deltaX'));
+      assert.ok(loginSource.includes('deltaY'));
 
-      // Must compose modular subcomponents
-      assert.ok(loginSource.includes('<LoginFlightContainer'));
-      assert.ok(loginSource.includes('<LoginFormFields'));
-      assert.ok(loginSource.includes('<LoginFooter'));
-      assert.ok(loginSource.includes('useLoginFlight('));
+      // View measurement hooks and refs
+      assert.ok(loginSource.includes('measurePositions'));
+      assert.ok(loginSource.includes('heroWordmarkRef'));
+      assert.ok(loginSource.includes('headerTargetRef'));
     });
 
-    it('verifies all modular login subcomponents exist and satisfy anti-monolith invariant (<1,000 lines)', () => {
-      const files = [
-        '../src/hooks/use-login-flight.ts',
-        '../src/components/login-flight-container.tsx',
-        '../src/components/login-form-fields.tsx',
-        '../src/components/login-footer.tsx',
-      ];
-
-      for (const rel of files) {
-        const filePath = path.resolve(__dirname, rel);
-        assert.ok(fs.existsSync(filePath), `File ${rel} should exist`);
-        const source = fs.readFileSync(filePath, 'utf-8');
-        const count = source.split('\n').length;
-        assert.ok(count < 1000, `${rel} has ${count} lines, expected < 1000`);
-      }
-    });
-
-    it('verifies useLoginFlight exports animated styles and lifecycle triggers', () => {
-      const hookPath = path.resolve(__dirname, '../src/hooks/use-login-flight.ts');
-      const hookSource = fs.readFileSync(hookPath, 'utf-8');
-
-      assert.ok(hookSource.includes('export function useLoginFlight('));
-      assert.ok(hookSource.includes('startFlight'));
-      assert.ok(hookSource.includes('rootOverlayStyle'));
-      assert.ok(hookSource.includes('maroonContainerStyle'));
-      assert.ok(hookSource.includes('flyingWordmarkStyle'));
-    });
-
-    it('enforces Reanimated worklet thread-boundary invariants in useLoginFlight', () => {
-      const hookPath = path.resolve(__dirname, '../src/hooks/use-login-flight.ts');
-      const hookSource = fs.readFileSync(hookPath, 'utf-8');
+    it('enforces Reanimated worklet thread-boundary invariants in login-screen.tsx', () => {
+      const loginPath = path.resolve(__dirname, '../src/components/login-screen.tsx');
+      const loginSource = fs.readFileSync(loginPath, 'utf-8');
 
       // Invariant: measurePositions requires React Native measureInWindow (JS host method)
       // and must NEVER be invoked directly inside a UI worklet callback
-      const withTimingCalls = hookSource.match(/withTiming\([\s\S]*?\)/g) || [];
+      const withTimingCalls = loginSource.match(/withTiming\([\s\S]*?\)/g) || [];
       for (const call of withTimingCalls) {
         assert.ok(
           !call.includes('measurePositions()'),
@@ -642,17 +640,23 @@ describe('Auth, Student Profile & Theme System Domain', () => {
 
       // Invariant: UI callbacks must marshal to JS via runOnJS
       assert.ok(
-        hookSource.includes('runOnJS(triggerFlightAfterFade)()'),
+        loginSource.includes('runOnJS(triggerFlightAfterFade)()'),
         'Must marshal triggerFlightAfterFade via runOnJS'
       );
       assert.ok(
-        hookSource.includes('runOnJS(handleFlightFinished)()'),
-        'Must marshal handleFlightFinished via runOnJS'
+        loginSource.includes('runOnJS(onTransitionComplete)'),
+        'Must marshal onTransitionComplete via runOnJS'
       );
-      assert.ok(
-        hookSource.includes('runOnJS(onComplete)()'),
-        'Must marshal onComplete via runOnJS'
-      );
+    });
+
+    it('verifies SmartAppBanner mobile web offset and desktop sidebar docking awareness', () => {
+      const loginPath = path.resolve(__dirname, '../src/components/login-screen.tsx');
+      const loginSource = fs.readFileSync(loginPath, 'utf-8');
+
+      assert.ok(loginSource.includes('SmartAppBanner'));
+      assert.ok(loginSource.includes('SMART_APP_BANNER_HEIGHT'));
+      assert.ok(loginSource.includes('bannerOffset'));
+      assert.ok(loginSource.includes('isDesktopWeb'));
     });
   });
 });

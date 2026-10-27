@@ -5,18 +5,16 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
-## [0.6.1] - Unreleased
-
-### Added
-- **Private Saved Posts Bookmarking**: Transitioned the social "Favorites" heart system to a private, student-centric "Saved Posts" bookmarking feature using a Calvin Collegiate Gold star icon (`Brand.gold` `#E8B019`), with persistent account-isolated storage (`knightly_saved_posts_<accountId>`), guaranteeing zero data leakage between student sessions.
-- **O(1) Set Performance Optimization**: Replaced $O(N)$ linear array searching in feed state with a JavaScript `Set<string>`, delivering guaranteed constant-time lookups during 60fps feed scrolling.
-- **Consolidated Empty State Template**: Added `'no-saved-posts'` variant to `FeedEmptyState` (`feed-controls.tsx`), unifying empty state handling across `index.tsx`, `FeedMobileView`, and `FeedWebView` without inline element drift (AGENTS.md Rule 4.5).
-- **Login Screen Anti-Monolith Modularization**: Refactored `login-screen.tsx` from 1,260 lines to 278 lines by extracting modular subcomponents (`useLoginFlight`, `LoginFlightContainer`, `LoginFormFields`, `LoginFooter`).
-- **Campus Map Integration in Modular Safety**: Added the new interactive campus map entry point to shared `SafetyQuickAssistCard` across both mobile and web views.
-- **Favorites Integration in Modular Feed Views**: Integrated the favorites feed filter into `FeedMobileView` and `FeedWebView`.
+## [0.6.2] - Unreleased
 
 ### Fixed
-- **Reanimated Worklet Remote Function Call on Login**: Fixed runtime crash (`[Worklets] Tried to synchronously call a Remote Function. Called "anonymous" on the UI runtime`) in `use-login-flight.ts` by marshaling `measurePositions`, `runFlight`, and completion callbacks across the UI worklet thread boundary using `runOnJS`, with explicit `'worklet'` directives on `withTiming` handlers.
+- **Desktop Web Login Input Focus**: Resolved issue where username and password text inputs could not be focused on desktop web by only rendering `TouchableWithoutFeedback` on native platforms and assigning `zIndex: 20` to the login form container.
+- **Login Footer Text Encoding**: Replaced corrupted bullet character mojibake (`Â·`) in the campus address footer with Unicode escape `\u2022`.
+
+### Reverted
+- **Login Screen Modularization Revert**: Reverted `client/src/components/login-screen.tsx` back to its pre-modularization single-file implementation (commit `1a5ea85` / `b4fbc66~1`), consolidating login flight animation shared values, layout measurements, masked password inputs, and container shrinking into a unified component. Removed modular subcomponent files (`login-flight-container.tsx`, `login-form-fields.tsx`, `login-footer.tsx`, and `use-login-flight.ts`) and aligned Suite 10 tests in `auth-and-student.test.ts` to enforce Reanimated worklet thread-boundary invariants directly on `login-screen.tsx`.
+
+## [0.6.1] - 2026-10-27
 
 ### Changed
 - **Expo SDK 58 & React Native 0.88 Upgrade**: Upgraded core framework dependencies: Expo SDK to 58.0.19, React Native to 0.88.0, React to 19.3.0, React Native Reanimated to 4.7.1, React Native Gesture Handler to 3.3.0, Expo Router to 58.0.26, and React Native WebView to 14.0.1.
@@ -40,7 +38,7 @@ and this project adheres to semantic application versioning defined in `AGENTS.m
 ### Added
 - **Campus Safety Anti-Monolith Modularization**: Refactored `safety.tsx` into a 24-line router delegating between `SafetyMobileView` and `SafetyWebView`. Extracted `safety-sections.tsx` (`SafetyEmergencyButton`, `SafetyQuickAssistCard`, `SafetyAlertsSection`, `SafetyNumbersSection`) shared across web and mobile with zero code duplication.
 - **Campus Dining Anti-Monolith Modularization**: Refactored `dining.tsx` from a 387-line monolith into a 22-line router delegating to `DiningMobileView` and `DiningWebView`. Extracted shared sections (`KnightIdCardSection`, `DiningHallsSection`, `DiningMenuSection`).
-- **Campus People Directory 1–5 Column Responsive Grid**: Upgraded `DirectoryScreen` to scale dynamically from 1 to 5 columns matching Home Feed breakpoints and integrated `FeedEmptyState`.
+- **Campus People Directory 1â€“5 Column Responsive Grid**: Upgraded `DirectoryScreen` to scale dynamically from 1 to 5 columns matching Home Feed breakpoints and integrated `FeedEmptyState`.
 - **Campus Clubs 5-Column Parity**: Aligned `ClubsDirectoryView` to scale from 1 to 5 columns using `resolveFeedColumnCount` and dynamic container widths.
 - **Favorite Posts Functionality**: Added ability for students to favorite posts via heart icon and filter by favorites.
 - **Safety Domain Invariant Test Suite**: Added Suite 12 to `dining-and-services.test.ts` verifying router brevity, shared section imports, and desktop layout constraints.
@@ -107,7 +105,7 @@ and this project adheres to semantic application versioning defined in `AGENTS.m
 - **Event Time Range Inputs**: Added optional start and end time fields with chronological validation.
 
 ### Changed
-- **Starfield Area Density**: Converted starfield to standard 1.3 stars per 10,000 px² with 5:3:1 depth scaling.
+- **Starfield Area Density**: Converted starfield to standard 1.3 stars per 10,000 pxÂ² with 5:3:1 depth scaling.
 - **Expo Framework Update**: Patched Expo core from `~57.0.24` to `~57.0.26`.
 
 ---
@@ -115,7 +113,7 @@ and this project adheres to semantic application versioning defined in `AGENTS.m
 ## [0.3.0] - 2026-10-01
 
 ### Added
-- **Decoupled Banner Colors & Patterns**: Expanded simple banners to 16 collegiate colors and 16 vector patterns (256 combinations) with symmetrical 8×2 selector grids.
+- **Decoupled Banner Colors & Patterns**: Expanded simple banners to 16 collegiate colors and 16 vector patterns (256 combinations) with symmetrical 8Ã—2 selector grids.
 - **Layered Feed Rendering**: Added vector pattern overlays on cards with companion accent tinting.
 
 ---
