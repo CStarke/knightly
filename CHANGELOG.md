@@ -7,6 +7,9 @@ and this project adheres to semantic application versioning defined in `AGENTS.m
 
 ## [0.6.2] - Unreleased
 
+### Added
+- **User Stories & Requirements Traceability Matrix**: Created comprehensive tracking document `docs/User_Stories.md` consolidating all 48 user stories from `docs/Knightly User Stories.pdf` across 6 core functional domains alongside all 26 SRS functional requirements (`FR-1` through `FR-26`), plus 26 additional codebase-audited user stories (`US-X01` through `US-X26`) covering creative banner generation, inline 16:9 flyer cropping, segmented date/time inputs, club leadership claim codes, responsive desktop studio layouts, vector campus mapping, parallax starfield astrophysics, real-time dining schedules, and centralized template architectures (100 total tracked requirements).
+
 ### Fixed
 - **Desktop Web Login Input Focus**: Resolved issue where username and password text inputs could not be focused on desktop web by only rendering `TouchableWithoutFeedback` on native platforms and assigning `zIndex: 20` to the login form container.
 - **Login Footer Text Encoding**: Replaced corrupted bullet character mojibake (`Â·`) in the campus address footer with Unicode escape `\u2022`.
