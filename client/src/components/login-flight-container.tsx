@@ -9,7 +9,7 @@
  */
 
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type ViewInstance } from 'react-native';
 import Animated, { type SharedValue } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
@@ -21,7 +21,7 @@ export type LoginFlightContainerProps = {
   headerPaddingTop: number;
   activeInitials: string;
   isCollapsedLocally?: boolean;
-  headerTargetRef: React.RefObject<View | null>;
+  headerTargetRef: React.RefObject<ViewInstance | null>;
   mastheadHeight: SharedValue<number>;
   measurePositions: () => void;
   maroonContainerStyle: any;

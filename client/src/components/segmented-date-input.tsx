@@ -14,7 +14,7 @@ import {
   View,
   type NativeSyntheticEvent,
   type StyleProp,
-  type TextInputKeyPressEventData,
+  type TextInputKeyPressEvent,
   type ViewStyle,
 } from 'react-native';
 
@@ -61,7 +61,7 @@ export type DateSegmentCellProps = {
   textColor?: string;
   placeholderColor?: string;
   onChangeText?: (text: string) => void;
-  onKeyPress?: (e: NativeSyntheticEvent<TextInputKeyPressEventData>) => void;
+  onKeyPress?: (e: TextInputKeyPressEvent) => void;
   onFocus?: (e: any) => void;
   onBlur?: () => void;
 };

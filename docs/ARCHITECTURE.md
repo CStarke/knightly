@@ -50,7 +50,7 @@ flowchart TD
 Knightly/
 ├── client/                          # Frontend Expo / React Native project
 │   ├── src/
-│   │   ├── app/                     # File-based routing (Expo Router SDK 57)
+│   │   ├── app/                     # File-based routing (Expo Router SDK 58)
 │   │   │   ├── (tabs)/              # Persistent bottom tab screens (Home, Feed, Post, Profile)
 │   │   │   ├── clubs/               # Club directory and subpages
 │   │   │   └── +native-intent.tsx   # Android native intent filter (prevents activity drop to /)

@@ -3,6 +3,7 @@ import {
   Platform,
   StyleSheet,
   TextInput,
+  type TextInputInstance,
   View,
 } from 'react-native';
 
@@ -42,7 +43,7 @@ export type MaskedTimeInputRef = {
   focus: () => void;
   blur: () => void;
   setNativeValue: (value: string) => void;
-  textInput: TextInput | null;
+  textInput: TextInputInstance | null;
 };
 
 /**
@@ -70,7 +71,7 @@ export const MaskedTimeInput = forwardRef<MaskedTimeInputRef, MaskedTimeInputPro
     ref
   ) {
     const theme = useTheme();
-    const inputRef = useRef<TextInput>(null);
+    const inputRef = useRef<TextInputInstance>(null);
     const [isFocused, setIsFocused] = useState(false);
 
     useImperativeHandle(ref, () => ({

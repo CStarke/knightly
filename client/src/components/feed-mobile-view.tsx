@@ -36,7 +36,7 @@ import {
   type Post,
 } from "@/data/feed";
 
-const mobileToggleOptions = ["Following", "All Campus", "Favorites"] as const;
+const mobileToggleOptions = ["Following", "All Campus", "Saved"] as const;
 type MobileScope = (typeof mobileToggleOptions)[number];
 
 const mobileCategoryOptions: ("All" | FeedCategory)[] = [
@@ -53,7 +53,7 @@ export function FeedMobileView() {
   const deferredMobileCategories = useDeferredValue(mobileCategories);
   const deferredQuery = useDeferredValue(query);
 
-  const { posts: dynamicPosts, favoritePosts } = useFeed();
+  const { posts: dynamicPosts, savedPosts, favoritePosts } = useFeed();
   const { isFollowing, followedCount } = useClubFollow();
   const { openClubsDirectory } = useClubsNavigation();
 
@@ -94,14 +94,15 @@ export function FeedMobileView() {
       ? []
       : Array.from(deferredMobileCategories).filter((c): c is FeedCategory => c !== "All");
 
-    const showFavorites = deferredMobileScope === "Favorites";
-    return filterFeedPosts(showFavorites ? (favoritePosts ?? []) : dynamicPosts, {
-      scope: deferredMobileScope === "Favorites" ? "All Campus" : deferredMobileScope,
+    const activeSaved = savedPosts ?? favoritePosts ?? [];
+    const showSaved = deferredMobileScope === "Saved";
+    return filterFeedPosts(showSaved ? activeSaved : dynamicPosts, {
+      scope: deferredMobileScope === "Saved" ? "All Campus" : deferredMobileScope,
       categories: activeCats,
       query: deferredMobileScope === "Following" ? "" : deferredQuery,
       isFollowing,
     });
-  }, [dynamicPosts, favoritePosts, deferredMobileScope, deferredMobileCategories, deferredQuery, isFollowing]);
+  }, [dynamicPosts, savedPosts, favoritePosts, deferredMobileScope, deferredMobileCategories, deferredQuery, isFollowing]);
 
   const isFilterActive =
     (mobileScope !== "Following" && query.trim().length > 0) ||
@@ -128,8 +129,8 @@ export function FeedMobileView() {
           value={query}
           onChangeText={setQuery}
           placeholder={
-            mobileScope === "Favorites"
-              ? "Search saved favorites..."
+            mobileScope === "Saved"
+              ? "Search saved posts..."
               : "Search all events, clubs, locations..."
           }
         />
@@ -164,15 +165,24 @@ export function FeedMobileView() {
     (deferredMobileCategories.size === 0 || deferredMobileCategories.has("All")) &&
     !deferredQuery.trim();
 
+  const isNoSavedPosts =
+    deferredMobileScope === "Saved" && (savedPosts?.length === 0 || favoritePosts?.length === 0);
+
   const listEmpty = visible.length === 0 ? (
     <View style={[styles.screenInner, styles.mobileEmptyContainer]}>
       <FeedEmptyState
-        type={isNoFollowingPosts ? "no-following-posts" : "no-filter-matches"}
+        type={
+          isNoSavedPosts
+            ? "no-saved-posts"
+            : isNoFollowingPosts
+            ? "no-following-posts"
+            : "no-filter-matches"
+        }
         onBrowseClubs={openClubsDirectory}
         onClearFilters={handleClear}
       />
     </View>
-  ) : null;
+  ) : undefined;
 
   return (
     <ScreenFlatList

@@ -241,7 +241,10 @@ export function FeedFollowingBanner({
 // 7. Feed Empty State Component
 // ============================================================================
 
-export type FeedEmptyStateType = 'no-following-posts' | 'no-filter-matches';
+export type FeedEmptyStateType =
+  | 'no-following-posts'
+  | 'no-filter-matches'
+  | 'no-saved-posts';
 
 export interface FeedEmptyStateProps {
   type: FeedEmptyStateType;
@@ -265,6 +268,18 @@ export function FeedEmptyState({
   onClearFilters,
   style,
 }: FeedEmptyStateProps) {
+  if (type === 'no-saved-posts') {
+    return (
+      <Card style={[styles.emptyCard, style]}>
+        <Icon sf="star" md="star_border" size={28} color={Brand.gold} />
+        <ThemedText type="smallBold">{title ?? 'No saved posts yet'}</ThemedText>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.emptySub}>
+          {subtitle ?? 'Tap the star on any announcement or event to save it here for quick reference.'}
+        </ThemedText>
+      </Card>
+    );
+  }
+
   if (type === 'no-following-posts') {
     return (
       <Card style={[styles.emptyCard, style]}>

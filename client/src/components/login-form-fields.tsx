@@ -7,7 +7,7 @@
  */
 
 import React, { useState } from 'react';
-import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, TextInput, View, type ViewInstance } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
@@ -15,7 +15,7 @@ import { Icon } from '@/components/ui/icon';
 import { Brand, Fonts, Radius, Spacing } from '@/constants/theme';
 
 export type LoginFormFieldsProps = {
-  heroWordmarkRef: React.RefObject<View | null>;
+  heroWordmarkRef: React.RefObject<ViewInstance | null>;
   measurePositions: () => void;
   flyingWordmarkStyle: any;
   formFadeStyle: any;

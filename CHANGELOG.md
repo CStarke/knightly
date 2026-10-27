@@ -8,11 +8,19 @@ and this project adheres to semantic application versioning defined in `AGENTS.m
 ## [0.6.1] - Unreleased
 
 ### Added
+- **Private Saved Posts Bookmarking**: Transitioned the social "Favorites" heart system to a private, student-centric "Saved Posts" bookmarking feature using a Calvin Collegiate Gold star icon (`Brand.gold` `#E8B019`), with persistent account-isolated storage (`knightly_saved_posts_<accountId>`), guaranteeing zero data leakage between student sessions.
+- **O(1) Set Performance Optimization**: Replaced $O(N)$ linear array searching in feed state with a JavaScript `Set<string>`, delivering guaranteed constant-time lookups during 60fps feed scrolling.
+- **Consolidated Empty State Template**: Added `'no-saved-posts'` variant to `FeedEmptyState` (`feed-controls.tsx`), unifying empty state handling across `index.tsx`, `FeedMobileView`, and `FeedWebView` without inline element drift (AGENTS.md Rule 4.5).
 - **Login Screen Anti-Monolith Modularization**: Refactored `login-screen.tsx` from 1,260 lines to 278 lines by extracting modular subcomponents (`useLoginFlight`, `LoginFlightContainer`, `LoginFormFields`, `LoginFooter`).
 - **Campus Map Integration in Modular Safety**: Added the new interactive campus map entry point to shared `SafetyQuickAssistCard` across both mobile and web views.
 - **Favorites Integration in Modular Feed Views**: Integrated the favorites feed filter into `FeedMobileView` and `FeedWebView`.
 
+### Fixed
+- **Reanimated Worklet Remote Function Call on Login**: Fixed runtime crash (`[Worklets] Tried to synchronously call a Remote Function. Called "anonymous" on the UI runtime`) in `use-login-flight.ts` by marshaling `measurePositions`, `runFlight`, and completion callbacks across the UI worklet thread boundary using `runOnJS`, with explicit `'worklet'` directives on `withTiming` handlers.
+
 ### Changed
+- **Expo SDK 58 & React Native 0.88 Upgrade**: Upgraded core framework dependencies: Expo SDK to 58.0.19, React Native to 0.88.0, React to 19.3.0, React Native Reanimated to 4.7.1, React Native Gesture Handler to 3.3.0, Expo Router to 58.0.26, and React Native WebView to 14.0.1.
+- **React Native 0.88 Type Conformance**: Updated ref typing and event handlers to native instance types (ViewInstance, TextInputInstance, ScrollViewInstance, TextInputContentSizeChangeEvent, TextInputKeyPressEvent) across form components, modal dialogs, and navigation triggers.
 - **Anti-Monolith Invariant Test Relaxation**: Updated test assertions across `auth-and-student.test.ts`, `dining-and-services.test.ts`, and `post-composer.test.ts` to enforce the universal `< 1000` line anti-monolith limit without brittle sub-caps.
 - **Clarified Versioning Policy**: Updated `AGENTS.md`, `MULTI_DEV_WORKFLOW.md`, and `version.ts` to explain baseline anchoring and single increment rules clearly without examples.
 

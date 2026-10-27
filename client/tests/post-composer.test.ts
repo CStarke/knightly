@@ -293,7 +293,8 @@ describe('Club Leadership & Post Creation Domain', () => {
         const d = date.trim();
         const t = time.trim();
         if (!d && !t) return undefined;
-        const fd = formatEventDate(d);
+        const refDate = new Date(2026, 8, 17, 12, 0, 0);
+        const fd = formatEventDate(d, refDate);
         if (fd && t) return `${fd} · ${t}`;
         return fd || t || undefined;
       };
@@ -477,7 +478,8 @@ describe('Club Leadership & Post Creation Domain', () => {
       assert.strictEqual(resolveEventTime('1000', 'AM'), '10:00 AM');
 
       // Combined date and time preview formatting
-      const dateStr = formatEventDate('09/18/2026');
+      const refDate = new Date(2026, 8, 17, 12, 0, 0);
+      const dateStr = formatEventDate('09/18/2026', refDate);
       const timeStr = resolveEventTime('1000', 'PM');
       const combinedPreview = `${dateStr} · ${timeStr}`;
       assert.strictEqual(combinedPreview, 'Fri, Sep 18 · 10:00 PM');

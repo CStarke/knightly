@@ -72,7 +72,7 @@ To prevent developers from colliding in the same file:
   cd client
   npx expo install <package-name>
   ```
-  *Why*: Prevents mismatched native library versions that break React Native 0.86 / Expo SDK 57 native builds.
+  *Why*: Prevents mismatched native library versions that break React Native 0.88 / Expo SDK 58 native builds.
 - Never manually resolve `package-lock.json` conflict blocks by hand. Instead:
   ```bash
   git checkout --theirs package-lock.json

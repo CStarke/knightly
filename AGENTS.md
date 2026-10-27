@@ -8,7 +8,7 @@ Welcome to the Knightly codebase. This file is the primary orientation and opera
 
 Knightly is an offline-resilient, mobile-first campus life, announcements, and community super-app for **Calvin University**.
 
-- **Frontend Tech Stack**: React Native 0.86, React 19, Expo SDK 57 (`expo-router` file-based routing), TypeScript (strict mode), `react-native-reanimated` 4.5.
+- **Frontend Tech Stack**: React Native 0.88, React 19.3, Expo SDK 58 (`expo-router` file-based routing), TypeScript (strict mode), `react-native-reanimated` 4.7.
 - **Backend Tech Stack**: Node.js, Express, Supabase (PostgreSQL), native HTTP scraper for `calvin.edu/events/all`.
 - **Deep Documentation**:
   - Technical Architecture Specification: [`docs/ARCHITECTURE.md`](file:///C:/Users/cjsta/Desktop/-/Knightly/docs/ARCHITECTURE.md)
@@ -21,7 +21,7 @@ Knightly is an offline-resilient, mobile-first campus life, announcements, and c
 ## 2. Expo Versioned Documentation
 
 ### Expo HAS CHANGED
-Read the exact versioned docs at [https://docs.expo.dev/versions/v57.0.0/](https://docs.expo.dev/versions/v57.0.0/) before writing any code. Do not use deprecated APIs from older Expo versions.
+Read the exact versioned docs at [https://docs.expo.dev/versions/v58.0.0/](https://docs.expo.dev/versions/v58.0.0/) before writing any code. Do not use deprecated APIs from older Expo versions.
 
 ---
 

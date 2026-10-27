@@ -625,6 +625,35 @@ describe('Auth, Student Profile & Theme System Domain', () => {
       assert.ok(hookSource.includes('maroonContainerStyle'));
       assert.ok(hookSource.includes('flyingWordmarkStyle'));
     });
+
+    it('enforces Reanimated worklet thread-boundary invariants in useLoginFlight', () => {
+      const hookPath = path.resolve(__dirname, '../src/hooks/use-login-flight.ts');
+      const hookSource = fs.readFileSync(hookPath, 'utf-8');
+
+      // Invariant: measurePositions requires React Native measureInWindow (JS host method)
+      // and must NEVER be invoked directly inside a UI worklet callback
+      const withTimingCalls = hookSource.match(/withTiming\([\s\S]*?\)/g) || [];
+      for (const call of withTimingCalls) {
+        assert.ok(
+          !call.includes('measurePositions()'),
+          'measurePositions() must not be invoked directly inside withTiming callback'
+        );
+      }
+
+      // Invariant: UI callbacks must marshal to JS via runOnJS
+      assert.ok(
+        hookSource.includes('runOnJS(triggerFlightAfterFade)()'),
+        'Must marshal triggerFlightAfterFade via runOnJS'
+      );
+      assert.ok(
+        hookSource.includes('runOnJS(handleFlightFinished)()'),
+        'Must marshal handleFlightFinished via runOnJS'
+      );
+      assert.ok(
+        hookSource.includes('runOnJS(onComplete)()'),
+        'Must marshal onComplete via runOnJS'
+      );
+    });
   });
 });
 

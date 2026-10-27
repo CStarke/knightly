@@ -43,12 +43,12 @@ import {
 /**
  * Filter options combining feed scopes ("All", "Following") and categories in a single tier.
  */
-type FeedFilterOption = "All" | "Following" | "Favorites" | FeedCategory;
+type FeedFilterOption = "All" | "Following" | "Saved" | FeedCategory;
 
 const allFilterOptions: FeedFilterOption[] = [
   "All",
   "Following",
-  "Favorites",
+  "Saved",
   ...feedCategories,
 ];
 
@@ -62,7 +62,7 @@ export function FeedWebView() {
   const deferredSelectedFilters = useDeferredValue(selectedFilters);
   const deferredQuery = useDeferredValue(query);
 
-  const { posts: dynamicPosts, favoritePosts } = useFeed();
+  const { posts: dynamicPosts, savedPosts, favoritePosts } = useFeed();
   const { isFollowing, followedCount } = useClubFollow();
   const { openClubsDirectory } = useClubsNavigation();
 
@@ -95,21 +95,22 @@ export function FeedWebView() {
 
   // Step 3: Filtering Pipeline
   const visible = useMemo(() => {
-    const isFavorites = deferredSelectedFilters.has("Favorites");
+    const isSaved = deferredSelectedFilters.has("Saved");
+    const activeSaved = savedPosts ?? favoritePosts ?? [];
     const webScope = deferredSelectedFilters.has("Following") ? "Following" : "All";
     const webCategories = deferredSelectedFilters.has("All")
       ? []
       : Array.from(deferredSelectedFilters).filter(
-          (opt): opt is FeedCategory => opt !== "All" && opt !== "Following" && opt !== "Favorites"
+          (opt): opt is FeedCategory => opt !== "All" && opt !== "Following" && opt !== "Saved"
         );
 
-    return filterFeedPosts(isFavorites ? (favoritePosts ?? []) : dynamicPosts, {
-      scope: isFavorites ? "All" : webScope,
+    return filterFeedPosts(isSaved ? activeSaved : dynamicPosts, {
+      scope: isSaved ? "All" : webScope,
       categories: webCategories,
       query: deferredQuery,
       isFollowing,
     });
-  }, [dynamicPosts, favoritePosts, deferredSelectedFilters, deferredQuery, isFollowing]);
+  }, [dynamicPosts, savedPosts, favoritePosts, deferredSelectedFilters, deferredQuery, isFollowing]);
 
   // Step 4: Chunk visible posts into even rows of `numColumns` items
   const evenRows = useMemo(() => {
@@ -165,10 +166,19 @@ export function FeedWebView() {
     Array.from(deferredSelectedFilters).filter((o) => o !== "All" && o !== "Following").length === 0 &&
     !deferredQuery.trim();
 
+  const isNoSavedPosts =
+    deferredSelectedFilters.has("Saved") && (savedPosts?.length === 0 || favoritePosts?.length === 0);
+
   const listEmpty = visible.length === 0 ? (
     <View style={styles.screenInner}>
       <FeedEmptyState
-        type={isNoFollowingPosts ? "no-following-posts" : "no-filter-matches"}
+        type={
+          isNoSavedPosts
+            ? "no-saved-posts"
+            : isNoFollowingPosts
+            ? "no-following-posts"
+            : "no-filter-matches"
+        }
         onBrowseClubs={openClubsDirectory}
         onClearFilters={handleClear}
       />

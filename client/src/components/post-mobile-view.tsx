@@ -13,6 +13,7 @@ import {
   Keyboard,
   Platform,
   ScrollView,
+  type ScrollViewInstance,
   StyleSheet,
   View,
 } from 'react-native';
@@ -53,7 +54,7 @@ export function PostMobileView({ composer }: PostMobileViewProps) {
   const isDark = colorScheme === 'dark';
   const insets = useSafeAreaInsets();
 
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<ScrollViewInstance>(null);
   const keyboardHeight = useSharedValue(0);
 
   // Section Y measurements for auto-scrolling into view on focus

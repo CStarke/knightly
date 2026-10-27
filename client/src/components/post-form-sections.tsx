@@ -5,7 +5,7 @@ import {
   Pressable,
   StyleProp,
   StyleSheet,
-  type TextInputContentSizeChangeEventData,
+  type TextInputContentSizeChangeEvent,
   type TextStyle,
   View,
   type ViewStyle,
@@ -87,7 +87,7 @@ export interface PostDescriptionSectionProps {
   value: string;
   onChangeText: (text: string) => void;
   height?: number;
-  onContentSizeChange?: (e: NativeSyntheticEvent<TextInputContentSizeChangeEventData>) => void;
+  onContentSizeChange?: (e: TextInputContentSizeChangeEvent) => void;
   isFocused?: boolean;
   onFocus?: (e?: any) => void;
   onBlur?: (e?: any) => void;

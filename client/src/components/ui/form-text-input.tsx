@@ -3,6 +3,7 @@ import {
   Platform,
   StyleSheet,
   TextInput,
+  type TextInputInstance,
   type TextInputProps,
 } from 'react-native';
 
@@ -30,7 +31,7 @@ export type FormTextInputProps = TextInputProps & {
  * - Cross-platform Calvin Gold caret via `cursorColor` (native) and `caretColor` (web).
  * - Full theme token conformance (background, text, placeholder, border, radius).
  */
-export const FormTextInput = forwardRef<TextInput, FormTextInputProps>(
+export const FormTextInput = forwardRef<TextInputInstance, FormTextInputProps>(
   (
     {
       style,

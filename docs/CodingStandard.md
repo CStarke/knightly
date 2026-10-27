@@ -40,10 +40,10 @@ The project utilizes TypeScript with strict compiler options enabled.
 
 ## 3. Expo & React Native Guidelines
 
-Knightly is built on modern Expo (SDK 57+), React 19, React Native 0.86, and Expo Router.
+Knightly is built on modern Expo (SDK 58+), React 19.3, React Native 0.88, and Expo Router.
 
 ### 3.1 Expo SDK Documentation
-Always consult the versioned Expo documentation at [https://docs.expo.dev/versions/v57.0.0/](https://docs.expo.dev/versions/v57.0.0/) when using Expo APIs.
+Always consult the versioned Expo documentation at [https://docs.expo.dev/versions/v58.0.0/](https://docs.expo.dev/versions/v58.0.0/) when using Expo APIs.
 
 ### 3.2 Pure React Native SVG Requirements
 - **Strictly No `<defs>` or `<use>` Tags**: All vector SVG assets (patterns, icons, banners) must be implemented with direct path and shape elements (`<path>`, `<circle>`, `<rect>`, `<polygon>`).

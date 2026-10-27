@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, TextInput } from 'react-native';
+import { Platform, Pressable, StyleSheet, TextInput, type TextInputInstance } from 'react-native';
 
 import { Icon } from '@/components/ui/icon';
 import { Brand, Radius, Spacing } from '@/constants/theme';
@@ -24,7 +24,7 @@ export function SearchField({
 }: SearchFieldProps) {
   const theme = useTheme();
   const [isFocused, setIsFocused] = useState(false);
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
 
   return (
     <Pressable
