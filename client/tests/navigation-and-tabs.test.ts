@@ -685,7 +685,7 @@ describe('Navigation, Tabs & Gestures Domain', () => {
       const DEVICE_WIDTHS = [360, 375, 390, 393, 412, 428, 430, 768];
       const RESUME_INTENTS = [
         'exp://192.168.1.100:8081/--/',
-        'exp://192.168.1.42:8081/--/?runtime-version=exposdk:57.0.0',
+        'exp://192.168.1.42:8081/--/?runtime-version=exposdk:58.0.0',
         'calvinapp://--/',
         '/',
         '',

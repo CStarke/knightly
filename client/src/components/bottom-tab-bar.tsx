@@ -172,7 +172,7 @@ export function TabButton({
 
   return (
     <Pressable
-      {...props}
+      {...(props as any)}
       onPress={handlePress}
       accessibilityRole="button"
       accessibilityState={{ selected: !!effectivelyFocused }}

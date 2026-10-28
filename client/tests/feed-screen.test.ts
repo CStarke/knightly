@@ -7,7 +7,7 @@ import { posts, type Post } from '@/data/feed';
 
 // Exercise the actual screen and its control callbacks without requiring a native renderer.
 // Native views and context providers are boundaries; the filtering implementation stays real.
-test('feed screen reconciles mobile favorites with shared mobile/web filters', () => {
+test('feed screen reconciles mobile saved posts with shared mobile/web filters', () => {
   const React = require('react');
   const state: unknown[] = [];
   let stateIndex = 0;
@@ -31,7 +31,7 @@ test('feed screen reconciles mobile favorites with shared mobile/web filters', (
     stubs.set(`@/${path}`, Object.fromEntries(names.map(name => [name, component(name)])));
   }
   stubs.set('@/context/feed-context', {
-    useFeed: () => ({ posts: samplePosts, favoritePosts: favorites }),
+    useFeed: () => ({ posts: samplePosts, savedPosts: favorites, favoritePosts: favorites }),
   });
   stubs.set('@/context/club-follow-context', {
     useClubFollow: () => ({ isFollowing: (id: string) => id === followedClub, followedCount: 1 }),
@@ -79,7 +79,7 @@ test('feed screen reconciles mobile favorites with shared mobile/web filters', (
     let screen = render();
     assert.equal(screen.type, 'ScreenFlatList');
     assert.ok(screen.props.data.every((row: Post[]) => row.length === 1));
-    assert.deepEqual(find(header(screen), 'Segmented').props.options, ['Following', 'All Campus', 'Favorites']);
+    assert.deepEqual(find(header(screen), 'Segmented').props.options, ['Following', 'All Campus', 'Saved']);
     assert.ok(mobilePosts(screen).every(post => post.campusWide || post.clubId === followedClub));
 
     find(header(screen), 'Segmented').props.onChange('All Campus');
@@ -95,7 +95,7 @@ test('feed screen reconciles mobile favorites with shared mobile/web filters', (
     assert.deepEqual(mobilePosts(render()).map(post => post.id), [samplePosts[0].id]);
     find(header(render()), 'SearchField').props.onChangeText('');
 
-    find(header(render()), 'Segmented').props.onChange('Favorites');
+    find(header(render()), 'Segmented').props.onChange('Saved');
     assert.equal(mobilePosts(render()).length, 0);
     favorites = [samplePosts[1]];
     assert.deepEqual(mobilePosts(render()).map(post => post.id), [samplePosts[1].id]);
@@ -108,7 +108,7 @@ test('feed screen reconciles mobile favorites with shared mobile/web filters', (
     state[0] = 'All Campus';
     screen = render();
     assert.equal(screen.type, 'Screen');
-    assert.deepEqual(find(header(screen), 'Segmented').props.options, ['Following', 'All Campus', 'Favorites']);
+    assert.deepEqual(find(header(screen), 'Segmented').props.options, ['Following', 'All Campus', 'Saved']);
     assert.ok(find(screen, 'PostCard'));
     assert.equal(screen.props.children[1].props.children[0].props.children[0].length, 3);
     width = 800;

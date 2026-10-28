@@ -52,8 +52,8 @@ import {
   type Post,
 } from "@/data/feed";
 
-const scopeOptions = ["Following", "All Campus", "Favorites"] as const;
-type FeedScope = (typeof scopeOptions)[number];
+const scopeOptions = ["Following", "All Campus", "Saved"] as const;
+type FeedScope = (typeof scopeOptions)[number] | "Favorites";
 
 const categoryOptions: ("All" | FeedCategory)[] = [
   "All",
@@ -64,8 +64,8 @@ export default function FeedScreen() {
   const { width } = useWindowDimensions();
   const isMobileApp = Platform.OS !== "web";
 
-  // Dedicated audience scope ("Following" vs "All Campus" vs "Favorites")
-  // Favorites is accessible across both web and mobile toggle bars.
+  // Dedicated audience scope ("Following" vs "All Campus" vs "Saved")
+  // Saved posts is accessible across both web and mobile toggle bars.
   const [scope, setScope] = useState<FeedScope>("Following");
   // Topical category filter
   const [category, setCategory] = useState<"All" | FeedCategory>("All");
@@ -77,7 +77,7 @@ export default function FeedScreen() {
   const deferredQuery = useDeferredValue(query);
 
   // Get all feed posts and the student's saved favorite posts.
-  const { posts: dynamicPosts, favoritePosts } = useFeed();
+  const { posts: dynamicPosts, savedPosts, favoritePosts } = useFeed();
   const { isFollowing, followedCount } = useClubFollow();
   const { openClubsDirectory } = useClubsNavigation();
 
@@ -98,16 +98,17 @@ export default function FeedScreen() {
     const activeCats = deferredCategory === "All" ? [] : [deferredCategory];
     // Show only saved posts when the student selects Favorites.
     // Saved posts must remain visible regardless of whether their club is followed.
-    const showFavorites = deferredScope === "Favorites";
+    const isSavedScope = deferredScope === "Saved" || deferredScope === "Favorites";
+    const activeSavedPosts = savedPosts ?? favoritePosts ?? [];
 
     // Filtering logic shares category and keyword pipeline across both platforms.
-    return filterFeedPosts(showFavorites ? favoritePosts : dynamicPosts, {
-      scope: deferredScope === "Favorites" ? "All Campus" : deferredScope,
+    return filterFeedPosts(isSavedScope ? activeSavedPosts : dynamicPosts, {
+      scope: isSavedScope ? "All Campus" : deferredScope,
       categories: activeCats,
       query: deferredQuery,
       isFollowing,
     });
-  }, [dynamicPosts, favoritePosts, deferredScope, deferredCategory, deferredQuery, isFollowing]);
+  }, [dynamicPosts, savedPosts, favoritePosts, deferredScope, deferredCategory, deferredQuery, isFollowing]);
 
   // Step 4: Chunk visible posts into even rows of `numColumns` items
   const evenRows = useMemo(() => {
@@ -201,17 +202,17 @@ export default function FeedScreen() {
     <View style={[styles.screenInner, isMobileApp && styles.mobileEmptyContainer]}>
       {visible.length === 0 ? (
         // Show a message when the student has no favorite posts.
-        deferredScope === "Favorites" && favoritePosts.length === 0 ? (
+        (deferredScope === "Saved" || (deferredScope as string) === "Favorites") && (savedPosts?.length === 0 || favoritePosts?.length === 0) ? (
           <Card style={styles.emptyCard}>
             <Icon
-              sf="heart"
-              md="favorite_border"
+              sf="star"
+              md="star_border"
               size={28}
-              color={Brand.brightRed}
+              color={Brand.gold}
             />
 
             <ThemedText type="smallBold">
-              No favorite posts yet
+              No saved posts yet
             </ThemedText>
 
             <ThemedText
@@ -219,7 +220,7 @@ export default function FeedScreen() {
               themeColor="textSecondary"
               style={styles.emptySub}
             >
-              Tap the heart on any post to save it here.
+              Tap the star on any announcement or event to save it here for quick reference.
             </ThemedText>
           </Card>
         ) : (

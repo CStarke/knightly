@@ -16,7 +16,7 @@ import {
   Keyboard,
   Platform,
   useWindowDimensions,
-  type View,
+  type ViewInstance,
 } from 'react-native';
 import {
   Easing,
@@ -59,10 +59,19 @@ export function useLoginFlight({ isBannerVisible = false }: UseLoginFlightOption
       : Spacing.three;
 
   // View measurement refs
-  const heroWordmarkRef = useRef<View>(null);
-  const headerTargetRef = useRef<View>(null);
+  const heroWordmarkRef = useRef<ViewInstance>(null);
+  const headerTargetRef = useRef<ViewInstance>(null);
   const isTransitioningRef = useRef(false);
   const isKeyboardOpenRef = useRef(false);
+  const transitionTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (transitionTimerRef.current) {
+        clearTimeout(transitionTimerRef.current);
+      }
+    };
+  }, []);
 
   // Analytical fallbacks for initial coordinate delta before layout measurements settle
   const defaultHeaderX = isDesktopWeb
@@ -184,6 +193,32 @@ export function useLoginFlight({ isBannerVisible = false }: UseLoginFlightOption
       isTransitioningRef.current = true;
       formRaise.value = 0;
 
+      // WORKLET THREAD-BOUNDARY INVARIANT:
+      // In Reanimated, callbacks passed to withTiming execute on the native UI worklet runtime.
+      // Calling non-worklet JavaScript functions (like measurePositions, measureInWindow, or setState/auth callbacks)
+      // directly from UI runtime triggers: "[Worklets] Tried to synchronously call a Remote Function".
+      // All transitions between UI animations and JavaScript host methods MUST be marshaled across
+      // the thread boundary via runOnJS().
+
+      // Phase 3 & Completion: Executed on JS thread once Phase 2 flight completes
+      const handleFlightFinished = () => {
+        // Snap from the fractionally scaled flying wordmark to pixel-perfect target
+        wordmarkCrossfadeOpacity.value = 0;
+
+        // Smoothly cross-fade overlay (160ms) revealing the underlying mounted app
+        overlayOpacity.value = withTiming(
+          0,
+          { duration: 160, easing: Easing.out(Easing.quad) },
+          (crossfadeDone) => {
+            'worklet';
+            if (crossfadeDone) {
+              runOnJS(onComplete)();
+            }
+          }
+        );
+      };
+
+      // Phase 2: Executed on JS thread once Phase 1 form fade finishes and positions settle
       const runFlight = () => {
         // Fade in header details (avatar on mobile, tagline on web)
         headerDetailsOpacity.value = withDelay(
@@ -200,41 +235,53 @@ export function useLoginFlight({ isBannerVisible = false }: UseLoginFlightOption
           easing: SMOOTH_SLIDE_CURVE,
         });
 
-        const onFinished = (finished?: boolean) => {
-          if (!finished) return;
-          wordmarkCrossfadeOpacity.value = 0;
-          overlayOpacity.value = withTiming(
-            0,
-            { duration: 160, easing: Easing.out(Easing.quad) },
-            (done) => {
-              if (done) runOnJS(onComplete)();
-            }
-          );
-        };
-
         if (isDesktopWeb) {
           sidebarMorphProgress.value = withTiming(
             1,
             { duration: ANIMATION_DURATION, easing: SMOOTH_SLIDE_CURVE },
-            onFinished
+            (flightFinished) => {
+              'worklet';
+              if (flightFinished) {
+                runOnJS(handleFlightFinished)();
+              }
+            }
           );
         } else {
           headerHeight.value = withTiming(
             targetHeaderHeight,
             { duration: ANIMATION_DURATION, easing: SMOOTH_SLIDE_CURVE },
-            onFinished
+            (flightFinished) => {
+              'worklet';
+              if (flightFinished) {
+                runOnJS(handleFlightFinished)();
+              }
+            }
           );
         }
       };
 
-      // Phase 1: Fade out the form fields completely (260ms), then begin flight
+      // Triggered on JS thread once Phase 1 (form fade-out) completes
+      const triggerFlightAfterFade = () => {
+        // Re-measure on JS thread now that keyboard has dismissed and layout settled
+        measurePositions();
+
+        // Brief 30ms settle so layout has settled and flight smoothly initiates
+        if (transitionTimerRef.current) {
+          clearTimeout(transitionTimerRef.current);
+        }
+        transitionTimerRef.current = setTimeout(() => {
+          runFlight();
+        }, 30);
+      };
+
+      // Phase 1: Fade out the form fields completely (260ms), then begin flight via runOnJS
       formOpacity.value = withTiming(
         0,
         { duration: 260, easing: Easing.out(Easing.cubic) },
-        (done) => {
-          if (done) {
-            measurePositions();
-            runOnJS(runFlight)();
+        (fadeDone) => {
+          'worklet';
+          if (fadeDone) {
+            runOnJS(triggerFlightAfterFade)();
           }
         }
       );

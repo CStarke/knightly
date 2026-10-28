@@ -9,12 +9,14 @@
  * 1. The initial static feed seed data (`defaultPosts`).
  * 2. Newly authored posts published by student leaders in the `Create Post` composer.
  * 3. Follow state synchronization (ensuring published posts appear in the user's Following feed).
+ * 4. Account-scoped saved posts bookmarking with O(1) Set lookups and local persistence.
  */
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { posts as defaultPosts, sortPostsByDate, type Post, type FeedCategory } from '@/data/feed';
 import { useClubFollow } from '@/context/club-follow-context';
+import { AuthContext } from '@/context/auth-context';
 import type { Club } from '@/data/clubs';
 import { CALVIN_EVENTS_SEED } from '@/data/calvin-events-seed';
 import { adaptCalvinEventToPost } from '@/utils/calvin-event-adapter';
@@ -34,17 +36,83 @@ type FeedContextType = {
   createPost: (input: CreatePostInput) => Post;
   deletePost: (id: string) => void;
 
-  // Posts saved by the student 
+  // Posts saved by the individual student (personal bookmarking)
+  savedPosts: Post[];
+  toggleSavePost: (id: string) => void;
+  isPostSaved: (id: string) => boolean;
+
+  // Backward-compatibility aliases for favorites
   favoritePosts: Post[];
-
-  // Add or remove a favorite
   toggleFavorite: (id: string) => void;
-
-  // Check whether a post is a favorite
   isFavorite: (id: string) => boolean;
 };
 
 const FeedContext = createContext<FeedContextType | null>(null);
+
+/**
+ * Builds a user-isolated storage key for saved posts.
+ *
+ * WHY NAMESPACING & STUDENT PRIVACY:
+ * Saved posts are personal bookmarks for individual students, NOT a social liking system.
+ * Namespacing storage keys prevents saved posts from leaking across accounts when multiple students
+ * share a device or sign in successively.
+ */
+export function getSavedPostsStorageKey(
+  user: { id?: string; username?: string } | null
+): string {
+  const accountId = user ? (user.username || user.id || 'default').toLowerCase() : 'guest';
+  return `knightly_saved_posts_${accountId}`;
+}
+
+const inMemorySavedPostIds: Record<string, string[]> = {};
+
+/**
+ * Loads saved post IDs partitioned by student account.
+ */
+export function loadSavedPostIds(
+  user: { id?: string; username?: string } | null
+): string[] {
+  const accountId = user ? (user.username || user.id || 'default').toLowerCase() : 'guest';
+  if (inMemorySavedPostIds[accountId] !== undefined) {
+    return inMemorySavedPostIds[accountId];
+  }
+  if (typeof window === 'undefined' || !window.localStorage) {
+    inMemorySavedPostIds[accountId] = [];
+    return [];
+  }
+  try {
+    const raw = window.localStorage.getItem(getSavedPostsStorageKey(user));
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        inMemorySavedPostIds[accountId] = parsed;
+        return parsed;
+      }
+    }
+  } catch {
+    // In case of parsing errors or quota exceptions, fallback gracefully
+  }
+  inMemorySavedPostIds[accountId] = [];
+  return [];
+}
+
+/**
+ * Persists saved post IDs to localStorage and in-memory cache.
+ */
+export function persistSavedPostIds(
+  user: { id?: string; username?: string } | null,
+  ids: string[]
+): void {
+  const accountId = user ? (user.username || user.id || 'default').toLowerCase() : 'guest';
+  inMemorySavedPostIds[accountId] = ids;
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      window.localStorage.setItem(getSavedPostsStorageKey(user), JSON.stringify(ids));
+    } catch {
+      // Ignore quota exceptions
+    }
+  }
+}
 
 const DEMO_POST_OFFSETS_MS = [
   25 * 60 * 1000, // 25 minutes ago
@@ -112,38 +180,48 @@ function getInitialFavoriteIds(): string[] {
 }
 
 export function FeedProvider({ children }: { children: React.ReactNode }) {
+  const auth = useContext(AuthContext);
+  const user = auth?.user ?? null;
+
   const [feedPosts, setFeedPosts] = useState<Post[]>(getInitialPosts);
-  // Store the IDs of posts saved by the student. Initialized from localStorage on web.
-  const [favoriteIds, setFavoriteIds] = useState<string[]>(getInitialFavoriteIds);
+  // Maintain saved post IDs in a Set for guaranteed O(1) constant-time membership lookups
+  // during fast 60fps scrolling (matching the ClubFollowContext architectural invariant).
+  const [savedIds, setSavedIds] = useState<Set<string>>(() => {
+    return new Set(loadSavedPostIds(user));
+  });
 
-  // Add a post to favorites or remove it if already saved, syncing to localStorage on web.
-  const toggleFavorite = useCallback((id: string) => {
-    setFavoriteIds((previousIds) => {
-      const next = previousIds.includes(id)
-        // Remove the post if it is already a favorite.
-        ? previousIds.filter((savedId) => savedId !== id)
-        // Otherwise, add the post to favorites.
-        : [...previousIds, id];
+  // Re-synchronize saved posts whenever the authenticated student changes
+  useEffect(() => {
+    setSavedIds(new Set(loadSavedPostIds(user)));
+  }, [user]);
 
-      if (typeof window !== 'undefined' && window.localStorage) {
-        try {
-          window.localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(next));
-        } catch {}
-      }
-      return next;
-    });
-  }, []);
-
-  // Check whether a post is already saved as a favorite.
-  const isFavorite = useCallback(
-    (id: string) => favoriteIds.includes(id),
-    [favoriteIds]
+  // Toggle saving a post with persistent storage scoped to student account
+  const toggleSavePost = useCallback(
+    (id: string) => {
+      setSavedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) {
+          next.delete(id);
+        } else {
+          next.add(id);
+        }
+        persistSavedPostIds(user, Array.from(next));
+        return next;
+      });
+    },
+    [user]
   );
 
-  // Get all posts that the student has saved as favorites.
-  const favoritePosts = useMemo(
-    () => feedPosts.filter((post) => favoriteIds.includes(post.id)),
-    [feedPosts, favoriteIds]
+  // O(1) membership check
+  const isPostSaved = useCallback(
+    (id: string) => savedIds.has(id),
+    [savedIds]
+  );
+
+  // Memoized array of saved Post objects for the Saved feed view
+  const savedPosts = useMemo(
+    () => feedPosts.filter((post) => savedIds.has(post.id)),
+    [feedPosts, savedIds]
   );
 
   const { isFollowing, toggleFollow } = useClubFollow();
@@ -237,18 +315,22 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       createPost,
       deletePost,
 
-      // Make favorite posts and functions available to other components.
-      favoritePosts,
-      toggleFavorite,
-      isFavorite,
+      savedPosts,
+      toggleSavePost,
+      isPostSaved,
+
+      // Backward compatibility aliases
+      favoritePosts: savedPosts,
+      toggleFavorite: toggleSavePost,
+      isFavorite: isPostSaved,
     }),
     [
       feedPosts,
       createPost,
       deletePost,
-      favoritePosts,
-      toggleFavorite,
-      isFavorite,
+      savedPosts,
+      toggleSavePost,
+      isPostSaved,
     ]
   );
 

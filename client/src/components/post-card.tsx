@@ -137,11 +137,11 @@ export function PostCard({ post, variant = 'editorial', onPressOrg }: PostCardPr
   const { isFollowing } = useClubFollow();
   const isGrid = variant === 'grid';
 
-  // Access the Favorites functions from FeedContext.
-  const { toggleFavorite, isFavorite } = useFeed();
+  // Access the private Saved Posts bookmarking functions from FeedContext.
+  const { toggleSavePost, isPostSaved } = useFeed();
 
-  // Check whether this post is already a favorite.
-  const favorited = isFavorite(post.id);
+  // Check whether this post is saved by the current student for quick reference.
+  const isSaved = isPostSaved(post.id);
 
   // Step 1: Derive canonical club ID (fallback slugification for legacy posts without clubId)
   // WHY SLUGIFY FALLBACK:
@@ -271,12 +271,12 @@ export function PostCard({ post, variant = 'editorial', onPressOrg }: PostCardPr
             </ThemedText>
           ) : null}
 
-          {/* Allow students to save or remove this post from Favorites. */}
+          {/* Allow individual students to bookmark/save this post for quick reference. */}
           <Pressable
-            onPress={() => toggleFavorite(post.id)}
+            onPress={() => toggleSavePost(post.id)}
             accessibilityRole="button"
-            accessibilityLabel={favorited ? 'Remove from favorites' : 'Add to favorites'}
-            accessibilityState={{ selected: favorited }}
+            accessibilityLabel={isSaved ? 'Remove saved post' : 'Save post'}
+            accessibilityState={{ selected: isSaved }}
             hitSlop={10}
             style={({ pressed }) => [
               styles.favoriteButton,
@@ -284,10 +284,10 @@ export function PostCard({ post, variant = 'editorial', onPressOrg }: PostCardPr
             ]}
           >
             <Icon
-              sf={favorited ? 'heart.fill' : 'heart'}
-              md={favorited ? 'favorite' : 'favorite_border'}
+              sf={isSaved ? 'star.fill' : 'star'}
+              md={isSaved ? 'star' : 'star_border'}
               size={22}
-              color={favorited ? Brand.brightRed : theme.textMuted}
+              color={isSaved ? Brand.gold : theme.textMuted}
             />
           </Pressable>
         </View>
