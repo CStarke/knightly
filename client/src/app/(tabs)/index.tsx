@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
     alignSelf: "stretch",
   },
   chipRowWrapper: {
-    marginHorizontal: -Spacing.three,
+    alignSelf: "stretch",
   },
   clearRow: {
     flexDirection: "row",

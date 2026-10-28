@@ -15,7 +15,7 @@
  *    if already verified, and respects permanent dismissal if hidden.
  */
 
-import { useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { FeedEmptyState } from '@/components/feed-controls';
@@ -61,6 +61,15 @@ export function ClubsDirectoryView() {
   // Step 3: Filter States
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<'All' | FeedCategory>('All');
+  const [isDeferredReady, setIsDeferredReady] = useState(false);
+
+  // Defer full catalog rendering on initial mount to allow the horizontal camera slide (320ms) to glide at 60/120fps
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsDeferredReady(true);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Step 4: Multi-field fuzzy search pipeline
   // WHY COMBINED PREDICATE:
@@ -85,14 +94,22 @@ export function ClubsDirectoryView() {
     });
   }, [query, category]);
 
-  // Step 5: Chunk filtered clubs into balanced rows of `numColumns` items
+  // Progressive rendering slice: on initial entry while camera glides, render top 6 cards; once landed or searching, render all
+  const visibleClubs = useMemo(() => {
+    if (isDeferredReady || query || category !== 'All') {
+      return filteredClubs;
+    }
+    return filteredClubs.slice(0, 6);
+  }, [filteredClubs, isDeferredReady, query, category]);
+
+  // Step 5: Chunk visible clubs into balanced rows of `numColumns` items
   const evenRows = useMemo(() => {
     const rows: Club[][] = [];
-    for (let i = 0; i < filteredClubs.length; i += numColumns) {
-      rows.push(filteredClubs.slice(i, i + numColumns));
+    for (let i = 0; i < visibleClubs.length; i += numColumns) {
+      rows.push(visibleClubs.slice(i, i + numColumns));
     }
     return rows;
-  }, [filteredClubs, numColumns]);
+  }, [visibleClubs, numColumns]);
 
   return (
     <Screen style={[styles.screenInner, { maxWidth: maxContentWidth }]}>
@@ -174,8 +191,8 @@ export function ClubsDirectoryView() {
                 <ClubCard
                   club={club}
                   following={isFollowing(club.id)}
-                  onToggleFollow={() => toggleFollow(club.id)}
-                  onPress={() => openClubDetail(club.id)}
+                  onToggleFollow={toggleFollow}
+                  onPress={openClubDetail}
                 />
               </View>
             ))}
@@ -215,21 +232,35 @@ export function ClubsDirectoryView() {
  * @param props.onToggleFollow - Callback triggered when tapping the follow button
  * @param props.onPress - Callback triggered when tapping the card body to open deep details
  */
-function ClubCard({
+type ClubCardProps = {
+  club: Club;
+  following: boolean;
+  onToggleFollow: (clubId: string) => void;
+  onPress: (clubId: string) => void;
+};
+
+const ClubCard = memo(function ClubCard({
   club,
   following,
   onToggleFollow,
   onPress,
-}: {
-  club: Club;
-  following: boolean;
-  onToggleFollow: () => void;
-  onPress: () => void;
-}) {
+}: ClubCardProps) {
+  const handlePress = useCallback(() => {
+    onPress(club.id);
+  }, [onPress, club.id]);
+
+  const handleToggle = useCallback(
+    (e?: any) => {
+      e?.stopPropagation?.();
+      onToggleFollow(club.id);
+    },
+    [onToggleFollow, club.id]
+  );
+
   return (
     <Card flush style={styles.clubCard}>
       <Pressable
-        onPress={onPress}
+        onPress={handlePress}
         accessibilityRole="button"
         accessibilityLabel={`View ${club.name} details`}
         style={({ pressed }) => [styles.cardPressable, pressed && styles.pressed]}
@@ -295,10 +326,7 @@ function ClubCard({
 
           <FollowButton
             following={following}
-            onPress={(e) => {
-              e?.stopPropagation();
-              onToggleFollow();
-            }}
+            onPress={handleToggle}
             clubName={club.name}
             variant="compact"
           />
@@ -306,7 +334,7 @@ function ClubCard({
       </Pressable>
     </Card>
   );
-}
+});
 
 const styles = StyleSheet.create({
   screenInner: {

@@ -238,47 +238,76 @@ export default function AppTabs() {
     tabs,
   }), [pathname, tabs]);
 
+  // Memoized context values preventing cascading re-renders across all screens on route changes
+  const sidebarContextValue = useMemo(
+    () => ({
+      isCollapsed,
+      isHovered,
+      isEffectivelyCollapsed,
+      expandProgress,
+      toggleCollapse,
+      setIsHovered,
+    }),
+    [isCollapsed, isHovered, isEffectivelyCollapsed, expandProgress, toggleCollapse, setIsHovered]
+  );
+
+  const diningActivityValue = useMemo(
+    () => ({
+      isActivityOpen: false,
+      openActivity: () => {},
+      closeActivity: () => {},
+    }),
+    []
+  );
+
+  const clubsNavigationValue = useMemo(
+    () => ({
+      clubsLevel: 0 as const,
+      activeClubId: null,
+      openClubsDirectory: () => {
+        router.push('/clubs/index');
+      },
+      openClubDetail: (clubId: string) => {
+        router.push({ pathname: '/clubs/[id]', params: { id: clubId } });
+      },
+      closeClubDetail: () => {
+        if (router.canGoBack()) {
+          router.back();
+        } else {
+          router.replace('/clubs/index');
+        }
+      },
+      closeClubsDirectory: () => {
+        if (router.canGoBack()) {
+          router.back();
+        } else {
+          router.replace('/(tabs)');
+        }
+      },
+    }),
+    []
+  );
+
+  const tabPagerPriorityValue = useMemo(
+    () => ({
+      isInnerScrollActive,
+      setInnerScrollActive: () => {},
+    }),
+    [isInnerScrollActive]
+  );
+
+  const starfieldContextValue = useMemo(
+    () => ({ translateX, scrollY }),
+    [translateX, scrollY]
+  );
+
   return (
-    <SidebarContext.Provider
-      value={{
-        isCollapsed,
-        isHovered,
-        isEffectivelyCollapsed,
-        expandProgress,
-        toggleCollapse,
-        setIsHovered,
-      }}>
+    <SidebarContext.Provider value={sidebarContextValue}>
       <TabNavigationContext.Provider value={tabNavValue}>
-        <DiningActivityProvider value={{
-          isActivityOpen: false,
-          openActivity: () => {},
-          closeActivity: () => {},
-        }}>
-          <ClubsNavigationProvider value={{
-            clubsLevel: 0 as const,
-            activeClubId: null,
-            openClubsDirectory: () => { router.push('/clubs/index'); },
-            openClubDetail: (clubId: string) => { router.push({ pathname: '/clubs/[id]', params: { id: clubId } }); },
-            closeClubDetail: () => {
-              if (router.canGoBack()) {
-                router.back();
-              } else {
-                router.replace('/clubs/index');
-              }
-            },
-            closeClubsDirectory: () => {
-              if (router.canGoBack()) {
-                router.back();
-              } else {
-                router.replace('/(tabs)');
-              }
-            },
-          }}>
-            <TabPagerPriorityProvider value={{
-              isInnerScrollActive,
-              setInnerScrollActive: () => {},
-            }}>
-              <StarfieldContext.Provider value={{ translateX, scrollY }}>
+        <DiningActivityProvider value={diningActivityValue}>
+          <ClubsNavigationProvider value={clubsNavigationValue}>
+            <TabPagerPriorityProvider value={tabPagerPriorityValue}>
+              <StarfieldContext.Provider value={starfieldContextValue}>
                 <View style={styles.rootWrapper}>
                   <ParallaxStarfield translateX={translateX} scrollY={scrollY} />
 

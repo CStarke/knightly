@@ -218,7 +218,6 @@ describe('End-to-End User Journeys (Headless Interactive Sessions)', () => {
       const claimResult = {
         success: true,
         clubId: matchedClub?.id,
-        role: 'President',
       };
       assert.strictEqual(claimResult.success, true);
     });
