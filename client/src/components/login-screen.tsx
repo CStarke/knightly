@@ -31,6 +31,7 @@ import { Brand, Fonts, MaxContentWidth, Radius, Spacing } from '@/constants/them
 import { APP_VERSION } from '@/constants/version';
 import { useAuth } from '@/context/auth-context';
 import { student } from '@/data/student';
+import { useTheme } from '@/hooks/use-theme';
 import {
   PASSWORD_MASK_DELAY_MS,
   PASSWORD_MASK_DOT,
@@ -45,6 +46,7 @@ export function LoginScreen() {
     Math.max(Dimensions.get('screen').height, windowHeight) + insets.bottom;
 
   const { signIn, user, setAppMounted } = useAuth();
+  const theme = useTheme();
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -445,21 +447,28 @@ export function LoginScreen() {
         clearTimeout(maskTimerRef.current);
         maskTimerRef.current = null;
       }
+    };
+    window.visualViewport.addEventListener('resize', handleResize);
+    window.visualViewport.addEventListener('scroll', handleResize);
+    return () => {
+      window.visualViewport?.removeEventListener('resize', handleResize);
+      window.visualViewport?.removeEventListener('scroll', handleResize);
+    };
+  }, [raiseForm, lowerForm]);
 
-      if (showPassword) {
-        setPassword(newInputText);
-        setDisplayPassword(newInputText);
-        return;
-      }
+  // Measure both untransformed views to get exact travel delta
+  const measurePositions = useCallback(() => {
+    if (isTransitioningRef.current) return;
 
-      const result = processPasswordMaskInput({
-        currentReal: password,
-        currentDisplay: displayPassword,
-        newInputText,
-      });
+    heroWordmarkRef.current?.measureInWindow((hx, hy, hw, hh) => {
+      headerTargetRef.current?.measureInWindow((tx, ty, tw, th) => {
+        if (isTransitioningRef.current) return;
+        if (hw > 0 && hh > 0 && tw > 0 && th > 0) {
+          const heroCenterX = hx + hw / 2;
+          const heroCenterY = hy + hh / 2;
 
-      setPassword(result.newReal);
-      setDisplayPassword(result.newDisplay);
+          const targetCenterX = tx + (hw * targetScale) / 2;
+          const targetCenterY = ty + (hh * targetScale) / 2;
 
       if (result.shouldStartTimer) {
         maskTimerRef.current = setTimeout(() => {
