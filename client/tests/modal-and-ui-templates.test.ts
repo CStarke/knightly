@@ -76,6 +76,26 @@ describe('Modal Dialogs & UI Templates Domain', () => {
       );
     });
 
+    it('verifies DirectoryOnboardingModal delegates edge-to-edge to the ModalDialog template and enforces FERPA privacy defaults', () => {
+      const code = readSrc('components/directory-onboarding-modal.tsx');
+      assert.ok(
+        code.includes('<ModalDialog'),
+        'directory-onboarding-modal must use the ModalDialog template for edge-to-edge guarantees'
+      );
+      assert.ok(
+        code.includes("from '@/components/ui/modal-dialog'"),
+        'directory-onboarding-modal must import from modal-dialog'
+      );
+      assert.ok(
+        code.includes('useState<boolean>(false)'),
+        'FERPA invariant: default opt-in must be false (private)'
+      );
+      assert.ok(
+        code.includes('Brand.gold') && code.includes('Brand.maroon'),
+        'Must use centralized Brand palette tokens'
+      );
+    });
+
     it('validates navigation bar translucency rule: must accompany status bar translucency', () => {
       const validateModalTranslucency = (statusBar: boolean, navBar: boolean): boolean => {
         if (navBar && !statusBar) return false;

@@ -54,40 +54,22 @@ describe('Auth, Student Profile & Theme System Domain', () => {
         return false;
       }
 
-      const isJohn =
-        trimmedUser.toLowerCase() === 'jmd42' ||
-        trimmedUser.toLowerCase() === 'jmd42@calvin.edu' ||
-        trimmedUser.toLowerCase() === 'john' ||
-        trimmedUser.toLowerCase() === 'jmd' ||
-        trimmedUser.toLowerCase() === student.email.toLowerCase();
+      const isEmail = trimmedUser.includes('@');
+      const email = isEmail ? trimmedUser : `${trimmedUser}@calvin.edu`;
+      const cleanUser = isEmail ? trimmedUser.split('@')[0] : trimmedUser;
+      const cleanName = cleanUser.replace(/[@._-]/g, ' ');
+      const words = cleanName.split(' ').filter(Boolean);
+      const firstName = words[0] ? words[0].charAt(0).toUpperCase() + words[0].slice(1) : 'Calvin';
+      const lastName = words[1] ? words[1].charAt(0).toUpperCase() + words[1].slice(1) : 'Student';
 
-      if (isJohn) {
-        user = {
-          id: student.id,
-          username: 'jmd42',
-          fullName: `${student.firstName} ${student.lastName}`,
-          email: student.email,
-          standing: student.standing,
-          major: student.major,
-        };
-      } else {
-        const isEmail = trimmedUser.includes('@');
-        const email = isEmail ? trimmedUser : `${trimmedUser}@calvin.edu`;
-        const cleanUser = isEmail ? trimmedUser.split('@')[0] : trimmedUser;
-        const cleanName = cleanUser.replace(/[@._-]/g, ' ');
-        const words = cleanName.split(' ').filter(Boolean);
-        const firstName = words[0] ? words[0].charAt(0).toUpperCase() + words[0].slice(1) : 'Calvin';
-        const lastName = words[1] ? words[1].charAt(0).toUpperCase() + words[1].slice(1) : 'Student';
-
-        user = {
-          id: `usr_${cleanUser}`,
-          username: cleanUser,
-          fullName: `${firstName} ${lastName}`,
-          email,
-          standing: 'Student',
-          major: 'Calvin University',
-        };
-      }
+      user = {
+        id: `usr_${cleanUser}`,
+        username: cleanUser,
+        fullName: `${firstName} ${lastName}`,
+        email,
+        standing: 'Student',
+        major: 'Calvin University',
+      };
 
       isAuthenticated = true;
       return true;
@@ -116,25 +98,25 @@ describe('Auth, Student Profile & Theme System Domain', () => {
   describe('Student Profile & Academic Credentials', () => {
     it('provides full name concatenation', () => {
       assert.strictEqual(fullName, `${student.firstName} ${student.lastName}`);
-      assert.strictEqual(fullName, 'John Doe');
+      assert.strictEqual(fullName, 'Calvin Student');
     });
 
     it('validates 7-digit student ID and cardNumber', () => {
-      assert.strictEqual(student.id, '2346052');
-      assert.strictEqual(student.cardNumber, '2346052');
+      assert.strictEqual(student.id, '2400001');
+      assert.strictEqual(student.cardNumber, '2400001');
       assert.match(student.cardNumber, /^\d{7}$/, 'Student number should be exactly 7 digits');
     });
 
     it('formats 14-digit barcode with 5 leading zeros and 2 trailing zeros', () => {
-      assert.strictEqual(student.barcode, '00000234605200');
+      assert.strictEqual(student.barcode, '00000240000100');
       assert.match(student.barcode, /^00000\d{7}00$/, 'Barcode must be 14 digits with 5 leading 0s and 2 trailing 0s');
       assert.strictEqual(formatBarcode('2346052'), '00000234605200');
       assert.strictEqual(formatBarcode('1234567'), '00000123456700');
     });
 
     it('contains Calvin academic status information', () => {
-      assert.strictEqual(student.major, 'Computer Science');
-      assert.strictEqual(student.standing, 'Sophomore');
+      assert.strictEqual(student.major, 'Calvin University');
+      assert.strictEqual(student.standing, 'Student');
       assert.strictEqual(student.classYear, 2028);
       assert.ok(student.email.endsWith('@calvin.edu'));
       assert.ok(student.residence.length > 0);
@@ -155,14 +137,13 @@ describe('Auth, Student Profile & Theme System Domain', () => {
   // Suite 2: Authentication Manager & User Sessions
   // ==========================================================================
   describe('Authentication Manager & Session Lifecycle', () => {
-    it('signs in active Calvin student John Doe via username jmd42', () => {
+    it('signs in active Calvin student via username jmd42', () => {
       const auth = createAuthManager();
       const success = auth.signIn('jmd42', 'password123');
       assert.strictEqual(success, true);
       assert.strictEqual(auth.isAuthenticated, true);
       assert.strictEqual(auth.user?.username, 'jmd42');
-      assert.strictEqual(auth.user?.fullName, 'John Doe');
-      assert.strictEqual(auth.user?.email, student.email);
+      assert.strictEqual(auth.user?.email, 'jmd42@calvin.edu');
     });
 
     it('signs in active student via full calvin.edu email', () => {
@@ -509,6 +490,52 @@ describe('Auth, Student Profile & Theme System Domain', () => {
       assert.strictEqual(partialProfile.lastName, 'Doe');
       assert.strictEqual(partialProfile.email, 'alice@calvin.edu');
       assert.strictEqual(partialProfile.major, 'Computer Science');
+    });
+
+    it('suppresses internal PostgreSQL UUIDs and resolves to 7-digit student number', () => {
+      const defaultStudentFallback = {
+        id: '2346052',
+        cardNumber: '2346052',
+      };
+
+      const resolveStudentId = (user?: { id?: string; studentId?: string; cardNumber?: string } | null) =>
+        user?.studentId ??
+        user?.cardNumber ??
+        (user?.id && !user.id.includes('-') ? user.id : defaultStudentFallback.id);
+
+      // Case 1: Backend returns UUID primary key with 7-digit studentId
+      assert.strictEqual(
+        resolveStudentId({
+          id: '00000000-0000-0000-0000-000000000042',
+          studentId: '2346052',
+        }),
+        '2346052'
+      );
+
+      // Case 2: User only has cardNumber populated alongside UUID
+      assert.strictEqual(
+        resolveStudentId({
+          id: '00000000-0000-0000-0000-000000000042',
+          cardNumber: '2346052',
+        }),
+        '2346052'
+      );
+
+      // Case 3: Raw UUID is present with no studentId or cardNumber - must fall back rather than leak UUID
+      assert.strictEqual(
+        resolveStudentId({
+          id: '00000000-0000-0000-0000-000000000042',
+        }),
+        '2346052'
+      );
+
+      // Case 4: Legacy numeric ID is in user.id without hyphens
+      assert.strictEqual(
+        resolveStudentId({
+          id: '2028123',
+        }),
+        '2028123'
+      );
     });
 
     it('generates 2-letter uppercase monogram from full name', () => {

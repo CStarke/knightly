@@ -156,7 +156,7 @@ export function ClubDetailView({ clubId }: { clubId: string }) {
               <View style={styles.heroTitles}>
                 <ThemedText style={styles.heroTitle}>{club.name}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.heroTagline}>
-                  {club.tagline}
+                  {club.category}
                 </ThemedText>
               </View>
 

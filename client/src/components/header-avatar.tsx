@@ -32,8 +32,12 @@ export function HeaderAvatar() {
     email: user?.email ?? student.email,
     standing: user?.standing ?? student.standing,
     major: user?.major ?? student.major,
-    studentId: user?.id ?? student.id,
-    initials: `${firstName[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase() || 'JD',
+    // Step: Display 7-digit Calvin student ID, strictly guarding against internal Supabase UUIDs
+    studentId:
+      user?.studentId ??
+      user?.cardNumber ??
+      (user?.id && !user.id.includes('-') ? user.id : student.id),
+    initials: `${firstName[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase() || 'CS',
   };
 
   return (

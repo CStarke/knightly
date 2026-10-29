@@ -1,4 +1,5 @@
-global.__DEV__ = process.env.NODE_ENV !== 'production';
+process.env.NODE_ENV = 'test';
+global.__DEV__ = false;
 globalThis.expo = globalThis.expo || {
   EventEmitter: class {
     addListener() { return { remove() {} }; }
