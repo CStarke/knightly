@@ -447,28 +447,21 @@ export function LoginScreen() {
         clearTimeout(maskTimerRef.current);
         maskTimerRef.current = null;
       }
-    };
-    window.visualViewport.addEventListener('resize', handleResize);
-    window.visualViewport.addEventListener('scroll', handleResize);
-    return () => {
-      window.visualViewport?.removeEventListener('resize', handleResize);
-      window.visualViewport?.removeEventListener('scroll', handleResize);
-    };
-  }, [raiseForm, lowerForm]);
 
-  // Measure both untransformed views to get exact travel delta
-  const measurePositions = useCallback(() => {
-    if (isTransitioningRef.current) return;
+      if (showPassword) {
+        setPassword(newInputText);
+        setDisplayPassword(newInputText);
+        return;
+      }
 
-    heroWordmarkRef.current?.measureInWindow((hx, hy, hw, hh) => {
-      headerTargetRef.current?.measureInWindow((tx, ty, tw, th) => {
-        if (isTransitioningRef.current) return;
-        if (hw > 0 && hh > 0 && tw > 0 && th > 0) {
-          const heroCenterX = hx + hw / 2;
-          const heroCenterY = hy + hh / 2;
+      const result = processPasswordMaskInput({
+        currentReal: password,
+        currentDisplay: displayPassword,
+        newInputText,
+      });
 
-          const targetCenterX = tx + (hw * targetScale) / 2;
-          const targetCenterY = ty + (hh * targetScale) / 2;
+      setPassword(result.newReal);
+      setDisplayPassword(result.newDisplay);
 
       if (result.shouldStartTimer) {
         maskTimerRef.current = setTimeout(() => {
