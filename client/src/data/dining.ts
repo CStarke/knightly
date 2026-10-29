@@ -239,6 +239,12 @@ export type DiningHall = {
 
 const hm = (hours: number, minutes = 0) => hours * 60 + minutes;
 
+// Regular fall/spring semester hours; holidays and breaks may differ.
+// Source: https://calvin.edu/dining-services/dining-locations-and-hours
+// Select today's schedule without changing the ServiceWindow or status contracts.
+const diningDay = new Date().getDay();
+const isDiningWeekend = diningDay === 0 || diningDay === 6;
+
 export const diningHalls: DiningHall[] = [
   {
     id: "commons",
@@ -247,9 +253,8 @@ export const diningHalls: DiningHall[] = [
     description: "All-you-care-to-eat with the new allergen-free station.",
     acceptsSwipes: true,
     today: [
-      { label: "Breakfast", start: hm(7), end: hm(10) },
-      { label: "Lunch", start: hm(11), end: hm(14) },
-      { label: "Dinner", start: hm(16, 30), end: hm(21) },
+      { label: "Breakfast", start: hm(isDiningWeekend ? 8 : 7), end: hm(10, 30) },
+      { label: "Lunch & Dinner", start: hm(10, 30), end: hm(isDiningWeekend ? 19 : 20) },
     ],
     stations: [
       {
@@ -273,10 +278,8 @@ export const diningHalls: DiningHall[] = [
     location: "Knollcrest East",
     description: "Quieter room on the east side, big breakfast spread.",
     acceptsSwipes: true,
-    today: [
-      { label: "Brunch", start: hm(9), end: hm(14) },
-      { label: "Dinner", start: hm(17), end: hm(20) },
-    ],
+    // Calvin lists Knollcrest as closed: https://calvin.edu/places/knollcrest-dining-hall
+    today: [],
     stations: [
       {
         name: "Skillet",
@@ -291,7 +294,7 @@ export const diningHalls: DiningHall[] = [
     location: "Commons Union, Level 2",
     description: "Pizza, pasta, and late-night grab-and-go.",
     acceptsSwipes: false,
-    today: [{ label: "Open", start: hm(11), end: hm(23) }],
+    today: isDiningWeekend ? [] : [{ label: "Open", start: hm(11), end: hm(21) }],
   },
   {
     id: "peets",
@@ -300,7 +303,11 @@ export const diningHalls: DiningHall[] = [
     description:
       "Espresso, pastries, and the only outlet-heavy tables on campus.",
     acceptsSwipes: false,
-    today: [{ label: "Open", start: hm(7, 30), end: hm(22) }],
+    today: diningDay === 0
+      ? []
+      : diningDay === 6
+        ? [{ label: "Open", start: hm(9), end: hm(13) }]
+        : [{ label: "Open", start: hm(7, 30), end: hm(17) }],
   },
   {
     id: "johnnys",
@@ -308,7 +315,10 @@ export const diningHalls: DiningHall[] = [
     location: "Spoelhof Center",
     description: "Sandwiches, smoothies, and the cookie.",
     acceptsSwipes: false,
-    today: [{ label: "Open", start: hm(8), end: hm(16) }],
+    // Use retail hours for the overall venue; grill service has narrower windows.
+    today: isDiningWeekend
+      ? []
+      : [{ label: "Open", start: hm(9), end: hm(diningDay === 5 ? 18 : 16) }],
   },
 ];
 
