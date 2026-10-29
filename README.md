@@ -1,6 +1,6 @@
 # Knightly — Calvin University Student App
 
-> **Current Version:** `v.0.5.1`
+> **Current Version:** `v.0.6.1`
 
 Knightly is a mobile application built for Calvin University students, providing a centralized hub for everyday campus life, student organizations, dining, safety, and campus resources.
 
@@ -20,10 +20,10 @@ David Idowu, Daniel Okereke, Caleb Starkenburg, Kellen Morford, and John Zhan
 
 ## Tech Stack & Architecture
 
-- **Mobile Client (`client/`)**: Built on **Expo SDK 57** (React Native 0.86, Expo Router v54, Reanimated 4, Gesture Handler).
+- **Mobile Client (`client/`)**: Built on **Expo SDK 58** (React 19.3, React Native 0.88, Expo Router 58, Reanimated 4.7, Gesture Handler).
 - **Backend API (`server/`)**: Express & Node.js backend with Supabase integration and offline/mock fallback layers.
-- **Design Tokens**: Standardized Calvin maroon (`#862633`), gold (`#FFC72C`), typography, and light/dark theme palettes in `client/src/constants/theme.ts`.
-- **Testing**: Over 440 comprehensive automated unit & integration tests covering tab navigation invariants, gesture state machines, stress lifecycles, and date/time formatting.
+- **Design Tokens**: Standardized Calvin maroon (`#5E1A24`), gold (`#E8B019`), typography, and light/dark theme palettes in `client/src/constants/theme.ts`.
+- **Testing**: Automated unit & integration tests covering tab navigation invariants, gesture state machines, stress lifecycles, and date/time formatting.
 
 ---
 
@@ -31,7 +31,7 @@ David Idowu, Daniel Okereke, Caleb Starkenburg, Kellen Morford, and John Zhan
 
 ### Prerequisites
 
-- Node.js (v18+)
+- Node.js compatible with Expo SDK 58 (see the [versioned Expo documentation](https://docs.expo.dev/versions/v58.0.0/))
 - npm
 
 ### Installation & Launch
@@ -45,7 +45,7 @@ npm start
 # Press 'a' for Android, 'i' for iOS simulator, or 'w' for Web
 
 # 3. (Optional) Run the backend API server in a separate terminal
-npm run server
+npm --prefix server start
 ```
 
 ### Running Tests
@@ -54,7 +54,7 @@ npm run server
 # Run all tests (server + client)
 npm test
 
-# Run client tests specifically (439+ passing tests)
+# Run client tests specifically
 npm --prefix client test
 
 # Run server tests specifically
@@ -66,9 +66,9 @@ npm --prefix server test
 ## What's in the App
 
 ### 1. Authentication & Onboarding
-- **Interactive Login (`client/src/components/login-screen.tsx`)**: Calvin student credential authentication with username/password validation and demo student fallbacks (e.g. `jmd42`).
+- **Interactive Login (`client/src/components/login-screen.tsx`)**: Prototype sign-in with local username/password validation and demo student profiles (e.g. `jmd42`); credentials are not authenticated against Calvin systems.
 - **Keyboard-Aware Elevation**: Smooth physics-based input lift animation (`formRaise`) ensuring input fields remain centered and clear of the virtual keyboard.
-- **Subtle Version Watermark**: Displays the current application version (`v.0.1.0`) in the bottom-right corner.
+- **Subtle Version Watermark**: Displays the current application version (`v.0.6.1`) in the bottom-right corner.
 
 ### 2. Tabs & Navigation
 The application features a custom bottom tab bar with fluid horizontal follow-my-finger pan gestures and a 340ms bidirectional ease-in-out cubic-bezier lateral camera glide:
@@ -76,8 +76,9 @@ The application features a custom bottom tab bar with fluid horizontal follow-my
 - **Knightly Feed (`client/src/app/(tabs)/index.tsx`)**:
   - In-place announcement cards that can be read fully without nested page transitions.
   - **For You**: Aggregates updates from followed organizations alongside verified campus-wide news.
-  - **All Campus**: Complete catalog featuring instant search and category filter pills (*The Arts, Athletics, Music, Academics, Faith, Service, Social, Outdoors*).
+  - **All Campus**: Complete catalog featuring instant search and category filter pills (*Faith, Academics, Athletics, Music, The Arts, Career, Outdoors, Service, Wellness, Social, Culture, Official, Gaming*).
   - Quick-access Campus Clubs banner for instant club discovery.
+  - Campus events fetched from the backend scraper, with a bundled seed fallback when the backend is unavailable.
 
 - **Campus Clubs Ecosystem**:
   - **Clubs Directory (`client/src/components/clubs-directory-view.tsx`)**: Searchable and filterable directory of student organizations.
@@ -94,14 +95,15 @@ The application features a custom bottom tab bar with fluid horizontal follow-my
 
 - **Dining & Digital Knight Card (`client/src/app/(tabs)/dining.tsx`)**:
   - **Digital Student ID (`client/src/app/card.tsx`)**: Full-screen modal presenting an on-device vector-rendered Code 39 barcode (`barcode.tsx`), brightness auto-elevation via `expo-brightness`, and tap-to-dismiss.
-  - **Venue Hours & Status**: Real-time status indicators and meal periods for Commons, Knollcrest, Johnny's Cafe, and Peet's Coffee.
+  - **Venue Hours & Status**: Time-based status indicators and configured service windows for Commons, Knollcrest, Uppercrust, Johnny's, and Peet's Coffee; Knollcrest is currently closed.
   - **Meal Counters & Dash Meters**: Visual unit-based meters for meal swipes and guest passes.
-  - **Dining Activity Ledger (`client/src/components/dining-activity.tsx`)**: Detailed transaction history tracking meal swipe usage and dining dollars.
+  - **Dining Activity Ledger (`client/src/components/dining-activity.tsx`)**: Sample transaction history showing meal swipe usage and dining dollars; balances and transactions currently use local demo data.
 
 - **Campus Safety (`client/src/app/(tabs)/safety.tsx`)**:
   - One-touch emergency calling (`tel:`) connecting directly to Campus Safety dispatch.
-  - Direct entry points for Safe Walk requests, incident reporting, and Blue Light locations.
-  - Live campus alerts banner and essential campus contact directory.
+  - Placeholder entries for Safe Walk requests, incident reporting, and Blue Light locations.
+  - Sample campus alerts and an essential campus contact directory.
+  - Bundled campus building map with zoom and pan controls (`client/src/app/campus-map.tsx`).
 
 - **Campus Directory (`client/src/app/(tabs)/directory.tsx`)**:
   - Searchable, filterable directory of Calvin faculty and staff with one-tap email composition.
@@ -125,7 +127,7 @@ The application features a custom bottom tab bar with fluid horizontal follow-my
 
 Knightly uses strict semantic application versioning defined in `client/src/constants/version.ts`, package manifests, and displayed on the Login Screen:
 
-- **Current Version:** `v.0.5.1`
+- **Current Version:** `v.0.6.1`
 - **Feature Push:** Increment the **center digit** (`0.#.0`) and reset the last digit to 0 (e.g., `v.0.1.0` → `v.0.2.0`).
 - **Bugfix / Hotfix:** Increment the **last digit** (`0.0.#`) (e.g., `v.0.1.0` → `v.0.1.1`).
 - **Major Release:** Increment the **first digit** (`#.0.0`) when major application overhauls occur (e.g., `v.0.9.0` → `v.1.0.0`).
