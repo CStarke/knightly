@@ -69,7 +69,7 @@ ON CONFLICT (id) DO NOTHING;
 DO $$
 BEGIN
     INSERT INTO auth.users (id, email)
-    VALUES ('00000000-0000-0000-0000-000000000042', 'jmd42@calvin.edu')
+    VALUES ('9b919086-788b-48de-85c6-df9a204f05c5', 'jmd42@calvin.edu')
     ON CONFLICT (id) DO NOTHING;
 EXCEPTION
     WHEN OTHERS THEN
@@ -78,7 +78,7 @@ END $$;
 
 INSERT INTO students (id, student_id, username, email, first_name, middle_name, last_name, class_year, standing, major, minor, card_number, residence, advisor, role, directory_opt_in, directory_prompted)
 VALUES (
-    '00000000-0000-0000-0000-000000000042',
+    '9b919086-788b-48de-85c6-df9a204f05c5',
     '2346052',
     'jmd42',
     'jmd42@calvin.edu',
@@ -100,7 +100,7 @@ VALUES (
 -- 6. Insert Test Student Dining Account
 INSERT INTO student_dining_accounts (student_id, meal_plan_id, swipes_used, flex_meals_used, guest_passes_used, knight_bucks, dining_dollars)
 VALUES (
-    '00000000-0000-0000-0000-000000000042',
+    '9b919086-788b-48de-85c6-df9a204f05c5',
     'core14',
     7,
     1,

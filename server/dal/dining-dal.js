@@ -63,13 +63,22 @@ async function getMealPlanById(id, client = getDefaultClient()) {
  * @returns {Promise<object|null>} Dining account record with meal plan or null
  */
 async function getStudentDiningAccount(studentId, client = getDefaultClient()) {
+  let targetUuid = studentId;
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(studentId);
+  if (!isUuid) {
+    const { data: st } = await client.from('students').select('id').eq('student_id', studentId).single();
+    if (st && st.id) {
+      targetUuid = st.id;
+    }
+  }
+
   const { data, error } = await client
     .from('student_dining_accounts')
     .select(`
       *,
       meal_plan:meal_plans (*)
     `)
-    .eq('student_id', studentId)
+    .eq('student_id', targetUuid)
     .single();
 
   if (error) {
@@ -97,8 +106,17 @@ async function getStudentDiningAccount(studentId, client = getDefaultClient()) {
  * @returns {Promise<object>} Created ledger record
  */
 async function recordDiningTransaction(transaction, client = getDefaultClient()) {
+  let targetUuid = transaction.studentId;
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(transaction.studentId);
+  if (!isUuid) {
+    const { data: st } = await client.from('students').select('id').eq('student_id', transaction.studentId).single();
+    if (st && st.id) {
+      targetUuid = st.id;
+    }
+  }
+
   const payload = {
-    student_id: transaction.studentId,
+    student_id: targetUuid,
     venue_id: transaction.venueId,
     transaction_type: transaction.transactionType,
     amount: transaction.amount,
@@ -133,11 +151,20 @@ async function recordDiningTransaction(transaction, client = getDefaultClient())
  * @returns {Promise<Array<object>>} List of transactions ordered descending
  */
 async function getDiningTransactions(studentId, options = {}, client = getDefaultClient()) {
+  let targetUuid = studentId;
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(studentId);
+  if (!isUuid) {
+    const { data: st } = await client.from('students').select('id').eq('student_id', studentId).single();
+    if (st && st.id) {
+      targetUuid = st.id;
+    }
+  }
+
   const limit = options.limit || 50;
   let query = client
     .from('dining_transactions')
     .select('*')
-    .eq('student_id', studentId)
+    .eq('student_id', targetUuid)
     .order('created_at', { ascending: false })
     .limit(limit);
 

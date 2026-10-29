@@ -118,8 +118,36 @@ function createMockDal() {
       }
       return null;
     },
+    async provisionStudent(username) {
+      const lower = (username || '').toLowerCase();
+      const st = {
+        id: `mock-${lower}-${Date.now()}`,
+        student_id: '2490001',
+        username: lower,
+        email: `${lower}@calvin.edu`,
+        first_name: 'Mock',
+        last_name: 'Student',
+        class_year: 2028,
+        standing: 'Freshman',
+        major: 'Computer Science',
+        card_number: '2490001',
+        directory_opt_in: false,
+        directory_prompted: false,
+        directory_visible_fields: { email: true, phone: false, residence: false },
+      };
+      state.students.set(st.id, st);
+      return st;
+    },
     async updateDirectoryPreferences(id, { directoryOptIn, directoryVisibleFields }) {
-      const s = state.students.get(id);
+      let s = state.students.get(id);
+      if (!s) {
+        for (const candidate of state.students.values()) {
+          if (candidate.student_id === id) {
+            s = candidate;
+            break;
+          }
+        }
+      }
       if (!s) throw new Error(`Student ${id} not found`);
       s.directory_opt_in = !!directoryOptIn;
       s.directory_prompted = true;
@@ -144,15 +172,35 @@ function createMockDal() {
       return state.mealPlans.get(id) || null;
     },
     async getStudentDiningAccount(studentId) {
-      const account = state.studentDiningAccounts.get(studentId);
+      let account = state.studentDiningAccounts.get(studentId);
+      if (!account) {
+        for (const st of state.students.values()) {
+          if (st.student_id === studentId) {
+            account = state.studentDiningAccounts.get(st.id);
+            break;
+          }
+        }
+      }
       if (!account) return null;
       const plan = state.mealPlans.get(account.meal_plan_id);
       return { ...account, meal_plan: plan };
     },
     async recordDiningTransaction(tx) {
+      let resolvedStudentId = tx.studentId;
+      let account = state.studentDiningAccounts.get(tx.studentId);
+      if (!account) {
+        for (const st of state.students.values()) {
+          if (st.student_id === tx.studentId) {
+            resolvedStudentId = st.id;
+            account = state.studentDiningAccounts.get(st.id);
+            break;
+          }
+        }
+      }
+
       const record = {
         id: `tx-${state.diningTransactions.length + 1}`,
-        student_id: tx.studentId,
+        student_id: resolvedStudentId,
         venue_id: tx.venueId,
         transaction_type: tx.transactionType,
         amount: Number(tx.amount),
@@ -166,7 +214,6 @@ function createMockDal() {
       state.diningTransactions.push(record);
 
       // Replicate the PostgreSQL trigger apply_dining_transaction() in memory
-      const account = state.studentDiningAccounts.get(tx.studentId);
       if (account) {
         if (tx.transactionType === 'meal_swipe') {
           account.swipes_used = (account.swipes_used || 0) + Number(tx.amount);
@@ -238,6 +285,24 @@ function createMockDal() {
     async getMembershipsForStudent(studentId) {
       return state.memberships.filter((m) => m.student_id === studentId);
     },
+    async followClub(studentId, clubId) {
+      const existing = state.follows.find((f) => f.student_id === studentId && f.club_id === clubId);
+      if (existing) return existing;
+      const follow = { student_id: studentId, club_id: clubId, followed_at: new Date().toISOString() };
+      state.follows.push(follow);
+      return follow;
+    },
+    async unfollowClub(studentId, clubId) {
+      const idx = state.follows.findIndex((f) => f.student_id === studentId && f.club_id === clubId);
+      if (idx !== -1) {
+        state.follows.splice(idx, 1);
+        return true;
+      }
+      return true;
+    },
+    async getFollowedClubIds(studentId) {
+      return state.follows.filter((f) => f.student_id === studentId).map((f) => f.club_id);
+    },
   };
 
   // Posts DAL Mock
@@ -259,6 +324,14 @@ function createMockDal() {
       };
       state.posts.push(record);
       return record;
+    },
+    async deletePost(id) {
+      const idx = state.posts.findIndex((p) => p.id === id);
+      if (idx !== -1) {
+        state.posts.splice(idx, 1);
+        return true;
+      }
+      return false;
     },
     async upsertScrapedEvent(event) {
       const extId = event.external_event_id || event.externalEventId;

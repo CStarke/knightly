@@ -21,6 +21,7 @@ import type { Club } from '@/data/clubs';
 import { CALVIN_EVENTS_SEED } from '@/data/calvin-events-seed';
 import { adaptCalvinEventToPost } from '@/utils/calvin-event-adapter';
 import { fetchCampusEvents } from '@/services/events-api';
+import { fetchFeedPosts, createPostApi, deletePostApi } from '@/services/posts-api';
 
 export type CreatePostInput = {
   club: Club;
@@ -114,6 +115,30 @@ export function persistSavedPostIds(
   }
 }
 
+
+const LOCAL_AUTHORED_POSTS_KEY = 'knightly_local_authored_posts';
+
+export function loadLocalAuthoredPosts(): Post[] {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const raw = window.localStorage.getItem(LOCAL_AUTHORED_POSTS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+  }
+  return [];
+}
+
+export function persistLocalAuthoredPosts(posts: Post[]): void {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      window.localStorage.setItem(LOCAL_AUTHORED_POSTS_KEY, JSON.stringify(posts));
+    } catch {}
+  }
+}
+
 const DEMO_POST_OFFSETS_MS = [
   25 * 60 * 1000, // 25 minutes ago
   45 * 60 * 1000, // 45 minutes ago
@@ -137,28 +162,15 @@ const DEMO_POST_OFFSETS_MS = [
 function getInitialPosts(): Post[] {
   // Step 1: Record current wall-clock epoch timestamp
   const now = Date.now();
-  // Step 2: Adapt isolated offline seed events from Calvin website
+  // Step 2: Load locally authored posts from persistent storage (survives app reloads)
+  const localAuthored = loadLocalAuthoredPosts();
+  // Step 3: Adapt isolated offline seed events from Calvin website
   const calvinSeedPosts = CALVIN_EVENTS_SEED.slice(0, 15).map((e, idx) =>
     adaptCalvinEventToPost(e, now - (idx + 1) * 1800 * 1000)
   );
-  // Step 3: Combine with default club posts and randomize order for feed diversity
-  const combined = [...defaultPosts, ...calvinSeedPosts];
-  const shuffled = combined.sort(() => Math.random() - 0.5);
-  // Step 4: Assign strictly increasing past offsets so posts have valid chronological history
-  const populated = shuffled.map((post, idx) => {
-    const offset =
-      idx < DEMO_POST_OFFSETS_MS.length
-        ? DEMO_POST_OFFSETS_MS[idx]
-        : DEMO_POST_OFFSETS_MS[DEMO_POST_OFFSETS_MS.length - 1] + (idx - DEMO_POST_OFFSETS_MS.length + 1) * 86400 * 1000;
-    const postTime = now - offset;
-    return {
-      ...post,
-      postedAt: new Date(postTime).toISOString(),
-      createdAt: postTime,
-    };
-  });
-  // Step 5: Sort all posts in descending chronological order (newest first)
-  return sortPostsByDate(populated);
+  // Step 4: Combine local authored flyers with seed posts
+  const combined = [...localAuthored, ...defaultPosts, ...calvinSeedPosts];
+  return sortPostsByDate(combined);
 }
 
 const FAVORITES_STORAGE_KEY = 'knightly_favorite_post_ids';
@@ -231,11 +243,11 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
   // merging with local state while preserving the offline seed data fallback.
   useEffect(() => {
     let mounted = true;
-    fetchCampusEvents().then((liveEvents) => {
-      if (mounted && liveEvents.length > 0) {
+    fetchFeedPosts().then((livePosts) => {
+      if (mounted && livePosts.length > 0) {
         setFeedPosts((prev) => {
-          const nonCalvin = prev.filter((p) => p.clubId !== 'calvin-university');
-          return sortPostsByDate([...nonCalvin, ...liveEvents]);
+          const localOnly = prev.filter((p) => p.id.startsWith('p-local-'));
+          return sortPostsByDate([...localOnly, ...livePosts]);
         });
       }
     });
@@ -297,16 +309,52 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         toggleFollow(club.id);
       }
 
-      // Step 4: Insert the post into feed state and maintain descending chronological order
+      // Step 4: Persist locally authored flyer to storage immediately (survives offline reloads)
+      const currentLocals = loadLocalAuthoredPosts();
+      persistLocalAuthoredPosts([newPost, ...currentLocals.filter((p) => p.id !== newPost.id)]);
+
+      // Step 5: Insert the post into feed state optimistically to maintain instant UI responsiveness
       setFeedPosts((prev) => sortPostsByDate([newPost, ...prev]));
-      // Step 5: Return newly created post to the caller
+
+      // Step 6: Asynchronously persist flyer to Supabase database via backend REST API
+      const authorStudentId = user?.id || user?.studentId || '';
+      createPostApi({
+        clubId: club.id,
+        authorStudentId,
+        orgName: club.name,
+        mark: club.mark,
+        headline: title.trim(),
+        body: description.trim(),
+        category: club.category,
+        whenText: when?.trim() ? when.trim() : undefined,
+        whereText: where?.trim() ? where.trim() : undefined,
+        imageUrl: image?.trim() ? image.trim() : undefined,
+        campusWide: Boolean(club.isDepartment),
+      }).then((serverPost) => {
+        if (serverPost) {
+          // Replace optimistic local post with server-authoritative record (UUID, server timestamps)
+          setFeedPosts((prev) =>
+            sortPostsByDate(prev.map((p) => (p.id === newPost.id ? serverPost : p)))
+          );
+          // Update persistent local cache with server UUID
+          const updatedLocals = loadLocalAuthoredPosts().map((p) =>
+            p.id === newPost.id ? serverPost : p
+          );
+          persistLocalAuthoredPosts(updatedLocals);
+        }
+      });
+
+      // Step 6: Return newly created post to the caller
       return newPost;
     },
-    [isFollowing, toggleFollow]
+    [isFollowing, toggleFollow, user]
   );
 
   const deletePost = useCallback((id: string) => {
     setFeedPosts((prev) => prev.filter((p) => p.id !== id));
+    const remainingLocals = loadLocalAuthoredPosts().filter((p) => p.id !== id);
+    persistLocalAuthoredPosts(remainingLocals);
+    deletePostApi(id);
   }, []);
 
   const value = useMemo(

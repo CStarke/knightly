@@ -119,8 +119,16 @@ async function publishPost(postPayload, dal = defaultPostsDal) {
  * @returns {Promise<object>} Sync report
  */
 async function syncScrapedEvents(options = {}, scraperFn = scrapeEvents, dal = defaultPostsDal) {
+  // Support flexible argument order: syncScrapedEvents(options, dal) or syncScrapedEvents(options, scraperFn, dal)
+  let effectiveScraper = scraperFn;
+  let effectiveDal = dal;
+  if (typeof scraperFn === 'object' && scraperFn !== null && typeof scraperFn.upsertScrapedEvent === 'function') {
+    effectiveDal = scraperFn;
+    effectiveScraper = scrapeEvents;
+  }
+
   // Step 1: Scrape live events from calvin.edu/events/all
-  const scrapedList = await scraperFn(options);
+  const scrapedList = await effectiveScraper(options);
 
   let upsertedCount = 0;
   const errors = [];
@@ -154,7 +162,7 @@ async function syncScrapedEvents(options = {}, scraperFn = scrapeEvents, dal = d
         externalEventId: rawEvent.id || rawEvent.url || `drupal-${encodeURIComponent(rawEvent.title)}`,
       };
 
-      await dal.upsertScrapedEvent(eventPayload);
+      await effectiveDal.upsertScrapedEvent(eventPayload);
       upsertedCount++;
     } catch (err) {
       errors.push({ title: rawEvent.title, error: err.message });

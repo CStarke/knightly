@@ -22,7 +22,6 @@ const PUBLIC_CLUB_COLUMNS = [
   'name',
   'category',
   'mark',
-  'tagline',
   'description',
   'meeting_schedule',
   'location',
@@ -61,7 +60,7 @@ async function getClubs(filters = {}, client = getDefaultClient()) {
   if (filters.search) {
     const q = filters.search.trim();
     if (q) {
-      query = query.or(`name.ilike.%${q}%,tagline.ilike.%${q}%,description.ilike.%${q}%`);
+      query = query.or(`name.ilike.%${q}%,description.ilike.%${q}%`);
     }
   }
 
@@ -119,6 +118,19 @@ async function getClaimCodeByHash(codeHash, client = getDefaultClient()) {
 }
 
 /**
+ * Polymorphic student ID resolver: supports both UUID and 7-digit student IDs.
+ */
+async function resolveStudentUuid(studentId, client = getDefaultClient()) {
+  if (!studentId) return null;
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(studentId);
+  if (isUuid) return studentId;
+  const { data } = await client.from('students').select('id').eq('student_id', studentId).single();
+  if (data?.id) return data.id;
+  const { data: stUser } = await client.from('students').select('id').eq('username', studentId).single();
+  return stUser?.id || null;
+}
+
+/**
  * Marks a claim code as redeemed and inserts the club membership.
  *
  * @param {string} codeId - Claim code UUID
@@ -128,6 +140,7 @@ async function getClaimCodeByHash(codeHash, client = getDefaultClient()) {
  * @returns {Promise<object>} Created membership record
  */
 async function redeemClaimCode(codeId, studentId, clubId, client = getDefaultClient()) {
+  const resolvedStudentId = await resolveStudentUuid(studentId, client);
   const now = new Date().toISOString();
 
   // Step 1: Update claim code status
@@ -135,7 +148,7 @@ async function redeemClaimCode(codeId, studentId, clubId, client = getDefaultCli
     .from('club_claim_codes')
     .update({
       is_redeemed: true,
-      redeemed_by_student_id: studentId,
+      redeemed_by_student_id: resolvedStudentId,
       redeemed_at: now,
     })
     .eq('id', codeId);
@@ -148,7 +161,7 @@ async function redeemClaimCode(codeId, studentId, clubId, client = getDefaultCli
   const { data: membership, error: memError } = await client
     .from('club_memberships')
     .insert({
-      student_id: studentId,
+      student_id: resolvedStudentId,
       club_id: clubId,
       claim_code_id: codeId,
       granted_at: now,
@@ -171,13 +184,14 @@ async function redeemClaimCode(codeId, studentId, clubId, client = getDefaultCli
  * @returns {Promise<Array<object>>} List of club memberships with club details
  */
 async function getMembershipsForStudent(studentId, client = getDefaultClient()) {
+  const resolvedStudentId = await resolveStudentUuid(studentId, client);
   const { data, error } = await client
     .from('club_memberships')
     .select(`
       *,
       club:clubs (${PUBLIC_CLUB_COLUMNS})
     `)
-    .eq('student_id', studentId);
+    .eq('student_id', resolvedStudentId);
 
   if (error) {
     throw new Error(`[clubs-dal.getMembershipsForStudent] Failed: ${error.message}`);
@@ -195,10 +209,11 @@ async function getMembershipsForStudent(studentId, client = getDefaultClient()) 
  * @returns {Promise<object>} Created follow record
  */
 async function followClub(studentId, clubId, client = getDefaultClient()) {
+  const resolvedStudentId = await resolveStudentUuid(studentId, client);
   const { data, error } = await client
     .from('club_follows')
     .upsert({
-      student_id: studentId,
+      student_id: resolvedStudentId,
       club_id: clubId,
       followed_at: new Date().toISOString(),
     }, { onConflict: 'student_id,club_id' })
@@ -221,10 +236,11 @@ async function followClub(studentId, clubId, client = getDefaultClient()) {
  * @returns {Promise<boolean>} True if removed
  */
 async function unfollowClub(studentId, clubId, client = getDefaultClient()) {
+  const resolvedStudentId = await resolveStudentUuid(studentId, client);
   const { error } = await client
     .from('club_follows')
     .delete()
-    .eq('student_id', studentId)
+    .eq('student_id', resolvedStudentId)
     .eq('club_id', clubId);
 
   if (error) {
@@ -232,6 +248,27 @@ async function unfollowClub(studentId, clubId, client = getDefaultClient()) {
   }
 
   return true;
+}
+
+/**
+ * Retrieves the list of club IDs followed by a student.
+ *
+ * @param {string} studentId - Student UUID
+ * @param {import('@supabase/supabase-js').SupabaseClient} [client] - Optional client
+ * @returns {Promise<Array<string>>} List of club slug IDs
+ */
+async function getFollowedClubIds(studentId, client = getDefaultClient()) {
+  const resolvedStudentId = await resolveStudentUuid(studentId, client);
+  const { data, error } = await client
+    .from('club_follows')
+    .select('club_id')
+    .eq('student_id', resolvedStudentId);
+
+  if (error) {
+    throw new Error(`[clubs-dal.getFollowedClubIds] Failed: ${error.message}`);
+  }
+
+  return (data || []).map((r) => r.club_id);
 }
 
 module.exports = {
@@ -242,4 +279,5 @@ module.exports = {
   getMembershipsForStudent,
   followClub,
   unfollowClub,
+  getFollowedClubIds,
 };

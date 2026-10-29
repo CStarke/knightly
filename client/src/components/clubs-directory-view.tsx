@@ -32,6 +32,7 @@ import { useClubFollow } from '@/context/club-follow-context';
 import { useClubLeadership } from '@/context/club-leadership-context';
 import { useClubsNavigation } from '@/context/clubs-navigation-context';
 import { CALVIN_CLUBS, type Club } from '@/data/clubs';
+import { fetchClubsApi } from '@/services/clubs-api';
 import { feedCategories, resolveFeedColumnCount, type FeedCategory } from '@/data/feed';
 import { useResponsiveLayout } from '@/hooks/use-responsive-layout';
 
@@ -58,10 +59,24 @@ export function ClubsDirectoryView() {
   const numColumns = resolveFeedColumnCount(width, Platform.OS);
   const maxContentWidth = numColumns >= 5 ? 1880 : numColumns >= 4 ? 1520 : 1200;
 
-  // Step 3: Filter States
+  // Step 3: Filter States & Live Directory Catalog
+  const [clubsCatalog, setClubsCatalog] = useState<Club[]>(CALVIN_CLUBS);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<'All' | FeedCategory>('All');
   const [isDeferredReady, setIsDeferredReady] = useState(false);
+
+  // SPRINT 1 SLO DIRECTIVE (SC2): Asynchronously refresh club directory from Supabase
+  useEffect(() => {
+    let mounted = true;
+    fetchClubsApi().then((serverClubs) => {
+      if (mounted && Array.isArray(serverClubs) && serverClubs.length > 0) {
+        setClubsCatalog(serverClubs);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Defer full catalog rendering on initial mount to allow the horizontal camera slide (320ms) to glide at 60/120fps
   useEffect(() => {
@@ -78,17 +93,17 @@ export function ClubsDirectoryView() {
   const filteredClubs = useMemo(() => {
     const needle = query.trim().toLowerCase();
 
-    return CALVIN_CLUBS.filter((club) => {
+    return clubsCatalog.filter((club) => {
       // Sub-step A: Category filter check
       if (category !== 'All' && club.category !== category) return false;
       // Sub-step B: If no search query, match all within the category
       if (!needle) return true;
       // Sub-step C: Match against name, tagline, description, category, or location
       return (
-        club.name.toLowerCase().includes(needle) ||
-        club.tagline.toLowerCase().includes(needle) ||
-        club.description.toLowerCase().includes(needle) ||
-        club.category.toLowerCase().includes(needle) ||
+        (club.name ?? '').toLowerCase().includes(needle) ||
+
+        (club.description ?? '').toLowerCase().includes(needle) ||
+        (club.category ?? '').toLowerCase().includes(needle) ||
         (club.location ?? '').toLowerCase().includes(needle)
       );
     });
@@ -288,7 +303,7 @@ const ClubCard = memo(function ClubCard({
               style={styles.clubTagline}
               numberOfLines={2}
             >
-              {club.tagline}
+              {club.description}
             </ThemedText>
           </View>
         </View>

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
@@ -137,6 +138,22 @@ export function PostCard({ post, variant = 'editorial', onPressOrg }: PostCardPr
   const { isFollowing } = useClubFollow();
   const isGrid = variant === 'grid';
 
+  // Dynamic live relative time ticker
+  // Computes human-friendly relative age ("Just now", "10 minutes ago", "1 hour ago", "5 days ago")
+  // and updates periodically (every 30 seconds) so that relative times stay strictly accurate
+  // without requiring manual feed reloads or component unmounting.
+  const [relativeTime, setRelativeTime] = useState(() =>
+    formatRelativeTime(post.postedAt, post.createdAt, post.monotonicCreatedAt)
+  );
+
+  useEffect(() => {
+    setRelativeTime(formatRelativeTime(post.postedAt, post.createdAt, post.monotonicCreatedAt));
+    const interval = setInterval(() => {
+      setRelativeTime(formatRelativeTime(post.postedAt, post.createdAt, post.monotonicCreatedAt));
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [post.postedAt, post.createdAt, post.monotonicCreatedAt]);
+
   // Access the private Saved Posts bookmarking functions from FeedContext.
   const { toggleSavePost, isPostSaved } = useFeed();
 
@@ -262,7 +279,7 @@ export function PostCard({ post, variant = 'editorial', onPressOrg }: PostCardPr
         */}
         <View style={styles.footer}>
           <ThemedText type="caption" themeColor="textMuted">
-            {formatRelativeTime(post.postedAt, post.createdAt, post.monotonicCreatedAt)}
+            {relativeTime}
           </ThemedText>
 
           {post.campusWide ? (

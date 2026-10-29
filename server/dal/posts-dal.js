@@ -86,9 +86,34 @@ async function getPostById(id, client = getDefaultClient()) {
  */
 async function createPost(post, client = getDefaultClient()) {
   const now = new Date();
+
+  // Step 1: Resolve author_student_id: support both UUID and 7-digit student IDs
+  let authorId = post.author_student_id || post.authorStudentId || null;
+  if (authorId) {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(authorId);
+    if (!isUuid) {
+      const { data: st } = await client.from('students').select('id').eq('student_id', authorId).single();
+      if (st && st.id) {
+        authorId = st.id;
+      } else {
+        const { data: stUser } = await client.from('students').select('id').eq('username', authorId).single();
+        authorId = stUser?.id || null;
+      }
+    }
+  }
+
+  // Step 2: Resolve club_id: check if club exists in clubs table; if not, set to null
+  let clubId = post.club_id || post.clubId || null;
+  if (clubId) {
+    const { data: cl } = await client.from('clubs').select('id').eq('id', clubId).single();
+    if (!cl) {
+      clubId = null;
+    }
+  }
+
   const payload = {
-    club_id: post.club_id || post.clubId || null,
-    author_student_id: post.author_student_id || post.authorStudentId || null,
+    club_id: clubId,
+    author_student_id: authorId,
     org_name: post.org_name || post.orgName,
     mark: post.mark || (post.org_name || post.orgName).slice(0, 2).toUpperCase(),
     headline: post.headline,
@@ -132,6 +157,28 @@ async function createPost(post, client = getDefaultClient()) {
  */
 async function upsertScrapedEvent(event, client = getDefaultClient()) {
   const now = new Date();
+
+  // If the scraped event was already recorded, preserve its original timestamp so restarts do not displace student posts
+  let originalPostedAt = event.postedAt || null;
+  let originalCreatedAtMs = event.createdAtMs || null;
+
+  if (event.externalEventId) {
+    const { data: existing } = await client
+      .from('posts')
+      .select('id, posted_at, created_at_ms')
+      .eq('external_event_id', event.externalEventId)
+      .single();
+
+    if (existing) {
+      originalPostedAt = existing.posted_at;
+      originalCreatedAtMs = existing.created_at_ms;
+    }
+  }
+
+  // Use current time when first scraped, and preserve original timestamp on subsequent sync cycles
+  const postedAt = originalPostedAt || now.toISOString();
+  const createdAtMs = originalCreatedAtMs || now.getTime();
+
   const payload = {
     club_id: null,
     author_student_id: null,
@@ -151,8 +198,8 @@ async function upsertScrapedEvent(event, client = getDefaultClient()) {
     source: 'calvin_drupal',
     external_event_id: event.externalEventId,
     status: 'published',
-    posted_at: now.toISOString(),
-    created_at_ms: now.getTime(),
+    posted_at: postedAt,
+    created_at_ms: createdAtMs,
   };
 
   const { data, error } = await client
@@ -243,10 +290,24 @@ async function getSavedPosts(studentId, client = getDefaultClient()) {
   }));
 }
 
+async function deletePost(id, client = getDefaultClient()) {
+  const { error } = await client
+    .from('posts')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    throw new Error(`[posts-dal.deletePost] Failed: ${error.message}`);
+  }
+
+  return true;
+}
+
 module.exports = {
   getPosts,
   getPostById,
   createPost,
+  deletePost,
   upsertScrapedEvent,
   savePost,
   unsavePost,

@@ -77,7 +77,7 @@ export function LoginScreen() {
   const [activeInitials, setActiveInitials] = useState(() => {
     const fn = user?.firstName ?? student.firstName;
     const ln = user?.lastName ?? student.lastName;
-    return `${fn[0] ?? ''}${ln[0] ?? ''}`.toUpperCase() || 'JD';
+    return `${fn[0] ?? ''}${ln[0] ?? ''}`.toUpperCase() || 'CS';
   });
 
   const isTransitioningRef = useRef(false);
@@ -291,21 +291,18 @@ export function LoginScreen() {
     setIsTransitioning(true);
     formRaise.value = 0;
 
-    // Compute initials immediately for John Doe / demo or custom user
-    const lowerUser = submittedUser.toLowerCase();
-    const isJohn = ['jmd42', 'jmd42@calvin.edu', 'john', 'jmd', student.email.toLowerCase()].includes(lowerUser);
-
-    if (isJohn) {
-      setActiveInitials('JD');
-    } else {
-      const isEmail = submittedUser.includes('@');
-      const cleanUser = isEmail ? submittedUser.split('@')[0] : submittedUser;
-      const cleanName = cleanUser.replace(/[@._-]/g, ' ');
-      const words = cleanName.split(' ').filter(Boolean);
-      const fn = words[0] ? words[0].charAt(0).toUpperCase() : 'C';
-      const ln = words[1] ? words[1].charAt(0).toUpperCase() : 'S';
-      setActiveInitials(`${fn}${ln}`);
-    }
+    // Compute initials immediately from username or email
+    const isEmail = submittedUser.includes('@');
+    const cleanUser = isEmail ? submittedUser.split('@')[0] : submittedUser;
+    const cleanName = cleanUser.replace(/[@._-]/g, ' ');
+    const words = cleanName.split(' ').filter(Boolean);
+    const fn = words[0] ? words[0].charAt(0).toUpperCase() : 'C';
+    const ln = words[1]
+      ? words[1].charAt(0).toUpperCase()
+      : words[0] && words[0].length > 1
+      ? words[0].charAt(1).toUpperCase()
+      : 'S';
+    setActiveInitials(`${fn}${ln}`);
 
     // 1. Mount the main app in the background behind the 100% opaque maroon screen
     // Doing this at t = 0 allows the background app to mount and settle completely

@@ -1,5 +1,8 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '.env') });
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 require('dotenv').config();
 
 const { getDefaultClient, getScopedClient } = require('./dal/supabase-client');
@@ -20,7 +23,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Initialize Supabase Client
 const supabase = getDefaultClient();
@@ -46,42 +50,51 @@ app.get('/api/student', async (req, res) => {
 
     if (username) {
       student = await studentDal.getStudentByUsername(username, client);
+      if (!student) {
+        student = await studentDal.provisionStudent(username, client);
+      }
     } else {
       const { data } = await client.from('students').select('*').limit(1).single();
       student = data;
     }
 
     if (!student) {
-      // Graceful offline / initial fallback
+      // Graceful offline fallback with neutral generic persona
+      const fallbackUser = (username || 'student').toLowerCase();
       return res.json({
-        id: '1234567',
-        name: 'Alex Knight',
-        email: 'ak23@calvin.edu',
-        major: 'Computer Science, B.S.',
-        classYear: 'Sophomore',
-        residenceHall: 'Bolt Hall',
-        room: '214',
-        advisor: 'Prof. Victor Norman',
-        mealPlan: 'Core 17',
-        swipesRemaining: 12,
-        diningDollars: 145.5,
+        id: require('crypto').randomUUID(),
+        studentId: '2400001',
+        cardNumber: '2400001',
+        username: fallbackUser,
+        email: `${fallbackUser}@calvin.edu`,
+        name: 'Calvin Student',
+        major: 'Liberal Arts',
+        classYear: 2028,
+        standing: 'Freshman',
+        residenceHall: 'Calvin Campus',
+        mealPlan: 'Core 14',
+        swipesRemaining: 14,
+        diningDollars: 0,
       });
     }
 
     res.json(studentService.formatStudentProfile(student));
   } catch (err) {
+    const fallbackUser = (req.query.username || 'student').toLowerCase();
     res.json({
-      id: '1234567',
-      name: 'Alex Knight',
-      email: 'ak23@calvin.edu',
-      major: 'Computer Science, B.S.',
-      classYear: 'Sophomore',
-      residenceHall: 'Bolt Hall',
-      room: '214',
-      advisor: 'Prof. Victor Norman',
-      mealPlan: 'Core 17',
-      swipesRemaining: 12,
-      diningDollars: 145.5,
+      id: require('crypto').randomUUID(),
+      studentId: '2400001',
+      cardNumber: '2400001',
+      username: fallbackUser,
+      email: `${fallbackUser}@calvin.edu`,
+      name: 'Calvin Student',
+      major: 'Liberal Arts',
+      classYear: 2028,
+      standing: 'Freshman',
+      residenceHall: 'Calvin Campus',
+      mealPlan: 'Core 14',
+      swipesRemaining: 14,
+      diningDollars: 0,
     });
   }
 });
@@ -212,21 +225,21 @@ app.get('/api/clubs', async (req, res) => {
     {
       id: 'running-club',
       name: 'Calvin Running Club',
-      category: 'athletics',
+      category: 'Athletics',
       description: 'Weekly group runs across campus trails for all fitness levels.',
       membersCount: 42,
     },
     {
       id: 'cs-club',
       name: 'Computer Science Club',
-      category: 'academic',
+      category: 'Academics',
       description: 'Hackathons, coding workshops, and tech networking.',
       membersCount: 88,
     },
     {
       id: 'campus-choir',
       name: 'Campus Choir',
-      category: 'the-arts',
+      category: 'The Arts',
       description: 'Vocal ensemble performing choral classics and hymns in Chapel.',
       membersCount: 65,
     },
@@ -263,6 +276,61 @@ app.post('/api/clubs/claim', async (req, res) => {
   }
 });
 
+// Club Follow Subscriptions
+app.get('/api/clubs/follows', async (req, res) => {
+  try {
+    const studentId = req.query.studentId;
+    if (!studentId) {
+      return res.status(400).json({ error: 'studentId query param is required' });
+    }
+    const followed = await clubsDal.getFollowedClubIds(studentId);
+    res.json(followed);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/clubs/follow', async (req, res) => {
+  try {
+    const { studentId, clubId } = req.body;
+    if (!studentId || !clubId) {
+      return res.status(400).json({ error: 'studentId and clubId are required' });
+    }
+    const result = await clubsDal.followClub(studentId, clubId);
+    res.json({ success: true, follow: result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/clubs/follow', async (req, res) => {
+  try {
+    const studentId = req.body.studentId || req.query.studentId;
+    const clubId = req.body.clubId || req.query.clubId;
+    if (!studentId || !clubId) {
+      return res.status(400).json({ error: 'studentId and clubId are required' });
+    }
+    await clubsDal.unfollowClub(studentId, clubId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Club Memberships for Student
+app.get('/api/clubs/memberships', async (req, res) => {
+  try {
+    const studentId = req.query.studentId;
+    if (!studentId) {
+      return res.status(400).json({ error: 'studentId query param is required' });
+    }
+    const memberships = await clubsDal.getMembershipsForStudent(studentId);
+    res.json(memberships);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Calvin Campus Events Scraper API
 // SPRINT 1 SLO CONTEXT (SC2):
 // Serves live and cached events scraped from calvin.edu/events/all.
@@ -295,18 +363,33 @@ app.get('/api/posts', async (req, res) => {
       limit: parseInt(limit, 10) || 50,
       offset: parseInt(offset, 10) || 0,
     });
+    console.log(`[server] GET /api/posts - Returned ${posts.length} posts (category: ${category || 'all'})`);
     res.json(posts);
   } catch (err) {
+    console.error(`[server] GET /api/posts FAILED: ${err.message}`);
     res.status(500).json({ error: err.message });
   }
 });
 
 app.post('/api/posts', async (req, res) => {
   try {
+    console.log(`[server] POST /api/posts - Author: ${req.body.authorStudentId}, Org: "${req.body.orgName}", Headline: "${req.body.headline}"`);
     const createdPost = await feedService.publishPost(req.body, postsDal);
+    console.log(`[server] POST /api/posts SUCCESS - ID: ${createdPost.id}`);
     res.status(201).json(createdPost);
   } catch (err) {
+    console.error(`[server] POST /api/posts FAILED: ${err.message}`);
     res.status(400).json({ error: err.message });
+  }
+});
+
+app.delete('/api/posts/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await postsDal.deletePost(id);
+    res.json({ success: true, message: `Post ${id} deleted` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -329,9 +412,37 @@ app.get('/api/safety/contacts', async (req, res) => {
   });
 });
 
+// Sync Drupal Scraped Events into Supabase Posts Table
+app.post('/api/events/sync', async (req, res) => {
+  try {
+    const pages = parseInt(req.query.pages || req.body.pages, 10) || 3;
+    const result = await feedService.syncScrapedEvents({ pages }, postsDal);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 if (require.main === module) {
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, async () => {
     console.log(`Knightly server running on port ${PORT}`);
+    if (process.env.SUPABASE_URL) {
+      try {
+        console.log('Synchronizing scraped campus events into database...');
+        const syncResult = await feedService.syncScrapedEvents({ pages: 3 }, postsDal);
+        console.log(`Synchronized ${syncResult.totalUpserted} events into Supabase.`);
+      } catch (err) {
+        console.warn('Initial scraper sync skipped:', err.message);
+      }
+    }
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`❌ [Server Error] Port ${PORT} is already in use by another process. Please close it or run on an alternate port.`);
+    } else {
+      console.error('❌ [Server Error]:', err.message);
+    }
   });
 }
 

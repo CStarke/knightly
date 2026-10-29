@@ -203,9 +203,9 @@ describe('End-to-End User Journeys (Headless Interactive Sessions)', () => {
 
   describe('Journey 5: Student Profile & Club Leadership Claim Session', () => {
     it('executes club claiming session: open profile -> claim club -> enter 6-digit code -> verify', () => {
-      assert.strictEqual(student.firstName, 'John');
-      assert.strictEqual(student.lastName, 'Doe');
-      assert.strictEqual(student.email, 'jmd42@calvin.edu');
+      assert.strictEqual(student.firstName, 'Calvin');
+      assert.strictEqual(student.lastName, 'Student');
+      assert.strictEqual(student.email, 'student@calvin.edu');
 
       const accessCode = 'KNIGHT';
       const cleanCode = accessCode.trim().toUpperCase();
@@ -224,10 +224,10 @@ describe('End-to-End User Journeys (Headless Interactive Sessions)', () => {
 
     it('verifies 14-digit student ID barcode generation and card details', () => {
       const barcode = formatBarcode(student.id);
-      assert.strictEqual(barcode, '00000234605200');
+      assert.strictEqual(barcode, '00000240000100');
       assert.strictEqual(barcode.length, 14);
-      assert.strictEqual(student.major, 'Computer Science');
-      assert.strictEqual(student.standing, 'Sophomore');
+      assert.strictEqual(student.major, 'Calvin University');
+      assert.strictEqual(student.standing, 'Student');
     });
 
     const registeredClubs = CALVIN_CLUBS.slice(0, 8);

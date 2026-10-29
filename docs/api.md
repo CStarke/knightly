@@ -164,6 +164,22 @@ Knightly leverages a **dual REST strategy**:
     }
     ```
 
+- **`GET /api/clubs/follows`**
+  - **Query Parameters**: `studentId` (UUID).
+  - **Response `200 OK`**: Array of followed club IDs (e.g. `["acm", "abstraction"]`).
+
+- **`POST /api/clubs/follow`**
+  - **Request Body**: `{ "studentId": "uuid", "clubId": "acm" }`
+  - **Response `200 OK`**: `{ "success": true, "follow": { ... } }`
+
+- **`DELETE /api/clubs/follow`**
+  - **Request Body**: `{ "studentId": "uuid", "clubId": "acm" }`
+  - **Response `200 OK`**: `{ "success": true }`
+
+- **`GET /api/clubs/memberships`**
+  - **Query Parameters**: `studentId` (UUID).
+  - **Response `200 OK`**: List of active club memberships authorizing posting access for that student.
+
 ---
 
 ### 5. Unified Feed & Scraped Events
@@ -196,6 +212,15 @@ Knightly leverages a **dual REST strategy**:
     }
     ```
   - **Response `201 Created`**: Created post record.
+
+- **`DELETE /api/posts/:id`**
+  - **Description**: Deletes a post by UUID.
+  - **Response `200 OK`**: `{ "success": true, "message": "Post uuid deleted" }`.
+
+- **`POST /api/events/sync`**
+  - **Description**: Triggers an on-demand scraper sync from `calvin.edu/events/all` into the Supabase `posts` table.
+  - **Query/Body Parameters**: `pages` (default: 3).
+  - **Response `200 OK`**: `{ "success": true, "totalScraped": 10, "totalUpserted": 10 }`.
 
 ---
 
