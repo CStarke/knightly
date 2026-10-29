@@ -7,7 +7,6 @@ export type Club = {
   category: FeedCategory;
   /** 2-letter monogram for avatar. */
   mark: string;
-  tagline: string;
   description: string;
   meetingSchedule?: string;
   location?: string;
@@ -26,7 +25,6 @@ export const CALVIN_CLUBS: Club[] = [
     name: 'Calvin University',
     category: 'Official',
     mark: 'CU',
-    tagline: 'Official university events, chapel services, lectures & community gatherings',
     description:
       'Official campus events, daily chapel services, academic colloquia, arts performances, and university-wide gatherings.',
     contactEmail: 'events@calvin.edu',
@@ -42,7 +40,6 @@ export const CALVIN_CLUBS: Club[] = [
     name: 'Abstraction',
     category: 'Academics',
     mark: 'AB',
-    tagline: 'Calvin’s premier software & creative coding guild',
     description:
       'A community of student developers building creative software projects, exploring algorithms, and participating in regional hackathons.',
     meetingSchedule: 'Wednesdays · 6:30 PM - 8:30 PM',
@@ -60,7 +57,6 @@ export const CALVIN_CLUBS: Club[] = [
     name: 'ACM Student Chapter',
     category: 'Academics',
     mark: 'AC',
-    tagline: 'Hack nights, coding challenges & tech projects',
     description:
       "Calvin's official student chapter of the Association for Computing Machinery. We host bi-weekly hack nights, tech talks with software alumni, coding competitions, and collaborative open-source projects for all skill levels.",
     meetingSchedule: 'Thursdays · 7:00 PM - 11:00 PM',
@@ -78,7 +74,6 @@ export const CALVIN_CLUBS: Club[] = [
     name: 'Calvin Theatre Company',
     category: 'The Arts',
     mark: 'CT',
-    tagline: 'Mainstage productions, stagecraft & student one-acts',
     description:
       'Producing four mainstage shows annually alongside student-directed one-acts, technical stagecraft workshops, and open improv nights. Open to all students regardless of major or prior theatre experience.',
     meetingSchedule: 'Auditions & rehearsals posted per show',
@@ -96,7 +91,6 @@ export const CALVIN_CLUBS: Club[] = [
     name: 'Outdoor Recreation',
     category: 'Outdoors',
     mark: 'OR',
-    tagline: 'Hikes, paddling, camping & Preserve outings',
     description:
       "Getting Calvin students outside into Michigan's natural landscapes. We organize weekend camping trips to Sleeping Bear Dunes, sunrise hikes at the Ecosystem Preserve, climbing gym nights, and outdoor gear rentals.",
     meetingSchedule: 'Bi-weekly Tuesdays · 6:30 PM & weekend outings',
@@ -114,7 +108,6 @@ export const CALVIN_CLUBS: Club[] = [
     name: 'Jazz Collective',
     category: 'Music',
     mark: 'JC',
-    tagline: 'Open jazz jams, student combos & basement sessions',
     description:
       'A collaborative student-run jazz community. We host open basement jam sessions, form informal quartets and big-band charts, and perform at campus coffeehouses and student showcases.',
     meetingSchedule: 'Every other Thursday · 9:00 PM',
@@ -132,7 +125,6 @@ export const CALVIN_CLUBS: Club[] = [
     name: 'Knights Robotics',
     category: 'Academics',
     mark: 'KR',
-    tagline: 'Autonomous rovers, combat bots & CAD engineering',
     description:
       'Designing, manufacturing, and programming competitive robots. Students collaborate across mechanical engineering, computer science, and electrical systems on collegiate design challenges.',
     meetingSchedule: 'Wednesdays · 6:30 PM',
@@ -150,7 +142,6 @@ export const CALVIN_CLUBS: Club[] = [
     name: 'Dance Guild',
     category: 'The Arts',
     mark: 'DG',
-    tagline: "Calvin's largest student dance organization",
     description:
       'With over 300 participating students every semester, Dance Guild welcomes dancers from beginner to advanced across hip hop, contemporary, tap, ballet, and jazz, culminating in our semester-end showcases in the CFAC.',
     meetingSchedule: 'Weekly section rehearsals',
@@ -168,7 +159,6 @@ export const CALVIN_CLUBS: Club[] = [
     name: 'Environmental Club',
     category: 'Outdoors',
     mark: 'EC',
-    tagline: 'Campus sustainability, pollinator gardens & climate stewardship',
     description:
       'Advocating for campus stewardship and ecological restoration. We maintain native pollinator gardens on campus, run Plaster Creek clean-ups, host native plant sales, and organize sustainability symposiums.',
     meetingSchedule: 'Mondays · 5:30 PM',
@@ -186,7 +176,6 @@ export const CALVIN_CLUBS: Club[] = [
     name: 'International Student Association',
     category: 'Culture',
     mark: 'IS',
-    tagline: 'Celebrating global cultures and community at Calvin',
     description:
       'Connecting international and domestic students through shared culture, international dinner nights, cultural showcases, language partner tables, and excursions throughout Michigan.',
     meetingSchedule: 'First Friday of each month · 6:00 PM',
@@ -204,7 +193,6 @@ export const CALVIN_CLUBS: Club[] = [
     name: 'Calvin Esports',
     category: 'Gaming',
     mark: 'CE',
-    tagline: 'Competitive & casual collegiate gaming',
     description:
       'Representing Calvin in collegiate leagues across Rocket League, Valorant, Smash Bros, and League of Legends, alongside casual campus LAN parties and community game nights.',
     meetingSchedule: 'Fridays · 7:00 PM',
@@ -222,7 +210,6 @@ export const CALVIN_CLUBS: Club[] = [
     name: 'Pre-Med Society',
     category: 'Career',
     mark: 'PM',
-    tagline: 'Clinical shadowing, suture clinics & MCAT cohorts',
     description:
       'Supporting pre-health and pre-medical students through guest physician lectures, suture clinics, volunteer placement in Grand Rapids hospitals, and collaborative MCAT study cohorts.',
     meetingSchedule: 'Tuesdays · 7:00 PM',
@@ -240,7 +227,6 @@ export const CALVIN_CLUBS: Club[] = [
     name: 'Abide Ministries',
     category: 'Faith',
     mark: 'AB',
-    tagline: 'Student-led prayer, Scripture study & discipleship',
     description:
       'Weekly dorm Bible studies, morning prayer walks through the seminary pond trail, and intentional mentorship for spiritual growth in Christian community.',
     meetingSchedule: 'Wednesdays · 8:00 PM',
@@ -258,7 +244,6 @@ export const CALVIN_CLUBS: Club[] = [
     name: 'Calvin Orchestra',
     category: 'Music',
     mark: 'CO',
-    tagline: 'Symphonic performance & masterworks',
     description:
       'Calvin’s premier orchestral ensemble performing classical masterworks, contemporary compositions, and collaborating with choral programs in the Covenant Fine Arts Center.',
     meetingSchedule: 'Tue & Thu rehearsals · 4:00 PM',
@@ -276,7 +261,6 @@ export const CALVIN_CLUBS: Club[] = [
     name: 'Knights Athletics',
     category: 'Athletics',
     mark: 'KA',
-    tagline: 'Calvin NCAA Division III Athletics',
     description:
       'Official home of Calvin University Varsity Athletics across 21 varsity sports in the MIAA conference. Knight Nation comes together for gold-outs, rivalry games, and championship tournaments.',
     meetingSchedule: 'Game days throughout the week',
@@ -294,7 +278,6 @@ export const CALVIN_CLUBS: Club[] = [
     name: 'Campus Ministries',
     category: 'Faith',
     mark: 'CM',
-    tagline: 'Chapel, LOFT, Jubilee & pastoral care',
     description:
       'Fostering corporate worship, spiritual formation, and pastoral care across the Calvin community, including daily 10:00 AM chapel and Sunday evening LOFT services.',
     meetingSchedule: 'Daily Chapel 10:00 AM · LOFT Sundays 8:00 PM',
@@ -312,7 +295,6 @@ export const CALVIN_CLUBS: Club[] = [
     name: 'Student Activities',
     category: 'Social',
     mark: 'SA',
-    tagline: 'Campus traditions, Airband, concerts & late nights',
     description:
       "The team behind Calvin's biggest campus traditions, from Airband and Chaos Day to outdoor movies, campus concerts, and weekly late-night weekend programming.",
     meetingSchedule: 'Office hours M-F · 9:00 AM - 5:00 PM',
@@ -330,7 +312,6 @@ export const CALVIN_CLUBS: Club[] = [
     name: 'Service Learning Center',
     category: 'Service',
     mark: 'SL',
-    tagline: 'Community partnerships & volunteer action in Grand Rapids',
     description:
       'Connecting students to meaningful engagement with local Grand Rapids community organizations, schools, food pantries, and neighborhood associations.',
     meetingSchedule: 'Saturday service vans leave at 8:30 AM',
@@ -348,7 +329,6 @@ export const CALVIN_CLUBS: Club[] = [
     name: 'Student Senate',
     category: 'Social',
     mark: 'SS',
-    tagline: 'Student advocacy, campus representation & club charters',
     description:
       "Calvin's elected student government. We advocate for student needs with university administration, manage club charters and funding, and lead campus life initiatives like the weekend shuttles.",
     meetingSchedule: 'Tuesdays · 9:00 PM',
@@ -364,7 +344,6 @@ export const CALVIN_CLUBS: Club[] = [
     name: 'Art Department',
     category: 'The Arts',
     mark: 'AD',
-    tagline: 'Exhibitions, studio workshops & gallery receptions',
     description:
       'Visual arts at Calvin University, featuring student gallery exhibitions, visiting artist lectures, ceramics studios, graphic design showcases, and photography labs.',
     location: 'Center Art Gallery, CFAC',
@@ -381,7 +360,6 @@ export const CALVIN_CLUBS: Club[] = [
     name: 'Chemistry Department',
     category: 'Academics',
     mark: 'CD',
-    tagline: 'Undergraduate research, lab training & chemistry seminars',
     description:
       'Academic and research opportunities in chemistry and biochemistry, including undergraduate lab instrumentation certifications, research fellowships, and guest lectures.',
     location: 'DeVries Hall',
@@ -396,7 +374,6 @@ export const CALVIN_CLUBS: Club[] = [
     name: 'Dining Services',
     category: 'Social',
     mark: 'DS',
-    tagline: 'Campus dining halls, cafes & culinary updates',
     description:
       'Updates, menu specials, allergen station highlights, and holiday dining hours across Commons Dining Hall, Knollcrest Dining, Uppercrust, and campus cafes.',
     location: 'Commons Union Level 1',
@@ -413,7 +390,6 @@ export const CALVIN_CLUBS: Club[] = [
     name: 'Active Minds',
     category: 'Wellness',
     mark: 'AM',
-    tagline: 'Mental health advocacy, peer wellness & community care',
     description:
       'Student-led chapter dedicated to opening campus conversations around mental health, wellness workshops, de-stress study breaks, and destigmatizing mental health care at Calvin.',
     meetingSchedule: 'Thursdays · 6:00 PM',
@@ -450,7 +426,6 @@ export function searchClubs(query: string, category: FeedCategory | 'All'): Club
     const matchesQuery =
       needle.length === 0 ||
       club.name.toLowerCase().includes(needle) ||
-      club.tagline.toLowerCase().includes(needle) ||
       club.description.toLowerCase().includes(needle) ||
       (club.location ?? '').toLowerCase().includes(needle);
 

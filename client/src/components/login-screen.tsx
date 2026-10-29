@@ -79,7 +79,7 @@ export function LoginScreen() {
   const [activeInitials, setActiveInitials] = useState(() => {
     const fn = user?.firstName ?? student.firstName;
     const ln = user?.lastName ?? student.lastName;
-    return `${fn[0] ?? ''}${ln[0] ?? ''}`.toUpperCase() || 'JD';
+    return `${fn[0] ?? ''}${ln[0] ?? ''}`.toUpperCase() || 'CS';
   });
 
   const isTransitioningRef = useRef(false);
@@ -143,14 +143,8 @@ export function LoginScreen() {
   const raiseForm = useCallback(
     (duration: number = 280) => {
       if (isTransitioningRef.current) return;
-      const formTop = (windowHeight - 402) / 2;
-      // Keep at least insets.top + Spacing.four + 12px breathing room so the logo never hits the top
-      const minTopClearance = insets.top + Spacing.four + 12;
-      const maxSafeRaise = Math.max(0, formTop - minTopClearance);
-      // "It should raise just a touch more" -> 105px (up from previous 75px), clamped by maxSafeRaise
-      const targetRaise = Math.min(105, maxSafeRaise);
-
-      formRaise.value = withTiming(targetRaise, {
+      const maxSafeRaise = Math.max(0, (windowHeight - 402) / 2 - (insets.top + Spacing.four + 12));
+      formRaise.value = withTiming(Math.min(105, maxSafeRaise), {
         duration,
         easing: Easing.out(Easing.cubic),
       });
@@ -161,10 +155,7 @@ export function LoginScreen() {
   const lowerForm = useCallback(
     (duration: number = 240) => {
       if (isTransitioningRef.current) return;
-      formRaise.value = withTiming(0, {
-        duration,
-        easing: Easing.out(Easing.cubic),
-      });
+      formRaise.value = withTiming(0, { duration, easing: Easing.out(Easing.cubic) });
     },
     [formRaise]
   );
@@ -172,22 +163,14 @@ export function LoginScreen() {
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-
-    const onShow = (e: any) => {
+    const showSub = Keyboard.addListener(showEvent, (e: any) => {
       isKeyboardOpenRef.current = true;
-      const duration = e?.duration && e.duration > 0 ? e.duration : 280;
-      raiseForm(duration);
-    };
-
-    const onHide = (e: any) => {
+      raiseForm(e?.duration && e.duration > 0 ? e.duration : 280);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, (e: any) => {
       isKeyboardOpenRef.current = false;
-      const duration = e?.duration && e.duration > 0 ? e.duration : 240;
-      lowerForm(duration);
-    };
-
-    const showSub = Keyboard.addListener(showEvent, onShow);
-    const hideSub = Keyboard.addListener(hideEvent, onHide);
-
+      lowerForm(e?.duration && e.duration > 0 ? e.duration : 240);
+    });
     return () => {
       showSub.remove();
       hideSub.remove();
@@ -196,20 +179,13 @@ export function LoginScreen() {
 
   // Mobile Web visualViewport resize listener for on-screen keyboards
   useEffect(() => {
-    if (Platform.OS !== 'web' || typeof window === 'undefined' || !window.visualViewport) {
-      return;
-    }
+    if (Platform.OS !== 'web' || typeof window === 'undefined' || !window.visualViewport) return;
     const handleResize = () => {
       const vv = window.visualViewport;
       if (!vv) return;
-      const diff = window.innerHeight - vv.height;
-      if (diff > 120) {
-        isKeyboardOpenRef.current = true;
-        raiseForm(280);
-      } else {
-        isKeyboardOpenRef.current = false;
-        lowerForm(240);
-      }
+      const isOpen = window.innerHeight - vv.height > 120;
+      isKeyboardOpenRef.current = isOpen;
+      isOpen ? raiseForm(280) : lowerForm(240);
     };
     window.visualViewport.addEventListener('resize', handleResize);
     window.visualViewport.addEventListener('scroll', handleResize);
@@ -317,21 +293,18 @@ export function LoginScreen() {
     setIsTransitioning(true);
     formRaise.value = 0;
 
-    // Compute initials immediately for John Doe / demo or custom user
-    const lowerUser = submittedUser.toLowerCase();
-    const isJohn = ['jmd42', 'jmd42@calvin.edu', 'john', 'jmd', student.email.toLowerCase()].includes(lowerUser);
-
-    if (isJohn) {
-      setActiveInitials('JD');
-    } else {
-      const isEmail = submittedUser.includes('@');
-      const cleanUser = isEmail ? submittedUser.split('@')[0] : submittedUser;
-      const cleanName = cleanUser.replace(/[@._-]/g, ' ');
-      const words = cleanName.split(' ').filter(Boolean);
-      const fn = words[0] ? words[0].charAt(0).toUpperCase() : 'C';
-      const ln = words[1] ? words[1].charAt(0).toUpperCase() : 'S';
-      setActiveInitials(`${fn}${ln}`);
-    }
+    // Compute initials immediately from username or email
+    const isEmail = submittedUser.includes('@');
+    const cleanUser = isEmail ? submittedUser.split('@')[0] : submittedUser;
+    const cleanName = cleanUser.replace(/[@._-]/g, ' ');
+    const words = cleanName.split(' ').filter(Boolean);
+    const fn = words[0] ? words[0].charAt(0).toUpperCase() : 'C';
+    const ln = words[1]
+      ? words[1].charAt(0).toUpperCase()
+      : words[0] && words[0].length > 1
+      ? words[0].charAt(1).toUpperCase()
+      : 'S';
+    setActiveInitials(`${fn}${ln}`);
 
     // 1. Mount the main app in the background behind the 100% opaque maroon screen
     // Doing this at t = 0 allows the background app to mount and settle completely
@@ -474,21 +447,28 @@ export function LoginScreen() {
         clearTimeout(maskTimerRef.current);
         maskTimerRef.current = null;
       }
+    };
+    window.visualViewport.addEventListener('resize', handleResize);
+    window.visualViewport.addEventListener('scroll', handleResize);
+    return () => {
+      window.visualViewport?.removeEventListener('resize', handleResize);
+      window.visualViewport?.removeEventListener('scroll', handleResize);
+    };
+  }, [raiseForm, lowerForm]);
 
-      if (showPassword) {
-        setPassword(newInputText);
-        setDisplayPassword(newInputText);
-        return;
-      }
+  // Measure both untransformed views to get exact travel delta
+  const measurePositions = useCallback(() => {
+    if (isTransitioningRef.current) return;
 
-      const result = processPasswordMaskInput({
-        currentReal: password,
-        currentDisplay: displayPassword,
-        newInputText,
-      });
+    heroWordmarkRef.current?.measureInWindow((hx, hy, hw, hh) => {
+      headerTargetRef.current?.measureInWindow((tx, ty, tw, th) => {
+        if (isTransitioningRef.current) return;
+        if (hw > 0 && hh > 0 && tw > 0 && th > 0) {
+          const heroCenterX = hx + hw / 2;
+          const heroCenterY = hy + hh / 2;
 
-      setPassword(result.newReal);
-      setDisplayPassword(result.newDisplay);
+          const targetCenterX = tx + (hw * targetScale) / 2;
+          const targetCenterY = ty + (hh * targetScale) / 2;
 
       if (result.shouldStartTimer) {
         maskTimerRef.current = setTimeout(() => {
@@ -591,6 +571,15 @@ export function LoginScreen() {
       transform: [{ translateY: -formRaise.value }],
     };
   });
+
+  // Dismiss keyboard on native touch without blocking web inputs
+  const FormTouchWrapper = Platform.OS === 'web'
+    ? ({ children }: { children: React.ReactNode }) => <>{children}</>
+    : ({ children }: { children: React.ReactNode }) => (
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          {children}
+        </TouchableWithoutFeedback>
+      );
 
   return (
     <Animated.View
@@ -720,10 +709,10 @@ export function LoginScreen() {
 
       {/* 2. Login Form Screen: Sits unclipped on top of maroonContainer */}
       <View style={[styles.formContainer, bannerOffset > 0 && { top: bannerOffset }]}>
-        {Platform.OS === 'web' ? (
+        <FormTouchWrapper>
           <View
             style={styles.keyboardView}
-            {...({ 'data-no-auto-scroll': 'true' } as any)}>
+            {...(Platform.OS === 'web' ? ({ 'data-no-auto-scroll': 'true' } as any) : {})}>
             <ScrollView
               ref={scrollViewRef}
               scrollEnabled={false}
@@ -907,189 +896,7 @@ export function LoginScreen() {
               </Animated.View>
             </ScrollView>
           </View>
-        ) : (
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-            <View style={styles.keyboardView}>
-              <ScrollView
-                ref={scrollViewRef}
-                scrollEnabled={false}
-                bounces={false}
-                overScrollMode="never"
-                removeClippedSubviews={false}
-                contentContainerStyle={styles.scrollContent}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}>
-                {/* Form Main: Vertically and horizontally centered on ANY screen, raises smoothly when keyboard appears */}
-                <Animated.View style={[styles.formMain, formRaiseAnimatedStyle]}>
-                  {/* Branding Header */}
-                  <View style={styles.brandHeader}>
-                    {/* Shield Icon: Fades out on sign in */}
-                    <Animated.View style={formFadeAnimatedStyle}>
-                      <View style={styles.shieldWrap}>
-                        <Icon sf="sparkles" md="auto_awesome" size={30} color={Brand.gold} />
-                      </View>
-                    </Animated.View>
-
-                    {/* Single continuous Knightly wordmark: Starts in the natural Flexbox center */}
-                    <Animated.View
-                      ref={heroWordmarkRef}
-                      onLayout={measurePositions}
-                      style={[styles.brandRow, wordmarkAnimatedStyle]}>
-                      <ThemedText style={styles.brandTitle}>Knightly</ThemedText>
-                      <View style={styles.brandDot} />
-                    </Animated.View>
-
-                    {/* Calvin University & Sign-In Prompt: Fade out on sign in */}
-                    <Animated.View style={formFadeAnimatedStyle}>
-                      <ThemedText style={styles.brandSubtitle}>CALVIN UNIVERSITY</ThemedText>
-                      <ThemedText style={styles.signInPrompt}>
-                        Sign in with your Calvin Account
-                      </ThemedText>
-                    </Animated.View>
-                  </View>
-
-                  {/* Form Fields: Fade out on sign in */}
-                  <Animated.View style={[styles.fields, formFadeAnimatedStyle]}>
-                    {/* Calvin Username or Email Single Line */}
-                    <View style={styles.fieldWrap}>
-                      <TextInput
-                        value={username}
-                        onChangeText={(text) => {
-                          setUsername(text);
-                          if (errorMessage) setErrorMessage('');
-                        }}
-                        onFocus={() => {
-                          setUserFocused(true);
-                          if (Platform.OS === 'android') {
-                            raiseForm(250);
-                          }
-                        }}
-                        onBlur={() => setUserFocused(false)}
-                        cursorColor={Brand.gold}
-                        selectionColor={Brand.gold}
-                        placeholder="Calvin username or email"
-                        placeholderTextColor="rgba(255, 255, 255, 0.55)"
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        returnKeyType="next"
-                        style={[
-                          styles.singleLineInput,
-                          userFocused && styles.singleLineInputFocused,
-                        ]}
-                      />
-                    </View>
-
-                    {/* Password Single Line */}
-                    <View style={styles.fieldWrap}>
-                      <View style={styles.passwordRow}>
-                        <TextInput
-                          value={displayPassword}
-                          onChangeText={handlePasswordChange}
-                          onFocus={() => {
-                            setPassFocused(true);
-                            if (Platform.OS === 'android') {
-                              raiseForm(250);
-                            }
-                          }}
-                          onBlur={() => setPassFocused(false)}
-                          cursorColor={Brand.gold}
-                          selectionColor={Brand.gold}
-                          placeholder="Password"
-                          placeholderTextColor="rgba(255, 255, 255, 0.55)"
-                          secureTextEntry={false}
-                          autoCapitalize="none"
-                          autoCorrect={false}
-                          spellCheck={false}
-                          returnKeyType="go"
-                          onSubmitEditing={handleSignIn}
-                          style={[
-                            styles.singleLineInput,
-                            styles.passwordInput,
-                            passFocused && styles.singleLineInputFocused,
-                          ]}
-                        />
-                        <Pressable
-                          onPress={toggleShowPassword}
-                          hitSlop={12}
-                          style={styles.eyeButton}
-                          accessibilityRole="button"
-                          accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}>
-                          <Icon
-                            sf={showPassword ? 'eye.slash.fill' : 'eye.fill'}
-                            md={showPassword ? 'visibility_off' : 'visibility'}
-                            size={20}
-                            color="rgba(255, 255, 255, 0.75)"
-                          />
-                        </Pressable>
-                      </View>
-                    </View>
-
-                    {/* Error Message */}
-                    {errorMessage ? (
-                      <View style={styles.errorContainer}>
-                        <ThemedText style={styles.errorText}>{errorMessage}</ThemedText>
-                      </View>
-                    ) : null}
-
-                    {/* Gold Sign-In Button */}
-                    <Pressable
-                      onPress={handleSignIn}
-                      disabled={!canSubmit || isTransitioning}
-                      focusable={false}
-                      accessibilityRole="button"
-                      accessibilityLabel="Sign In"
-                      style={({ pressed }) => [
-                        styles.goldButton,
-                        !canSubmit && styles.goldButtonDisabled,
-                        pressed && canSubmit && styles.goldButtonPressed,
-                      ]}>
-                      <ThemedText style={styles.goldButtonText}>Sign In</ThemedText>
-                    </Pressable>
-
-                    {/* Quick Fill Demo Helper */}
-                    <Pressable
-                      onPress={fillDemoCredentials}
-                      focusable={false}
-                      style={({ pressed }) => [
-                        styles.demoButton,
-                        pressed && { opacity: 0.7 },
-                      ]}>
-                      <ThemedText style={styles.demoButtonText}>
-                        Use John Mark Doe demo account
-                      </ThemedText>
-                    </Pressable>
-                  </Animated.View>
-                </Animated.View>
-
-                {/* Footer pinned closer to the bottom without displacing the centered form */}
-                <Animated.View
-                  style={[
-                    styles.footer,
-                    { bottom: Math.max(insets.bottom + Spacing.two, Spacing.four) },
-                    formFadeAnimatedStyle,
-                  ]}>
-                  <ThemedText style={styles.footerText}>
-                    {'Calvin University \u2022 Grand Rapids, Michigan'}
-                  </ThemedText>
-                </Animated.View>
-
-                {/* Version watermark pinned to bottom right corner */}
-                <Animated.View
-                  style={[
-                    styles.versionContainer,
-                    {
-                      bottom: Math.max(insets.bottom + Spacing.two, Spacing.four),
-                      right: Math.max(insets.right + Spacing.three, Spacing.four),
-                    },
-                    formFadeAnimatedStyle,
-                  ]}
-                  pointerEvents="none">
-                  <ThemedText style={styles.versionText}>{APP_VERSION}</ThemedText>
-                </Animated.View>
-              </ScrollView>
-            </View>
-          </TouchableWithoutFeedback>
-        )}
+        </FormTouchWrapper>
       </View>
     </Animated.View>
   );

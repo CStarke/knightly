@@ -12,14 +12,31 @@ export type MealPlanStatsProps = {
   /** Variant theme: 'hero' for maroon dining hero card, 'light' for white student ID card */
   variant?: 'hero' | 'light';
   style?: StyleProp<ViewStyle>;
+  /** Optional dynamic overrides from Supabase dining account */
+  swipesRemaining?: number;
+  knightBucks?: number;
+  diningDollars?: number;
+  swipeMetricLabel?: string;
 };
 
 /**
  * Standardized 3-column meal plan balance row:
  * Displays remaining swipes / meals, KnightBucks, and Dining Dollars with vertical dividers.
  */
-export function MealPlanStats({ variant = 'hero', style }: MealPlanStatsProps) {
+export function MealPlanStats({
+  variant = 'hero',
+  style,
+  swipesRemaining: propSwipes,
+  knightBucks: propKnightBucks,
+  diningDollars: propDiningDollars,
+  swipeMetricLabel: propLabel,
+}: MealPlanStatsProps) {
   const isHero = variant === 'hero';
+
+  const effectiveSwipes = propSwipes !== undefined ? propSwipes : swipesRemaining;
+  const effectiveKnightBucks = propKnightBucks !== undefined ? propKnightBucks : mealPlan.knightBucks;
+  const effectiveDiningDollars = propDiningDollars !== undefined ? propDiningDollars : mealPlan.diningDollars;
+  const effectiveLabel = propLabel !== undefined ? propLabel : getSwipeMetricLabel(mealPlan);
 
   const renderValue = (val: string | number) => {
     if (isHero) {
@@ -66,15 +83,15 @@ export function MealPlanStats({ variant = 'hero', style }: MealPlanStatsProps) {
     <View style={[isHero ? styles.heroStatsRow : styles.lightStatsRow, style]}>
       {/* 1. Meal Swipes */}
       <View style={isHero ? styles.heroStatBox : styles.lightStatBox}>
-        {renderValue(swipesRemaining)}
-        {renderLabel(getSwipeMetricLabel(mealPlan))}
+        {renderValue(effectiveSwipes)}
+        {renderLabel(effectiveLabel)}
       </View>
 
       <View style={isHero ? styles.heroDivider : styles.lightDivider} />
 
       {/* 2. KnightBucks */}
       <View style={isHero ? styles.heroStatBox : styles.lightStatBox}>
-        {renderValue(`$${mealPlan.knightBucks.toFixed(2)}`)}
+        {renderValue(`$${effectiveKnightBucks.toFixed(2)}`)}
         {renderLabel(isHero ? 'KNIGHTBUCKS' : 'KnightBucks')}
       </View>
 
@@ -82,7 +99,7 @@ export function MealPlanStats({ variant = 'hero', style }: MealPlanStatsProps) {
 
       {/* 3. Dining Dollars */}
       <View style={isHero ? styles.heroStatBox : styles.lightStatBox}>
-        {renderValue(`$${mealPlan.diningDollars.toFixed(2)}`)}
+        {renderValue(`$${effectiveDiningDollars.toFixed(2)}`)}
         {renderLabel(isHero ? 'DINING DOLLARS' : 'Dining Dollars')}
       </View>
     </View>
@@ -93,60 +110,71 @@ const styles = StyleSheet.create({
   heroStatsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.one,
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(0, 0, 0, 0.22)',
+    borderRadius: Spacing.three,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.two,
+    marginBottom: Spacing.two,
+  },
+  lightStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F5F5F7',
+    borderRadius: Spacing.three,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.two,
+    marginBottom: Spacing.three,
   },
   heroStatBox: {
     flex: 1,
     alignItems: 'center',
-    gap: 2,
-  },
-  heroStatValue: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 20,
-    lineHeight: 24,
-  },
-  heroStatLabel: {
-    color: 'rgba(255, 255, 255, 0.65)',
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    fontSize: 10,
-  },
-  heroDivider: {
-    width: 1,
-    height: 28,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-  },
-
-  lightStatsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.03)',
-    borderRadius: 12,
-    paddingVertical: Spacing.two + 4,
-    paddingHorizontal: Spacing.two,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0, 0, 0, 0.08)',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
   },
   lightStatBox: {
     flex: 1,
     alignItems: 'center',
-    gap: 3,
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  heroStatValue: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    marginBottom: 2,
   },
   lightStatValue: {
-    fontSize: 18,
-    lineHeight: 22,
+    color: '#11181C',
+    fontSize: 20,
     fontWeight: '800',
-    color: Brand.maroon,
+    letterSpacing: -0.5,
+    marginBottom: 2,
+  },
+  heroStatLabel: {
+    color: Brand.gold,
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    textAlign: 'center',
   },
   lightStatLabel: {
-    fontSize: 11,
-    fontWeight: '600',
     color: '#666666',
+    fontSize: 9.5,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textAlign: 'center',
+  },
+  heroDivider: {
+    width: StyleSheet.hairlineWidth,
+    height: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
   },
   lightDivider: {
-    width: 1,
-    height: 32,
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    width: StyleSheet.hairlineWidth,
+    height: 28,
+    backgroundColor: '#D1D5DB',
   },
 });

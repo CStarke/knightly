@@ -15,7 +15,7 @@
  *    if already verified, and respects permanent dismissal if hidden.
  */
 
-import { useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { FeedEmptyState } from '@/components/feed-controls';
@@ -32,6 +32,7 @@ import { useClubFollow } from '@/context/club-follow-context';
 import { useClubLeadership } from '@/context/club-leadership-context';
 import { useClubsNavigation } from '@/context/clubs-navigation-context';
 import { CALVIN_CLUBS, type Club } from '@/data/clubs';
+import { fetchClubsApi } from '@/services/clubs-api';
 import { feedCategories, resolveFeedColumnCount, type FeedCategory } from '@/data/feed';
 import { useResponsiveLayout } from '@/hooks/use-responsive-layout';
 
@@ -58,9 +59,32 @@ export function ClubsDirectoryView() {
   const numColumns = resolveFeedColumnCount(width, Platform.OS);
   const maxContentWidth = numColumns >= 5 ? 1880 : numColumns >= 4 ? 1520 : 1200;
 
-  // Step 3: Filter States
+  // Step 3: Filter States & Live Directory Catalog
+  const [clubsCatalog, setClubsCatalog] = useState<Club[]>(CALVIN_CLUBS);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<'All' | FeedCategory>('All');
+  const [isDeferredReady, setIsDeferredReady] = useState(false);
+
+  // SPRINT 1 SLO DIRECTIVE (SC2): Asynchronously refresh club directory from Supabase
+  useEffect(() => {
+    let mounted = true;
+    fetchClubsApi().then((serverClubs) => {
+      if (mounted && Array.isArray(serverClubs) && serverClubs.length > 0) {
+        setClubsCatalog(serverClubs);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Defer full catalog rendering on initial mount to allow the horizontal camera slide (320ms) to glide at 60/120fps
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsDeferredReady(true);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Step 4: Multi-field fuzzy search pipeline
   // WHY COMBINED PREDICATE:
@@ -69,30 +93,38 @@ export function ClubsDirectoryView() {
   const filteredClubs = useMemo(() => {
     const needle = query.trim().toLowerCase();
 
-    return CALVIN_CLUBS.filter((club) => {
+    return clubsCatalog.filter((club) => {
       // Sub-step A: Category filter check
       if (category !== 'All' && club.category !== category) return false;
       // Sub-step B: If no search query, match all within the category
       if (!needle) return true;
       // Sub-step C: Match against name, tagline, description, category, or location
       return (
-        club.name.toLowerCase().includes(needle) ||
-        club.tagline.toLowerCase().includes(needle) ||
-        club.description.toLowerCase().includes(needle) ||
-        club.category.toLowerCase().includes(needle) ||
+        (club.name ?? '').toLowerCase().includes(needle) ||
+
+        (club.description ?? '').toLowerCase().includes(needle) ||
+        (club.category ?? '').toLowerCase().includes(needle) ||
         (club.location ?? '').toLowerCase().includes(needle)
       );
     });
   }, [query, category]);
 
-  // Step 5: Chunk filtered clubs into balanced rows of `numColumns` items
+  // Progressive rendering slice: on initial entry while camera glides, render top 6 cards; once landed or searching, render all
+  const visibleClubs = useMemo(() => {
+    if (isDeferredReady || query || category !== 'All') {
+      return filteredClubs;
+    }
+    return filteredClubs.slice(0, 6);
+  }, [filteredClubs, isDeferredReady, query, category]);
+
+  // Step 5: Chunk visible clubs into balanced rows of `numColumns` items
   const evenRows = useMemo(() => {
     const rows: Club[][] = [];
-    for (let i = 0; i < filteredClubs.length; i += numColumns) {
-      rows.push(filteredClubs.slice(i, i + numColumns));
+    for (let i = 0; i < visibleClubs.length; i += numColumns) {
+      rows.push(visibleClubs.slice(i, i + numColumns));
     }
     return rows;
-  }, [filteredClubs, numColumns]);
+  }, [visibleClubs, numColumns]);
 
   return (
     <Screen style={[styles.screenInner, { maxWidth: maxContentWidth }]}>
@@ -174,8 +206,8 @@ export function ClubsDirectoryView() {
                 <ClubCard
                   club={club}
                   following={isFollowing(club.id)}
-                  onToggleFollow={() => toggleFollow(club.id)}
-                  onPress={() => openClubDetail(club.id)}
+                  onToggleFollow={toggleFollow}
+                  onPress={openClubDetail}
                 />
               </View>
             ))}
@@ -215,21 +247,35 @@ export function ClubsDirectoryView() {
  * @param props.onToggleFollow - Callback triggered when tapping the follow button
  * @param props.onPress - Callback triggered when tapping the card body to open deep details
  */
-function ClubCard({
+type ClubCardProps = {
+  club: Club;
+  following: boolean;
+  onToggleFollow: (clubId: string) => void;
+  onPress: (clubId: string) => void;
+};
+
+const ClubCard = memo(function ClubCard({
   club,
   following,
   onToggleFollow,
   onPress,
-}: {
-  club: Club;
-  following: boolean;
-  onToggleFollow: () => void;
-  onPress: () => void;
-}) {
+}: ClubCardProps) {
+  const handlePress = useCallback(() => {
+    onPress(club.id);
+  }, [onPress, club.id]);
+
+  const handleToggle = useCallback(
+    (e?: any) => {
+      e?.stopPropagation?.();
+      onToggleFollow(club.id);
+    },
+    [onToggleFollow, club.id]
+  );
+
   return (
     <Card flush style={styles.clubCard}>
       <Pressable
-        onPress={onPress}
+        onPress={handlePress}
         accessibilityRole="button"
         accessibilityLabel={`View ${club.name} details`}
         style={({ pressed }) => [styles.cardPressable, pressed && styles.pressed]}
@@ -257,7 +303,7 @@ function ClubCard({
               style={styles.clubTagline}
               numberOfLines={2}
             >
-              {club.tagline}
+              {club.description}
             </ThemedText>
           </View>
         </View>
@@ -295,10 +341,7 @@ function ClubCard({
 
           <FollowButton
             following={following}
-            onPress={(e) => {
-              e?.stopPropagation();
-              onToggleFollow();
-            }}
+            onPress={handleToggle}
             clubName={club.name}
             variant="compact"
           />
@@ -306,7 +349,7 @@ function ClubCard({
       </Pressable>
     </Card>
   );
-}
+});
 
 const styles = StyleSheet.create({
   screenInner: {

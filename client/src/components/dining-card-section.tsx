@@ -8,6 +8,7 @@
  */
 
 import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -17,6 +18,7 @@ import { DashMeter } from '@/components/ui/dash-meter';
 import { Icon } from '@/components/ui/icon';
 import { MealPlanStats } from '@/components/meal-plan-stats';
 import { Brand, Fonts, Radius, Spacing } from '@/constants/theme';
+import { useAuth } from '@/context/auth-context';
 import { useDiningActivity } from '@/context/dining-activity-context';
 import {
   flexMealsRemaining,
@@ -31,6 +33,11 @@ import {
 } from '@/data/dining';
 import { fullName } from '@/data/student';
 import { useTheme } from '@/hooks/use-theme';
+import {
+  fetchDiningSummaryApi,
+  getDefaultDiningSummary,
+  type DiningSummary,
+} from '@/services/dining-api';
 
 export function SubMeter({
   label,
@@ -70,6 +77,31 @@ export function SubMeter({
 export function KnightIdCardSection() {
   const theme = useTheme();
   const { openActivity } = useDiningActivity();
+  const { user } = useAuth();
+
+  const [summary, setSummary] = useState<DiningSummary>(getDefaultDiningSummary);
+
+  useEffect(() => {
+    let mounted = true;
+    const targetId = user?.studentId || user?.id;
+    fetchDiningSummaryApi(targetId).then((data) => {
+      if (mounted && data) {
+        setSummary(data);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [user?.id, user?.studentId]);
+
+  const displayName = user?.fullName ?? fullName;
+  const isBlock = summary.cadence === 'semester';
+  const swipeLabel = isBlock ? 'Meals left' : 'Swipes left';
+  const resetText = isBlock
+    ? 'Swipes last through the semester'
+    : mealPlan.weekResetsOn
+    ? `Swipes reset ${mealPlan.weekResetsOn}`
+    : 'Swipes reset Sunday at 12:00 a.m.';
 
   return (
     <View style={styles.container}>
@@ -89,10 +121,10 @@ export function KnightIdCardSection() {
             <View style={styles.cardIdentityRow}>
               <View style={styles.cardIdentity}>
                 <ThemedText type="subtitle" style={styles.cardName}>
-                  {fullName}
+                  {displayName}
                 </ThemedText>
                 <ThemedText style={styles.cardMealPlan}>
-                  {mealPlan.name.toUpperCase()}
+                  {summary.mealPlanName.toUpperCase()}
                 </ThemedText>
               </View>
             </View>
@@ -105,15 +137,21 @@ export function KnightIdCardSection() {
           </View>
 
           {/* 3 Metrics: Swipes Left / Meals Left, KnightBucks, Dining Dollars */}
-          <MealPlanStats variant="hero" />
+          <MealPlanStats
+            variant="hero"
+            swipesRemaining={summary.swipesRemaining}
+            knightBucks={summary.knightBucks}
+            diningDollars={summary.diningDollars}
+            swipeMetricLabel={swipeLabel}
+          />
 
           {/* Main Swipes DashMeter in Calvin Gold */}
           <DashMeter
-            total={getSwipesTotal(mealPlan)}
-            remaining={swipesRemaining}
+            total={summary.swipesTotal}
+            remaining={summary.swipesRemaining}
             color={Brand.gold}
             emptyColor="rgba(255,255,255,0.22)"
-            variant={isBlockPlan(mealPlan) ? 'solid' : 'chips'}
+            variant={isBlock ? 'solid' : 'chips'}
           />
 
           {/* Secondary Allotments: Flex Meals (Renew Blue dot) & Guest Passes (True Green dot) */}
@@ -123,7 +161,7 @@ export function KnightIdCardSection() {
                 <SubMeter
                   label="Flex meals"
                   color={Brand.renewBlue}
-                  remaining={flexMealsRemaining}
+                  remaining={summary.flexMealsRemaining}
                   total={mealPlan.flexMeals ?? 0}
                 />
               )}
@@ -132,7 +170,7 @@ export function KnightIdCardSection() {
                 <SubMeter
                   label="Guest passes"
                   color={Brand.trueGreen}
-                  remaining={guestPassesRemaining}
+                  remaining={summary.guestPassesRemaining}
                   total={mealPlan.guestPasses ?? 0}
                 />
               )}
@@ -148,7 +186,7 @@ export function KnightIdCardSection() {
       {/* Info Bar immediately below the Knight Card on ambient background */}
       <View style={styles.subCardBar}>
         <ThemedText type="caption" themeColor="textMuted">
-          {getSwipeResetText(mealPlan)}
+          {resetText}
         </ThemedText>
 
         <Pressable

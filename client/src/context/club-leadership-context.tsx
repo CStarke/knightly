@@ -26,6 +26,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { CALVIN_CLUBS, type Club } from '@/data/clubs';
 import { checkClubCode } from '@/data/club-codes';
 import { useAuth } from '@/context/auth-context';
+import { claimClubApi } from '@/services/clubs-api';
 
 export type ClaimModalSource = 'banner' | 'profile' | null;
 
@@ -70,13 +71,6 @@ export function loadClaimBannerDismissed(
       const isDismissed = userVal === 'true';
       inMemoryBannerDismissed[accountId] = isDismissed;
       return isDismissed;
-    }
-    // Backward-compatibility fallback for John Doe (default demo user)
-    const isJohn = user.username?.toLowerCase() === 'jmd42' || user.id === '2028420';
-    if (isJohn) {
-      const legacyVal = window.localStorage.getItem('knightly_claim_banner_dismissed') === 'true';
-      inMemoryBannerDismissed[accountId] = legacyVal;
-      return legacyVal;
     }
     return false;
   } catch {
@@ -234,10 +228,6 @@ export function ClubLeadershipProvider({ children }: { children: ReactNode }) {
         try {
           const userKey = getAccountStorageKey(user, 'knightly_claim_banner_dismissed_');
           window.localStorage.setItem(userKey, 'true');
-          const isJohn = user.username?.toLowerCase() === 'jmd42' || user.id === '2028420';
-          if (isJohn) {
-            window.localStorage.setItem(CLAIM_BANNER_DISMISSED_KEY, 'true');
-          }
         } catch {}
       }
     }
@@ -255,7 +245,7 @@ export function ClubLeadershipProvider({ children }: { children: ReactNode }) {
         name: 'Unknown Club',
         category: 'Academics' as const,
         mark: 'UC',
-        tagline: '',
+
         description: '',
         contactEmail: 'clubs@calvin.edu',
         colors: ['#0A2E36', '#14B8A6'] as [string, string],
@@ -331,6 +321,16 @@ export function ClubLeadershipProvider({ children }: { children: ReactNode }) {
       }
 
       setActiveClubId(targetClubId);
+
+      // SPRINT 1 SLO DIRECTIVE: Asynchronously persist claim to Supabase backend
+      const studentId = user?.id || user?.studentId || '';
+      claimClubApi({
+        rawCode: code,
+        studentId,
+        targetClubId,
+      }).catch(() => {
+        // Gracefully ignore network failures in offline demo mode
+      });
 
       const baseClub = CALVIN_CLUBS.find((c) => c.id === targetClubId);
       const fullClub = {
