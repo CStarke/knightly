@@ -33,34 +33,33 @@ export type StudentDining = {
   diningDollars: number;
 };
 
-/** The signed-in student. Hardcoded for the prototype. */
+/** Default unauthenticated student profile template used when offline or unauthenticated. */
 export const student = {
-  id: "2346052",
-  firstName: "John",
-  middleName: "Mark",
-  lastName: "Doe",
+  id: "2400001",
+  firstName: "Calvin",
+  middleName: "",
+  lastName: "Student",
   classYear: 2028,
-  standing: "Sophomore",
-  major: "Computer Science",
-  minor: "Mathematics",
-  email: "jmd42@calvin.edu",
+  standing: "Student",
+  major: "Calvin University",
+  minor: "",
+  email: "student@calvin.edu",
   /** 7-digit student number printed on the Knight Card. */
-  cardNumber: "2346052",
+  cardNumber: "2400001",
   /** 14-digit encoded barcode: 5 leading 0's, 7-digit student ID, 2 trailing 0's. */
-  barcode: "00000234605200",
-  residence: "Boer-Bennink Hall, Rm 214",
-  advisor: "Dr. Naomi Vermeer",
+  barcode: "00000240000100",
+  residence: "Campus Housing",
+  advisor: "Academic Advising",
   /**
-   * John Doe's active dining account & meal plan subscription.
-   * To test other plans for John Doe, simply change `mealPlanId` here (e.g. 'knollcrest60', 'core14', etc.).
+   * Neutral default dining account state.
    */
   dining: {
     mealPlanId: "core14" as CalvinMealPlanId,
-    swipesUsed: 7,
-    flexMealsUsed: 1,
+    swipesUsed: 0,
+    flexMealsUsed: 0,
     guestPassesUsed: 0,
-    knightBucks: 30.0,
-    diningDollars: 18.5,
+    knightBucks: 0.0,
+    diningDollars: 0.0,
   },
 } as const;
 

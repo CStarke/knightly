@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { ClaimClubModal } from '@/components/claim-club-modal';
+import { DirectoryOnboardingModal } from '@/components/directory-onboarding-modal';
 import { LoginScreen } from '@/components/login-screen';
 import { Brand, Colors } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/context/auth-context';
@@ -65,7 +66,13 @@ export default function RootLayout() {
 }
 
 function RootNavigator({ isDark }: { isDark: boolean }) {
-  const { isAuthenticated, isAppMounted } = useAuth();
+  const {
+    isAuthenticated,
+    isAppMounted,
+    showDirectoryPrompt,
+    dismissDirectoryPrompt,
+    updateDirectoryPreferences,
+  } = useAuth();
 
   return (
     <View
@@ -85,7 +92,7 @@ function RootNavigator({ isDark }: { isDark: boolean }) {
             },
           }}>
           <Stack.Screen name="(tabs)" />
-                    {/* Campus map opens above the tabs to use the full screen. */}
+          {/* Campus map opens above the tabs to use the full screen. */}
           <Stack.Screen
             name="campus-map"
             options={{ animation: 'slide_from_right' }}
@@ -119,6 +126,17 @@ function RootNavigator({ isDark }: { isDark: boolean }) {
 
       {/* Global Claim Club Leadership Modal */}
       {isAuthenticated && <ClaimClubModal />}
+
+      {/* Global FERPA Directory Privacy Consent Modal */}
+      {isAuthenticated && showDirectoryPrompt && (
+        <DirectoryOnboardingModal
+          visible={showDirectoryPrompt}
+          onComplete={(prefs) => {
+            updateDirectoryPreferences(prefs.directoryOptIn, prefs.directoryVisibleFields);
+          }}
+          onClose={dismissDirectoryPrompt}
+        />
+      )}
     </View>
   );
 }

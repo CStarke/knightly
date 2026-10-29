@@ -1173,11 +1173,17 @@ function SwipeableTabPager({
     headerInfo,
   ]);
 
+  // Memoized starfield context value preventing background screens from re-rendering on camera pan
+  const starfieldContextValue = useMemo(
+    () => ({ translateX, scrollY }),
+    [translateX, scrollY]
+  );
+
   return (
     <DiningActivityProvider value={activityContextValue}>
       <ClubsNavigationProvider value={clubsNavigationValue}>
         <TabPagerPriorityProvider value={tabPagerPriorityValue}>
-          <StarfieldContext.Provider value={{ translateX, scrollY }}>
+          <StarfieldContext.Provider value={starfieldContextValue}>
             <View style={styles.pagerContainer}>
               {/* Parallax Starfield with 3 depth layers reacting to both horizontal and vertical scrolling */}
               <ParallaxStarfield translateX={translateX} scrollY={scrollY} />
@@ -1424,8 +1430,11 @@ function TabButton({
 
   const handlePress = (e: GestureResponderEvent) => {
     e.preventDefault?.();
-    tabNav?.navigateToTab(index, meta.href);
-    props.onPress?.(e);
+    if (tabNav) {
+      tabNav.navigateToTab(index, meta.href);
+    } else {
+      props.onPress?.(e);
+    }
   };
 
   return (

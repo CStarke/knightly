@@ -9,6 +9,7 @@ import { Barcode } from "@/components/barcode";
 import { MealPlanStats } from "@/components/meal-plan-stats";
 import { HeaderBackButton } from "@/components/ui/header-back-button";
 import { Brand, Fonts, Radius, Spacing } from "@/constants/theme";
+import { useAuth } from "@/context/auth-context";
 import { fullName, student } from "@/data/student";
 
 /**
@@ -77,6 +78,19 @@ function useBoostedBrightness() {
 
 export default function KnightCardScreen() {
   const restoreBrightness = useBoostedBrightness();
+  const { user } = useAuth();
+
+  const displayName = user?.fullName ?? fullName;
+  const displayInitials = user
+    ? `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase() || 'CS'
+    : `${student.firstName[0]}${student.lastName[0]}`;
+  const displayStanding = user?.standing ?? student.standing;
+  const displayMajor = user?.major ?? student.major;
+  const displayId =
+    user?.cardNumber ??
+    user?.studentId ??
+    (user?.id && !user.id.includes('-') ? user.id : student.id);
+  const displayBarcode = user?.barcode ?? student.barcode;
 
   const handleClose = () => {
     restoreBrightness();
@@ -120,22 +134,22 @@ export default function KnightCardScreen() {
           {/* Student Identity Row */}
           <View style={styles.studentRow}>
             <Avatar
-              name={fullName}
-              initials={`${student.firstName[0]}${student.lastName[0]}`}
+              name={displayName}
+              initials={displayInitials}
               size={64}
             />
             <View style={styles.studentInfo}>
-              <Text style={styles.studentName}>{fullName}</Text>
+              <Text style={styles.studentName}>{displayName}</Text>
               <Text style={styles.studentMeta}>
-                {student.standing} · {student.major}
+                {displayStanding} · {displayMajor}
               </Text>
-              <Text style={styles.studentIdNumber}>ID: {student.id}</Text>
+              <Text style={styles.studentIdNumber}>ID: {displayId}</Text>
             </View>
           </View>
 
           {/* Barcode Section */}
           <View style={styles.barcodeWell}>
-            <Barcode value={student.barcode} height={100} />
+            <Barcode value={displayBarcode} height={100} />
           </View>
 
           {/* Balance & Meal Plan Metrics */}

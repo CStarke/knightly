@@ -1,7 +1,7 @@
 {
   "name": "calvinapp",
   "main": "expo-router/entry",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "dependencies": {
     "@expo/ui": "~58.0.23",
     "expo": "~58.0.19",

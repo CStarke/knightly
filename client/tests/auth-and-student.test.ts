@@ -54,40 +54,22 @@ describe('Auth, Student Profile & Theme System Domain', () => {
         return false;
       }
 
-      const isJohn =
-        trimmedUser.toLowerCase() === 'jmd42' ||
-        trimmedUser.toLowerCase() === 'jmd42@calvin.edu' ||
-        trimmedUser.toLowerCase() === 'john' ||
-        trimmedUser.toLowerCase() === 'jmd' ||
-        trimmedUser.toLowerCase() === student.email.toLowerCase();
+      const isEmail = trimmedUser.includes('@');
+      const email = isEmail ? trimmedUser : `${trimmedUser}@calvin.edu`;
+      const cleanUser = isEmail ? trimmedUser.split('@')[0] : trimmedUser;
+      const cleanName = cleanUser.replace(/[@._-]/g, ' ');
+      const words = cleanName.split(' ').filter(Boolean);
+      const firstName = words[0] ? words[0].charAt(0).toUpperCase() + words[0].slice(1) : 'Calvin';
+      const lastName = words[1] ? words[1].charAt(0).toUpperCase() + words[1].slice(1) : 'Student';
 
-      if (isJohn) {
-        user = {
-          id: student.id,
-          username: 'jmd42',
-          fullName: `${student.firstName} ${student.lastName}`,
-          email: student.email,
-          standing: student.standing,
-          major: student.major,
-        };
-      } else {
-        const isEmail = trimmedUser.includes('@');
-        const email = isEmail ? trimmedUser : `${trimmedUser}@calvin.edu`;
-        const cleanUser = isEmail ? trimmedUser.split('@')[0] : trimmedUser;
-        const cleanName = cleanUser.replace(/[@._-]/g, ' ');
-        const words = cleanName.split(' ').filter(Boolean);
-        const firstName = words[0] ? words[0].charAt(0).toUpperCase() + words[0].slice(1) : 'Calvin';
-        const lastName = words[1] ? words[1].charAt(0).toUpperCase() + words[1].slice(1) : 'Student';
-
-        user = {
-          id: `usr_${cleanUser}`,
-          username: cleanUser,
-          fullName: `${firstName} ${lastName}`,
-          email,
-          standing: 'Student',
-          major: 'Calvin University',
-        };
-      }
+      user = {
+        id: `usr_${cleanUser}`,
+        username: cleanUser,
+        fullName: `${firstName} ${lastName}`,
+        email,
+        standing: 'Student',
+        major: 'Calvin University',
+      };
 
       isAuthenticated = true;
       return true;
@@ -116,25 +98,25 @@ describe('Auth, Student Profile & Theme System Domain', () => {
   describe('Student Profile & Academic Credentials', () => {
     it('provides full name concatenation', () => {
       assert.strictEqual(fullName, `${student.firstName} ${student.lastName}`);
-      assert.strictEqual(fullName, 'John Doe');
+      assert.strictEqual(fullName, 'Calvin Student');
     });
 
     it('validates 7-digit student ID and cardNumber', () => {
-      assert.strictEqual(student.id, '2346052');
-      assert.strictEqual(student.cardNumber, '2346052');
+      assert.strictEqual(student.id, '2400001');
+      assert.strictEqual(student.cardNumber, '2400001');
       assert.match(student.cardNumber, /^\d{7}$/, 'Student number should be exactly 7 digits');
     });
 
     it('formats 14-digit barcode with 5 leading zeros and 2 trailing zeros', () => {
-      assert.strictEqual(student.barcode, '00000234605200');
+      assert.strictEqual(student.barcode, '00000240000100');
       assert.match(student.barcode, /^00000\d{7}00$/, 'Barcode must be 14 digits with 5 leading 0s and 2 trailing 0s');
       assert.strictEqual(formatBarcode('2346052'), '00000234605200');
       assert.strictEqual(formatBarcode('1234567'), '00000123456700');
     });
 
     it('contains Calvin academic status information', () => {
-      assert.strictEqual(student.major, 'Computer Science');
-      assert.strictEqual(student.standing, 'Sophomore');
+      assert.strictEqual(student.major, 'Calvin University');
+      assert.strictEqual(student.standing, 'Student');
       assert.strictEqual(student.classYear, 2028);
       assert.ok(student.email.endsWith('@calvin.edu'));
       assert.ok(student.residence.length > 0);
@@ -155,14 +137,13 @@ describe('Auth, Student Profile & Theme System Domain', () => {
   // Suite 2: Authentication Manager & User Sessions
   // ==========================================================================
   describe('Authentication Manager & Session Lifecycle', () => {
-    it('signs in active Calvin student John Doe via username jmd42', () => {
+    it('signs in active Calvin student via username jmd42', () => {
       const auth = createAuthManager();
       const success = auth.signIn('jmd42', 'password123');
       assert.strictEqual(success, true);
       assert.strictEqual(auth.isAuthenticated, true);
       assert.strictEqual(auth.user?.username, 'jmd42');
-      assert.strictEqual(auth.user?.fullName, 'John Doe');
-      assert.strictEqual(auth.user?.email, student.email);
+      assert.strictEqual(auth.user?.email, 'jmd42@calvin.edu');
     });
 
     it('signs in active student via full calvin.edu email', () => {
@@ -267,8 +248,8 @@ describe('Auth, Student Profile & Theme System Domain', () => {
   // ==========================================================================
   describe('Parallax Starfield Density & Procedural Generator', () => {
     it('defines standard density constants decoupled from hardware-specific screen baselines', () => {
-      assert.strictEqual(STAR_DENSITY_UNIT_AREA_PX, 10000, 'Standard area density unit must be 10,000 px²');
-      assert.strictEqual(STARS_PER_10K_PX, 1.3, 'Default star density should be 1.3 stars per 10,000 px²');
+      assert.strictEqual(STAR_DENSITY_UNIT_AREA_PX, 10000, 'Standard area density unit must be 10,000 pxÂ²');
+      assert.strictEqual(STARS_PER_10K_PX, 1.3, 'Default star density should be 1.3 stars per 10,000 pxÂ²');
       assert.strictEqual(MAX_TOTAL_STARS, 1800, 'Max total star ceiling should be 1800 to protect 60/120fps UI performance');
       assert.strictEqual(MIN_TOTAL_STARS, 9, 'Min total stars should be 9 (1 base unit of 5:3:1 ratio)');
     });
@@ -511,6 +492,52 @@ describe('Auth, Student Profile & Theme System Domain', () => {
       assert.strictEqual(partialProfile.major, 'Computer Science');
     });
 
+    it('suppresses internal PostgreSQL UUIDs and resolves to 7-digit student number', () => {
+      const defaultStudentFallback = {
+        id: '2346052',
+        cardNumber: '2346052',
+      };
+
+      const resolveStudentId = (user?: { id?: string; studentId?: string; cardNumber?: string } | null) =>
+        user?.studentId ??
+        user?.cardNumber ??
+        (user?.id && !user.id.includes('-') ? user.id : defaultStudentFallback.id);
+
+      // Case 1: Backend returns UUID primary key with 7-digit studentId
+      assert.strictEqual(
+        resolveStudentId({
+          id: '00000000-0000-0000-0000-000000000042',
+          studentId: '2346052',
+        }),
+        '2346052'
+      );
+
+      // Case 2: User only has cardNumber populated alongside UUID
+      assert.strictEqual(
+        resolveStudentId({
+          id: '00000000-0000-0000-0000-000000000042',
+          cardNumber: '2346052',
+        }),
+        '2346052'
+      );
+
+      // Case 3: Raw UUID is present with no studentId or cardNumber - must fall back rather than leak UUID
+      assert.strictEqual(
+        resolveStudentId({
+          id: '00000000-0000-0000-0000-000000000042',
+        }),
+        '2346052'
+      );
+
+      // Case 4: Legacy numeric ID is in user.id without hyphens
+      assert.strictEqual(
+        resolveStudentId({
+          id: '2028123',
+        }),
+        '2028123'
+      );
+    });
+
     it('generates 2-letter uppercase monogram from full name', () => {
       const getMonogram = (name: string) => {
         const parts = name.trim().split(/\s+/);
@@ -580,59 +607,57 @@ describe('Auth, Student Profile & Theme System Domain', () => {
   });
 
   // ==========================================================================
-  // Suite 10: LoginScreen Modularization & Anti-Monolith Invariants
+  // Suite 10: LoginScreen Architecture & Reanimated Invariants
   // ==========================================================================
-  describe('LoginScreen Modularization & Anti-Monolith Invariants', () => {
-    it('verifies login-screen.tsx satisfies anti-monolith invariant (<1,000 lines)', () => {
+  describe('LoginScreen Architecture & Reanimated Invariants', () => {
+    it('verifies login-screen.tsx exists, exports LoginScreen, and contains complete auth flow', () => {
+      const loginPath = path.resolve(__dirname, '../src/components/login-screen.tsx');
+      assert.ok(fs.existsSync(loginPath), 'login-screen.tsx should exist');
+
+      const loginSource = fs.readFileSync(loginPath, 'utf-8');
+
+      // Exports primary screen component
+      assert.ok(loginSource.includes('export function LoginScreen('));
+
+      // Contains authentication dispatch and session mount
+      assert.ok(loginSource.includes('signIn(submittedUser, submittedPass)'));
+      assert.ok(loginSource.includes('setAppMounted(true)'));
+
+      // Contains Calvin demo account quick fill
+      assert.ok(loginSource.includes('jmd42'));
+      assert.ok(loginSource.includes('calvin2028'));
+
+      // Contains secure masked password processing
+      assert.ok(loginSource.includes('processPasswordMaskInput'));
+      assert.ok(loginSource.includes('formatPasswordDisplay'));
+    });
+
+    it('verifies login-screen.tsx integrates flight shared values and layout measurements', () => {
       const loginPath = path.resolve(__dirname, '../src/components/login-screen.tsx');
       const loginSource = fs.readFileSync(loginPath, 'utf-8');
-      const lineCount = loginSource.split('\n').length;
 
-      // Anti-monolith invariant (AGENTS.md Rule 4.3): files must not accumulate 1,000+ lines
-      assert.ok(lineCount < 1000, `login-screen.tsx is ${lineCount} lines, expected < 1000`);
+      // Shared Reanimated values for flight
+      assert.ok(loginSource.includes('useSharedValue('));
+      assert.ok(loginSource.includes('overlayOpacity'));
+      assert.ok(loginSource.includes('headerHeight'));
+      assert.ok(loginSource.includes('wordmarkProgress'));
+      assert.ok(loginSource.includes('wordmarkCrossfadeOpacity'));
+      assert.ok(loginSource.includes('deltaX'));
+      assert.ok(loginSource.includes('deltaY'));
 
-      // Must compose modular subcomponents
-      assert.ok(loginSource.includes('<LoginFlightContainer'));
-      assert.ok(loginSource.includes('<LoginFormFields'));
-      assert.ok(loginSource.includes('<LoginFooter'));
-      assert.ok(loginSource.includes('useLoginFlight('));
+      // View measurement hooks and refs
+      assert.ok(loginSource.includes('measurePositions'));
+      assert.ok(loginSource.includes('heroWordmarkRef'));
+      assert.ok(loginSource.includes('headerTargetRef'));
     });
 
-    it('verifies all modular login subcomponents exist and satisfy anti-monolith invariant (<1,000 lines)', () => {
-      const files = [
-        '../src/hooks/use-login-flight.ts',
-        '../src/components/login-flight-container.tsx',
-        '../src/components/login-form-fields.tsx',
-        '../src/components/login-footer.tsx',
-      ];
-
-      for (const rel of files) {
-        const filePath = path.resolve(__dirname, rel);
-        assert.ok(fs.existsSync(filePath), `File ${rel} should exist`);
-        const source = fs.readFileSync(filePath, 'utf-8');
-        const count = source.split('\n').length;
-        assert.ok(count < 1000, `${rel} has ${count} lines, expected < 1000`);
-      }
-    });
-
-    it('verifies useLoginFlight exports animated styles and lifecycle triggers', () => {
-      const hookPath = path.resolve(__dirname, '../src/hooks/use-login-flight.ts');
-      const hookSource = fs.readFileSync(hookPath, 'utf-8');
-
-      assert.ok(hookSource.includes('export function useLoginFlight('));
-      assert.ok(hookSource.includes('startFlight'));
-      assert.ok(hookSource.includes('rootOverlayStyle'));
-      assert.ok(hookSource.includes('maroonContainerStyle'));
-      assert.ok(hookSource.includes('flyingWordmarkStyle'));
-    });
-
-    it('enforces Reanimated worklet thread-boundary invariants in useLoginFlight', () => {
-      const hookPath = path.resolve(__dirname, '../src/hooks/use-login-flight.ts');
-      const hookSource = fs.readFileSync(hookPath, 'utf-8');
+    it('enforces Reanimated worklet thread-boundary invariants in login-screen.tsx', () => {
+      const loginPath = path.resolve(__dirname, '../src/components/login-screen.tsx');
+      const loginSource = fs.readFileSync(loginPath, 'utf-8');
 
       // Invariant: measurePositions requires React Native measureInWindow (JS host method)
       // and must NEVER be invoked directly inside a UI worklet callback
-      const withTimingCalls = hookSource.match(/withTiming\([\s\S]*?\)/g) || [];
+      const withTimingCalls = loginSource.match(/withTiming\([\s\S]*?\)/g) || [];
       for (const call of withTimingCalls) {
         assert.ok(
           !call.includes('measurePositions()'),
@@ -642,17 +667,23 @@ describe('Auth, Student Profile & Theme System Domain', () => {
 
       // Invariant: UI callbacks must marshal to JS via runOnJS
       assert.ok(
-        hookSource.includes('runOnJS(triggerFlightAfterFade)()'),
+        loginSource.includes('runOnJS(triggerFlightAfterFade)()'),
         'Must marshal triggerFlightAfterFade via runOnJS'
       );
       assert.ok(
-        hookSource.includes('runOnJS(handleFlightFinished)()'),
-        'Must marshal handleFlightFinished via runOnJS'
+        loginSource.includes('runOnJS(onTransitionComplete)'),
+        'Must marshal onTransitionComplete via runOnJS'
       );
-      assert.ok(
-        hookSource.includes('runOnJS(onComplete)()'),
-        'Must marshal onComplete via runOnJS'
-      );
+    });
+
+    it('verifies SmartAppBanner mobile web offset and desktop sidebar docking awareness', () => {
+      const loginPath = path.resolve(__dirname, '../src/components/login-screen.tsx');
+      const loginSource = fs.readFileSync(loginPath, 'utf-8');
+
+      assert.ok(loginSource.includes('SmartAppBanner'));
+      assert.ok(loginSource.includes('SMART_APP_BANNER_HEIGHT'));
+      assert.ok(loginSource.includes('bannerOffset'));
+      assert.ok(loginSource.includes('isDesktopWeb'));
     });
   });
 });

@@ -6,6 +6,7 @@
  * Reused in identical parity between `DiningMobileView` and `DiningWebView` with zero code drift.
  */
 
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -15,23 +16,54 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { Spacing } from '@/constants/theme';
 import { diningHalls, hallStatus } from '@/data/dining';
 import { useTheme } from '@/hooks/use-theme';
+import {
+  fetchDiningVenuesApi,
+  type EnrichedDiningVenue,
+} from '@/services/dining-api';
 
 export function DiningHallsSection() {
   const theme = useTheme();
+
+  const [venues, setVenues] = useState<EnrichedDiningVenue[]>(() =>
+    diningHalls.map((hall) => {
+      const status = hallStatus(hall);
+      return {
+        id: hall.id,
+        name: hall.name,
+        location: hall.location,
+        status: status.open ? 'Open' : 'Closed',
+        currentMeal: status.label,
+        hours: status.detail,
+        acceptsSwipes: hall.acceptsSwipes,
+      };
+    })
+  );
+
+  useEffect(() => {
+    let mounted = true;
+    fetchDiningVenuesApi().then((freshVenues) => {
+      if (mounted && freshVenues && freshVenues.length > 0) {
+        setVenues(freshVenues);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <View style={styles.section}>
       <SectionHeader title="Dining halls" caption="Hours for today" />
       <Card flush>
-        {diningHalls.map((hall, index) => {
-          const status = hallStatus(hall);
+        {venues.map((venue, index) => {
+          const isOpen = venue.status === 'Open';
 
           return (
             <View
-              key={hall.id}
+              key={venue.id}
               style={[
                 styles.hall,
-                index < diningHalls.length - 1 && {
+                index < venues.length - 1 && {
                   borderBottomWidth: StyleSheet.hairlineWidth,
                   borderBottomColor: theme.border,
                 },
@@ -39,20 +71,20 @@ export function DiningHallsSection() {
             >
               <View style={styles.hallTitle}>
                 <ThemedText type="smallBold" numberOfLines={1}>
-                  {hall.name}
+                  {venue.name}
                 </ThemedText>
                 <ThemedText
                   type="caption"
                   themeColor="textMuted"
                   numberOfLines={1}
                 >
-                  {status.detail} ·{' '}
-                  {hall.acceptsSwipes ? 'Accepts swipes' : 'KnightBucks only'}
+                  {venue.hours} ·{' '}
+                  {venue.acceptsSwipes ? 'Accepts swipes' : 'KnightBucks only'}
                 </ThemedText>
               </View>
               <Badge
-                label={status.open ? status.label : 'Closed'}
-                tone={status.open ? 'success' : 'neutral'}
+                label={isOpen ? venue.currentMeal : 'Closed'}
+                tone={isOpen ? 'success' : 'neutral'}
               />
             </View>
           );

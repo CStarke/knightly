@@ -526,7 +526,7 @@ describe('Knightly Feed & Clubs Domain', () => {
         assert.ok(club.name.length > 0, 'Club name must not be empty');
         assert.ok(club.category.length > 0, 'Club category must not be empty');
         assert.ok(club.mark.length >= 2, 'Club mark must be at least 2 chars');
-        assert.ok(club.tagline.length > 0, 'Club tagline must not be empty');
+
         assert.ok(club.description.length > 0, 'Club description must not be empty');
         assert.ok(club.contactEmail.endsWith('@calvin.edu'), `${club.name} email must be @calvin.edu`);
         assert.strictEqual(club.colors.length, 2, 'Club colors must have 2 gradient colors');

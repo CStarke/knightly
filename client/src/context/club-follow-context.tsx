@@ -22,10 +22,17 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type PropsWithChildren,
 } from 'react';
+import { AuthContext } from '@/context/auth-context';
+import {
+  fetchFollowedClubsApi,
+  followClubApi,
+  unfollowClubApi,
+} from '@/services/clubs-api';
 
 export const DEFAULT_FOLLOWED_CLUB_IDS: string[] = [
   'acm',
@@ -36,6 +43,38 @@ export const DEFAULT_FOLLOWED_CLUB_IDS: string[] = [
   'jazz-collective',
   'student-activities',
 ];
+
+
+function getFollowStorageKey(studentId: string): string {
+  return `knightly_followed_club_ids_${studentId.toLowerCase()}`;
+}
+
+function loadLocalFollowedIds(studentId: string, defaults: string[]): Set<string> {
+  const set = new Set(defaults.map((d) => d.toLowerCase()));
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const raw = window.localStorage.getItem(getFollowStorageKey(studentId));
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((id) => set.add(String(id).toLowerCase()));
+        }
+      }
+    } catch {}
+  }
+  return set;
+}
+
+function persistLocalFollowedIds(studentId: string, ids: Set<string>): void {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      window.localStorage.setItem(
+        getFollowStorageKey(studentId),
+        JSON.stringify(Array.from(ids))
+      );
+    } catch {}
+  }
+}
 
 type ClubFollowContextType = {
   followedClubIds: Set<string>;
@@ -58,10 +97,33 @@ export function ClubFollowProvider({
   children,
   initialFollowed = DEFAULT_FOLLOWED_CLUB_IDS,
 }: PropsWithChildren<{ initialFollowed?: string[] }>) {
+  const auth = useContext(AuthContext);
+  const studentId = auth?.user?.id || auth?.user?.studentId || '';
+
   // Store club IDs in a Set for O(1) membership lookups across large feed lists
   const [followedIds, setFollowedIds] = useState<Set<string>>(
     () => new Set(initialFollowed)
   );
+
+  // SPRINT 1 SLO DIRECTIVE (SC2):
+  // Synchronize followed clubs from the Supabase database in the background,
+  // merging with initial seed state while keeping immediate synchronous render.
+  useEffect(() => {
+    if (!studentId) return;
+    let mounted = true;
+    fetchFollowedClubsApi(studentId).then((serverFollows) => {
+      if (mounted && Array.isArray(serverFollows) && serverFollows.length > 0) {
+        setFollowedIds((prev) => {
+          const next = new Set(prev);
+          serverFollows.forEach((id) => next.add(id.toLowerCase()));
+          return next;
+        });
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [studentId]);
 
   // Check if a club is currently followed (case-insensitive)
   const isFollowing = useCallback(
@@ -72,36 +134,51 @@ export function ClubFollowProvider({
   );
 
   // Add a club to the followed Set (lowercased for key consistency)
-  const followClub = useCallback((clubId: string) => {
-    setFollowedIds((prev) => {
-      const next = new Set(prev);
-      next.add(clubId.toLowerCase());
-      return next;
-    });
-  }, []);
+  const followClub = useCallback(
+    (clubId: string) => {
+      const lower = clubId.toLowerCase();
+      setFollowedIds((prev) => {
+        const next = new Set(prev);
+        next.add(lower);
+        return next;
+      });
+      followClubApi(studentId, lower);
+    },
+    [studentId]
+  );
 
   // Remove a club from the followed Set
-  const unfollowClub = useCallback((clubId: string) => {
-    setFollowedIds((prev) => {
-      const next = new Set(prev);
-      next.delete(clubId.toLowerCase());
-      return next;
-    });
-  }, []);
+  const unfollowClub = useCallback(
+    (clubId: string) => {
+      const lower = clubId.toLowerCase();
+      setFollowedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(lower);
+        return next;
+      });
+      unfollowClubApi(studentId, lower);
+    },
+    [studentId]
+  );
 
   // Toggle follow status (adds if missing, removes if present)
-  const toggleFollow = useCallback((clubId: string) => {
-    setFollowedIds((prev) => {
-      const next = new Set(prev);
-      const key = clubId.toLowerCase();
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
-  }, []);
+  const toggleFollow = useCallback(
+    (clubId: string) => {
+      const lower = clubId.toLowerCase();
+      setFollowedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(lower)) {
+          next.delete(lower);
+          unfollowClubApi(studentId, lower);
+        } else {
+          next.add(lower);
+          followClubApi(studentId, lower);
+        }
+        return next;
+      });
+    },
+    [studentId]
+  );
 
   const value = useMemo(
     () => ({

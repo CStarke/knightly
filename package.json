@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "server": "npm --prefix server install && npm --prefix server run dev",
-    "client": "npm --prefix client install && npm --prefix client start",
+    "dev": "node scripts/dev.js",
+    "server": "node server/server.js",
+    "client": "npm --prefix client start",
     "install:all": "npm --prefix server install && npm --prefix client install",
     "test": "npm run test:unit",
     "test:unit": "npm --prefix server test && npm --prefix client test",
