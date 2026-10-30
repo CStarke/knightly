@@ -5,6 +5,11 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
+## [0.7.1] - 2026-10-29
+
+### Fixed
+- **Login Screen Password Handler Syntax & Build Recovery**: Repaired corrupted `handlePasswordChange` callback in `client/src/components/login-screen.tsx` where an accidental code fragment duplication caused TypeScript syntax compilation errors (`TS1005`, `TS1128`) and broke application startup and bundling. Restored password masking logic with `processPasswordMaskInput`.
+
 ## [0.7.0] - 2026-10-28
 
 ### Added
