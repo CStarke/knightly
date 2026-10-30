@@ -287,15 +287,15 @@ describe('Navigation, Tabs & Gestures Domain', () => {
   });
 
   describe('Phantom Tabs Architecture & Trailing Slot Blanking', () => {
-    it('defines all 4 official phantom tabs with valid slots and parent targets', () => {
-      const ids = ['complete-club-profile', 'campus-clubs', 'club-detail', 'dining-activity'] as const;
+    it('defines all official phantom tabs with valid slots and parent targets', () => {
+      const ids = ['complete-club-profile', 'campus-clubs', 'club-detail', 'dining-activity', 'campus-map'] as const;
 
       for (const id of ids) {
         const meta = PHANTOM_TABS[id];
         assert.ok(meta, `Phantom tab ${id} must exist in registry`);
         assert.strictEqual(meta.id, id);
         assert.ok(meta.displayName.length > 0);
-        assert.ok(meta.rootPath === '/' || meta.rootPath === '/dining');
+        assert.ok(meta.rootPath === '/' || meta.rootPath === '/dining' || meta.rootPath === '/safety');
         assert.ok(meta.slotIndex >= 1 && meta.slotIndex <= 3);
         assert.ok(meta.parentSlotIndex >= 0 && meta.parentSlotIndex < meta.slotIndex);
         assert.ok(meta.backA11yLabel.length > 0);

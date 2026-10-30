@@ -33,17 +33,21 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { CampusMapContent } from '@/components/campus-map-content';
+import { CampusMapNavigationProvider } from '@/context/campus-map-navigation-context';
+import { usePhantomPage } from '@/hooks/use-phantom-page';
+
 import { ThemedText } from '@/components/themed-text';
 import { DiningActivityView } from '@/components/dining-activity';
 import { ClubsDirectoryView } from '@/components/clubs-directory-view';
 import { ClubDetailView } from '@/components/club-detail-view';
 import { CompleteClubProfileView } from '@/components/complete-club-profile-view';
-import { AppHeader } from '@/components/ui/app-header';
+import { SwipeableAppHeader } from '@/components/ui/swipeable-app-header';
 import { HeaderBackButton } from '@/components/ui/header-back-button';
 import { Icon, type MaterialSymbolName, type SfSymbolName } from '@/components/ui/icon';
 import { ParallaxStarfield } from '@/components/ui/starfield';
 import { getTabHeader } from '@/constants/tab-headers';
-import { getBlankAfterSlot } from '@/constants/phantom-tabs';
+import { PHANTOM_TABS, getBlankAfterSlot } from '@/constants/phantom-tabs';
 import { Brand, Spacing } from '@/constants/theme';
 import { DiningActivityProvider } from '@/context/dining-activity-context';
 import { ClubsNavigationProvider } from '@/context/clubs-navigation-context';
@@ -288,6 +292,19 @@ function SwipeableTabPager({
   const isGestureActive = useSharedValue(false);
   const lastGestureTarget = useSharedValue<number | null>(null);
 
+  // Map uses the same track as Safety, but only its header accepts pager drags.
+  const mapMeta = PHANTOM_TABS['campus-map'];
+  const campusMap = usePhantomPage({
+    activeIndex: activeTabIndex,
+    parentSlot: mapMeta.parentSlotIndex,
+    slot: mapMeta.slotIndex,
+    width: getEffectiveWidth(),
+    translateX,
+    bottomBarTranslateY,
+  });
+  const { isMountedShared: isMapMountedShared, reset: resetMap } = campusMap;
+  const mapNavigationValue = useMemo(() => ({ openCampusMap: campusMap.open }), [campusMap.open]);
+
   // Leadership claim setup state
   // Why useSharedValue alongside React state? Reanimated worklets running on the
   // native UI thread cannot read React state synchronously without crossing the JS bridge.
@@ -327,6 +344,8 @@ function SwipeableTabPager({
     (targetIndex: number, targetHref?: string) => {
       const target = tabs[targetIndex];
       if (!target) return;
+
+      resetMap();
 
       if (claimSetupState.isOpen) {
         cancelClaimSetup();
@@ -368,6 +387,7 @@ function SwipeableTabPager({
     },
     [
       tabs,
+      resetMap,
       claimSetupState.isOpen,
       cancelClaimSetup,
       isActivityOpenShared,
@@ -427,7 +447,8 @@ function SwipeableTabPager({
     // OR if no inline subpages (Campus Clubs, Complete Profile, Activity) are currently active.
     const isSubpageOpen =
       (activeTabIndex === 0 && (clubsLevelShared.value > 0 || claimSetupState.isOpen)) ||
-      (activeTabIndex === 1 && isActivityOpenShared.value);
+      (activeTabIndex === 1 && isActivityOpenShared.value) ||
+      (activeTabIndex === mapMeta.parentSlotIndex && isMapMountedShared.value);
 
     if (!isSubpageOpen || isIndexChange) {
       const validWidth = getEffectiveWidth();
@@ -456,6 +477,8 @@ function SwipeableTabPager({
     translateX,
     isGestureActive,
     isActivityOpenShared,
+    isMapMountedShared,
+    mapMeta.parentSlotIndex,
     clubsLevelShared,
     claimSetupState.isOpen,
     cancelClaimSetup,
@@ -476,6 +499,8 @@ function SwipeableTabPager({
     isActivityOpen,
     showActivity,
     hasActiveClubId: !!activeClubId,
+    isMapOpen: campusMap.isOpen,
+    showMap: campusMap.mounted,
   });
 
   // Priority coordination for inner horizontal scrollable content (e.g. tag filter chips)
@@ -504,6 +529,7 @@ function SwipeableTabPager({
     if (validWidth > 0 && prevWidth.current !== validWidth) {
       prevWidth.current = validWidth;
       const targetIndex = activeTabIndexRef.current;
+      if (targetIndex === mapMeta.parentSlotIndex && isMapMountedShared.value) return;
       if (targetIndex === 0) {
         if (claimSetupState.isOpen || clubsLevelShared.value === 1) {
           translateX.value = -1 * validWidth;
@@ -518,7 +544,7 @@ function SwipeableTabPager({
         translateX.value = -targetIndex * validWidth;
       }
     }
-  }, [width, getEffectiveWidth, translateX, isActivityOpenShared, clubsLevelShared, claimSetupState.isOpen]);
+  }, [width, getEffectiveWidth, translateX, isActivityOpenShared, clubsLevelShared, claimSetupState.isOpen, isMapMountedShared, mapMeta.parentSlotIndex]);
 
   // ATOMIC THREE-WAY SYNCHRONIZATION BARRIER:
   // Coordinates AppState backgrounding and foregrounding to guarantee Content === Header === BottomBar congruence.
@@ -531,7 +557,8 @@ function SwipeableTabPager({
       const currentTab = tabs[targetIndex];
       const isSubpageOpen =
         (targetIndex === 0 && (clubsLevelShared.value > 0 || claimSetupState.isOpen)) ||
-        (targetIndex === 1 && isActivityOpenShared.value);
+        (targetIndex === 1 && isActivityOpenShared.value) ||
+        (targetIndex === mapMeta.parentSlotIndex && isMapMountedShared.value);
 
       // STEP 1: BACKGROUND TRANSITION GUARD
       // When the user swipes up to go home or switches apps, cancel animations and lock camera
@@ -577,6 +604,8 @@ function SwipeableTabPager({
     clubsLevelShared,
     claimSetupState.isOpen,
     isActivityOpenShared,
+    isMapMountedShared,
+    mapMeta.parentSlotIndex,
     tabs,
     pathname,
     navigation,
@@ -903,6 +932,8 @@ function SwipeableTabPager({
   const pan = useMemo(
     () =>
       Gesture.Pan()
+        // Disable the content gesture for the whole map lifecycle, including its exit slide.
+        .enabled(!campusMap.mounted)
         .minPointers(1)
         .maxPointers(1)
         .activeOffsetX([-20, 20])
@@ -1064,6 +1095,7 @@ function SwipeableTabPager({
       tabs,
       onTabChange,
       closeActivityFromGesture,
+      campusMap.mounted,
       closeClubDetailFromGesture,
       closeClubsDirectoryFromGesture,
       handleDismissSetupFromGesture,
@@ -1088,6 +1120,14 @@ function SwipeableTabPager({
   const headerInfo = getTabHeader(currentTab.name);
 
   const headerProps = useMemo(() => {
+    if (activeTabIndex === mapMeta.parentSlotIndex && campusMap.mounted) {
+      return {
+        title: mapMeta.defaultTitle ?? mapMeta.displayName,
+        subtitle: mapMeta.defaultSubtitle,
+        left: <HeaderBackButton onPress={campusMap.close} accessibilityLabel={mapMeta.backA11yLabel} />,
+        right: undefined,
+      };
+    }
     // Single Source of Truth: Top header is a pure projection of activeTabIndex and its child subpages
     if (activeTabIndex === 0) {
       if (claimSetupState.isOpen) {
@@ -1171,6 +1211,9 @@ function SwipeableTabPager({
     isActivityOpen,
     closeActivity,
     headerInfo,
+    mapMeta,
+    campusMap.mounted,
+    campusMap.close,
   ]);
 
   // Memoized starfield context value preventing background screens from re-rendering on camera pan
@@ -1180,117 +1223,127 @@ function SwipeableTabPager({
   );
 
   return (
-    <DiningActivityProvider value={activityContextValue}>
-      <ClubsNavigationProvider value={clubsNavigationValue}>
-        <TabPagerPriorityProvider value={tabPagerPriorityValue}>
-          <StarfieldContext.Provider value={starfieldContextValue}>
-            <View style={styles.pagerContainer}>
-              {/* Parallax Starfield with 3 depth layers reacting to both horizontal and vertical scrolling */}
-              <ParallaxStarfield translateX={translateX} scrollY={scrollY} />
+    <CampusMapNavigationProvider value={mapNavigationValue}>
+      <DiningActivityProvider value={activityContextValue}>
+        <ClubsNavigationProvider value={clubsNavigationValue}>
+          <TabPagerPriorityProvider value={tabPagerPriorityValue}>
+            <StarfieldContext.Provider value={starfieldContextValue}>
+              <View style={styles.pagerContainer}>
+                {/* Parallax Starfield with 3 depth layers reacting to both horizontal and vertical scrolling */}
+                <ParallaxStarfield translateX={translateX} scrollY={scrollY} />
 
-              <AppHeader
-                title={headerProps.title}
-                subtitle={headerProps.subtitle}
-                left={headerProps.left}
-                right={headerProps.right}
-              />
+                <SwipeableAppHeader
+                  gesture={campusMap.headerGesture}
+                  title={headerProps.title}
+                  subtitle={headerProps.subtitle}
+                  left={headerProps.left}
+                  right={headerProps.right}
+                />
 
-              <GestureDetector gesture={pan}>
-                {/* 
-                  Horizontal Pager Track
-                  Width is strictly width * tabs.length (4 for students, 5 for club leaders).
-                */}
-                <Animated.View style={[styles.pagerTrack, { width: width * tabs.length }, style]}>
-                  {tabs.map((tab, i) => {
-                    const routeName = getRouteName(tab.href);
-                    const route =
-                      state.routes.find((r) => r.name === routeName || r.name === tab.name) ??
-                      state.routes[i];
-                    const descriptor = route ? descriptors[route.key] : undefined;
+                <GestureDetector gesture={pan}>
+                  {/*
+                    Horizontal Pager Track
+                    Width is strictly width * tabs.length (4 for students, 5 for club leaders).
+                  */}
+                  <Animated.View style={[styles.pagerTrack, { width: width * tabs.length }, style]}>
+                    {tabs.map((tab, i) => {
+                      const routeName = getRouteName(tab.href);
+                      const route =
+                        state.routes.find((r) => r.name === routeName || r.name === tab.name) ??
+                        state.routes[i];
+                      const descriptor = route ? descriptors[route.key] : undefined;
 
-                    // TRAILING SLOT BLANKING:
-                    // When a Phantom Tab is open (e.g. Campus Clubs in Slot 1), dragging past the right
-                    // boundary rubber-bands the track leftward. If slots 2, 3, etc. remained populated,
-                    // the user would catch glimpses of Safety or Directory. We replace trailing slots with
-                    // an empty frame to ensure only the continuous starfield canvas is visible during overscroll.
-                    const isSlotBlanked = blankAfterSlot !== null && i > blankAfterSlot;
-                    if (isSlotBlanked) {
+                      // TRAILING SLOT BLANKING:
+                      // When a Phantom Tab is open (e.g. Campus Clubs in Slot 1), dragging past the right
+                      // boundary rubber-bands the track leftward. If slots 2, 3, etc. remained populated,
+                      // the user would catch glimpses of Safety or Directory. We replace trailing slots with
+                      // an empty frame to ensure only the continuous starfield canvas is visible during overscroll.
+                      const isSlotBlanked = blankAfterSlot !== null && i > blankAfterSlot;
+                      if (isSlotBlanked) {
+                        return (
+                          <View
+                            key={tab.name}
+                            style={[styles.page, { width }]}
+                            aria-hidden={true}
+                            accessibilityElementsHidden={true}
+                            importantForAccessibility="no-hide-descendants"
+                          />
+                        );
+                      }
+
+                      // DYNAMIC SLOT SWAPPING:
+                      // Slot 1 is hijacked for CompleteClubProfileView or ClubsDirectoryView when activated from Home.
+                      const isShowingClubSetup =
+                        i === 1 && (claimSetupState.isOpen || showClubSetup) && activeTabIndex === 0;
+
+                      const isShowingClubs =
+                        i === 1 && showClubsDirectory && !claimSetupState.isOpen && !showClubSetup && activeTabIndex === 0;
+
+                      // Slot 2 is hijacked for ClubDetailView (from Clubs) or DiningActivityView (from Dining).
+                      const isShowingClubDetail =
+                        i === 2 && showClubDetail && activeTabIndex === 0 && !!activeClubId;
+
+                      const isShowingActivity =
+                        i === 2 && showActivity && activeTabIndex === 1;
+
+                      const isShowingMap = i === mapMeta.slotIndex && campusMap.mounted
+                        && activeTabIndex === mapMeta.parentSlotIndex;
+
+                      // ACCESSIBILITY & FOCUS DETERMINATION:
+                      // Only the visually active page should receive screen reader focus and allow tab-stops.
+                      let isCurrentPage = false;
+                      if (activeTabIndex === mapMeta.parentSlotIndex && campusMap.mounted) {
+                        isCurrentPage = i === mapMeta.slotIndex;
+                      } else if (activeTabIndex === 0) {
+                        if (claimSetupState.isOpen || showClubSetup) isCurrentPage = i === 1;
+                        else if (clubsLevel === 2) isCurrentPage = i === 2;
+                        else if (clubsLevel === 1) isCurrentPage = i === 1;
+                        else isCurrentPage = i === 0;
+                      } else if (activeTabIndex === 1) {
+                        if (isActivityOpen) isCurrentPage = i === 2;
+                        else isCurrentPage = i === 1;
+                      } else {
+                        isCurrentPage = activeTabIndex === i;
+                      }
+
                       return (
                         <View
                           key={tab.name}
                           style={[styles.page, { width }]}
-                          aria-hidden={true}
-                          accessibilityElementsHidden={true}
-                          importantForAccessibility="no-hide-descendants"
-                        />
+                          pointerEvents={campusMap.mounted ? (isCurrentPage ? 'auto' : 'none') : (isCurrentPage || activeTabIndex === i ? 'auto' : 'none')}
+                          aria-hidden={!isCurrentPage}
+                          accessibilityElementsHidden={!isCurrentPage}
+                          importantForAccessibility={isCurrentPage ? 'auto' : 'no-hide-descendants'}>
+                          {isShowingMap ? (
+                            <CampusMapContent />
+                          ) : isShowingClubSetup ? (
+                            <CompleteClubProfileView
+                              code={claimSetupState.code ?? cachedSetupCode}
+                              onBack={handleBackFromSetup}
+                              onSuccess={handleSuccessFromSetup}
+                            />
+                          ) : isShowingClubDetail ? (
+                            <ClubDetailView clubId={activeClubId!} />
+                          ) : isShowingClubs ? (
+                            <ClubsDirectoryView />
+                          ) : isShowingActivity ? (
+                            <DiningActivityView />
+                          ) : descriptor ? (
+                            <TabContext.Provider value={descriptor.options}>
+                              {descriptor.render()}
+                            </TabContext.Provider>
+                          ) : null}
+                        </View>
                       );
-                    }
-
-                    // DYNAMIC SLOT SWAPPING:
-                    // Slot 1 is hijacked for CompleteClubProfileView or ClubsDirectoryView when activated from Home.
-                    const isShowingClubSetup =
-                      i === 1 && (claimSetupState.isOpen || showClubSetup) && activeTabIndex === 0;
-
-                    const isShowingClubs =
-                      i === 1 && showClubsDirectory && !claimSetupState.isOpen && !showClubSetup && activeTabIndex === 0;
-
-                    // Slot 2 is hijacked for ClubDetailView (from Clubs) or DiningActivityView (from Dining).
-                    const isShowingClubDetail =
-                      i === 2 && showClubDetail && activeTabIndex === 0 && !!activeClubId;
-
-                    const isShowingActivity =
-                      i === 2 && showActivity && activeTabIndex === 1;
-
-                    // ACCESSIBILITY & FOCUS DETERMINATION:
-                    // Only the visually active page should receive screen reader focus and allow tab-stops.
-                    let isCurrentPage = false;
-                    if (activeTabIndex === 0) {
-                      if (claimSetupState.isOpen || showClubSetup) isCurrentPage = i === 1;
-                      else if (clubsLevel === 2) isCurrentPage = i === 2;
-                      else if (clubsLevel === 1) isCurrentPage = i === 1;
-                      else isCurrentPage = i === 0;
-                    } else if (activeTabIndex === 1) {
-                      if (isActivityOpen) isCurrentPage = i === 2;
-                      else isCurrentPage = i === 1;
-                    } else {
-                      isCurrentPage = activeTabIndex === i;
-                    }
-
-                    return (
-                      <View
-                        key={tab.name}
-                        style={[styles.page, { width }]}
-                        pointerEvents={isCurrentPage || activeTabIndex === i ? 'auto' : 'none'}
-                        aria-hidden={!isCurrentPage}
-                        accessibilityElementsHidden={!isCurrentPage}
-                        importantForAccessibility={isCurrentPage ? 'auto' : 'no-hide-descendants'}>
-                        {isShowingClubSetup ? (
-                          <CompleteClubProfileView
-                            code={claimSetupState.code ?? cachedSetupCode}
-                            onBack={handleBackFromSetup}
-                            onSuccess={handleSuccessFromSetup}
-                          />
-                        ) : isShowingClubDetail ? (
-                          <ClubDetailView clubId={activeClubId!} />
-                        ) : isShowingClubs ? (
-                          <ClubsDirectoryView />
-                        ) : isShowingActivity ? (
-                          <DiningActivityView />
-                        ) : descriptor ? (
-                          <TabContext.Provider value={descriptor.options}>
-                            {descriptor.render()}
-                          </TabContext.Provider>
-                        ) : null}
-                      </View>
-                    );
-                  })}
-                </Animated.View>
-              </GestureDetector>
-            </View>
-          </StarfieldContext.Provider>
-        </TabPagerPriorityProvider>
-      </ClubsNavigationProvider>
-    </DiningActivityProvider>
+                    })}
+                  </Animated.View>
+                </GestureDetector>
+              </View>
+            </StarfieldContext.Provider>
+          </TabPagerPriorityProvider>
+        </ClubsNavigationProvider>
+      </DiningActivityProvider>
+    </CampusMapNavigationProvider>
   );
 }
 
