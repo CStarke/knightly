@@ -5,6 +5,20 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
+## [0.8.0] - Unreleased
+
+### Added
+- **Campus Map Phantom Page**: Safety opens the bundled map inside the native p\
+ager. Swipe right on the header, tap Back, or use Android Back to return to Saf\
+ety; map dragging remains independent.
+- **Phantom Page Lifecycle Tests**: Cover transition completion, rapid reopen, \
+gesture cancellation and thresholds, rotation, activity resume, parent navigati\
+on, and trailing-slot visibility.
+
+### Changed
+- Reuse the standard header and map body across the native phantom page and the existing web/direct-link route. Preserve map pan/zoom controls, offline data, and the existing load-error message.
+- Isolate the new subpage lifecycle in a reusable hook; keep the map rendered until its close animation finishes.
+
 ## [0.7.1] - 2026-10-29
 
 ### Fixed
