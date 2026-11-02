@@ -5,7 +5,12 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
-## [0.8.0] - Unreleased
+## [0.8.1] - Unreleased
+
+### Changed
+- Make dining BLL transaction tests use a fixed clock and cover swipes immediately before, exactly at, and immediately after the current Sunday-midnight UTC reset. Campus timezone policy remains to be confirmed.
+
+## [0.8.0] - 2026-10-31
 
 ### Added
 - **Campus Map Phantom Page**: Safety opens the bundled map inside the native p\
