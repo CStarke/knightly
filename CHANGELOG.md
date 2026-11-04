@@ -5,6 +5,28 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
+<<<<<<< HEAD
+=======
+## [0.8.1] - Unreleased
+
+### Changed
+- Make dining BLL transaction tests use a fixed clock and cover swipes immediately before, exactly at, and immediately after the current Sunday-midnight UTC reset. Campus timezone policy remains to be confirmed.
+
+## [0.8.0] - 2026-10-31
+
+### Added
+- **Campus Map Phantom Page**: Safety opens the bundled map inside the native p\
+ager. Swipe right on the header, tap Back, or use Android Back to return to Saf\
+ety; map dragging remains independent.
+- **Phantom Page Lifecycle Tests**: Cover transition completion, rapid reopen, \
+gesture cancellation and thresholds, rotation, activity resume, parent navigati\
+on, and trailing-slot visibility.
+
+### Changed
+- Reuse the standard header and map body across the native phantom page and the existing web/direct-link route. Preserve map pan/zoom controls, offline data, and the existing load-error message.
+- Isolate the new subpage lifecycle in a reusable hook; keep the map rendered until its close animation finishes.
+
+>>>>>>> 74880163ce99c8f4ff36d0878ad96f4e880ff89d
 ## [0.7.1] - 2026-10-29
 
 ### Fixed

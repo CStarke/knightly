@@ -7,6 +7,7 @@
  * Reused in identical parity between `SafetyMobileView` and `SafetyWebView` with zero code drift.
  */
 
+import type { ReactElement } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -17,7 +18,7 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { Spacing } from '@/constants/theme';
 import { emergencyContacts, safetyAlerts, type SafetyAlert } from '@/data/safety';
 import { useTheme } from '@/hooks/use-theme';
-import { router } from 'expo-router';
+import { useCampusMapNavigation } from '@/context/campus-map-navigation-context';
 
 export const severityTone = {
   critical: 'danger',
@@ -51,7 +52,8 @@ export function SafetyEmergencyButton() {
 /**
  * Quick Assistance Actions Card (Safe Walk, Incident Reporting, Blue Light Locator).
  */
-export function SafetyQuickAssistCard() {
+export function SafetyQuickAssistCard(): ReactElement {
+  const { openCampusMap } = useCampusMapNavigation();
   return (
     <Card flush>
       <ListRow
@@ -75,13 +77,13 @@ export function SafetyQuickAssistCard() {
         md="emergency"
         onPress={() => {}}
       />
-      {/* Open the building map on its own screen for more viewing space. */}
+      {/* Open the native phantom page, or the standalone map route on web. */}
       <ListRow
         title="Campus map"
         subtitle="View campus buildings and paths"
         sf="map.fill"
         md="map"
-        onPress={() => router.push('/campus-map' as any)}
+        onPress={openCampusMap}
         last
       />
     </Card>

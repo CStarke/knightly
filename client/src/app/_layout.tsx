@@ -92,7 +92,7 @@ function RootNavigator({ isDark }: { isDark: boolean }) {
             },
           }}>
           <Stack.Screen name="(tabs)" />
-          {/* Campus map opens above the tabs to use the full screen. */}
+          {/* Retain the web/direct-link route; native Safety opens Map inside its pager. */}
           <Stack.Screen
             name="campus-map"
             options={{ animation: 'slide_from_right' }}

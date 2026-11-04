@@ -13,5 +13,10 @@
  *   when committing and opening a pull request, the version must update exactly once in the correct digit.
  * - Keep APP_VERSION in client/src/constants/version.ts and version in client/package.json in parity.
  */
+<<<<<<< HEAD
 export const APP_VERSION = 'v.0.7.1';
 export const APP_VERSION_RAW = '0.7.1';
+=======
+export const APP_VERSION = 'v.0.8.1';
+export const APP_VERSION_RAW = '0.8.1';
+>>>>>>> 74880163ce99c8f4ff36d0878ad96f4e880ff89d

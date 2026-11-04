@@ -1,95 +1,46 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo, type ReactElement } from 'react';
 import { router } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useWindowDimensions } from 'react-native';
+import { Gesture } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 
-// Web uses campus-map-view.web.tsx; native uses campus-map-view.tsx.
-import CampusMapView from '@/components/campus-map-view';
+import { CampusMapContent } from '@/components/campus-map-content';
 import { HeaderBackButton } from '@/components/ui/header-back-button';
-import { Brand, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
-import { createCampusMapHtml } from '@/utils/campus-map-html';
+import { Screen } from '@/components/ui/screen';
+import { SwipeableAppHeader } from '@/components/ui/swipeable-app-header';
+import { PHANTOM_TABS } from '@/constants/phantom-tabs';
+import { shouldClosePhantomPage } from '@/utils/phantom-page';
 
-/** Shows the bundled campus building map with zoom and pan controls. */
-export default function CampusMapScreen() {
-  const theme = useTheme();
-
-  // Keep the screen clear of the device's top and bottom safe areas.
-  const insets = useSafeAreaInsets();
-
-  // Keep the document stable so unrelated renders do not reset the zoom.
-  // A changed theme creates new HTML so the viewer uses the current colors.
-  const html = useMemo(() => createCampusMapHtml(theme), [theme]);
+/**
+ * Preserves the web route and direct links. Normal native entry opens the Safety phantom page.
+ * @returns The same map body and branded header used by native navigation.
+ */
+export default function CampusMapScreen(): ReactElement {
+  const { width } = useWindowDimensions();
+  const meta = PHANTOM_TABS['campus-map'];
+  const goBack = useCallback(() => {
+    // Direct visits have no app history; return to Safety rather than a blank page.
+    if (router.canGoBack()) router.back();
+    else router.replace('/(tabs)/safety');
+  }, []);
+  const headerGesture = useMemo(() => Gesture.Pan()
+    .minPointers(1).maxPointers(1)
+    .activeOffsetX([-20, 20]).failOffsetY([-15, 15])
+    .onEnd((event) => {
+      if (shouldClosePhantomPage(event.translationX, event.velocityX, width)) runOnJS(goBack)();
+    }), [width, goBack]);
 
   return (
-    <View
-      style={[
-        styles.fill,
-        {
-          backgroundColor: theme.background,
-          paddingTop: insets.top,
-          paddingBottom: insets.bottom,
-        },
-      ]}
-    >
-      <View style={styles.header}>
-        <HeaderBackButton
-          color={Brand.pureWhite}
-          onPress={() => {
-            // Direct web visits may have no previous app screen.
-            if (router.canGoBack()) {
-              router.back();
-            } else {
-              router.replace('/(tabs)/safety');
-            }
-          }}
-        />
-
-        <View style={styles.heading}>
-          <Text style={styles.brandLabel}>CALVIN UNIVERSITY</Text>
-          <Text accessibilityRole="header" style={styles.title}>
-            Campus map
-          </Text>
-        </View>
-      </View>
-
-      {/* Both platform viewers receive the same map and interaction code. */}
-      <CampusMapView html={html} />
-    </View>
+    <Screen scroll={false} header={
+      <SwipeableAppHeader
+        gesture={headerGesture}
+        title={meta.defaultTitle ?? meta.displayName}
+        subtitle={meta.defaultSubtitle}
+        left={<HeaderBackButton onPress={goBack} accessibilityLabel={meta.backA11yLabel} />}
+      />
+    }>
+      <CampusMapContent />
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  fill: {
-    flex: 1,
-  },
-
-  // Use the app's brand colors to connect the map to the rest of Knightly.
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    padding: Spacing.three,
-    backgroundColor: Brand.maroon,
-    borderBottomWidth: Spacing.one,
-    borderBottomColor: Brand.gold,
-  },
-
-  heading: {
-    flex: 1,
-  },
-
-  brandLabel: {
-    color: Brand.gold,
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-    marginBottom: Spacing.one,
-  },
-
-  title: {
-    color: Brand.pureWhite,
-    fontSize: 22,
-    fontWeight: '600',
-  },
-});

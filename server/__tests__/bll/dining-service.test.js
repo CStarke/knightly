@@ -21,7 +21,10 @@ test('Calvin Dining Service BLL Invariants', async (t) => {
     assert.equal(cycleStart.toISOString(), '2026-10-25T00:00:00.000Z');
   });
 
-  await t.test('computes remaining swipes for weekly meal plan (Core 21)', async () => {
+  await t.test('computes remaining swipes for weekly meal plan (Core 21)', async (t) => {
+    const now = new Date('2026-10-28T12:00:00.000Z');
+    // Keep mock transaction timestamps in the same week as the summary calculation.
+    t.mock.timers.enable({ apis: ['Date'], now });
     const { diningDal, state } = createMockDal();
     const studentId = 'student-test-uuid-1';
 
@@ -37,7 +40,6 @@ test('Calvin Dining Service BLL Invariants', async (t) => {
     });
 
     // Conduct 3 meal swipes during this week
-    const now = new Date('2026-10-28T12:00:00.000Z');
     await diningDal.recordDiningTransaction({
       studentId,
       venueId: 'commons',
@@ -60,6 +62,46 @@ test('Calvin Dining Service BLL Invariants', async (t) => {
     assert.equal(summary.flexMealsRemaining, 2, '3 total - 1 used = 2 remaining');
     assert.equal(summary.knightBucks, 160.0);
   });
+
+  // These cases document the current UTC reset rule; campus timezone policy still needs confirmation.
+  for (const { label, createdAt, expectedUsed } of [
+    { label: 'excludes a swipe just before the Sunday UTC reset', createdAt: '2026-10-24T23:59:59.999Z', expectedUsed: 0 },
+    { label: 'includes a swipe exactly at the Sunday UTC reset', createdAt: '2026-10-25T00:00:00.000Z', expectedUsed: 1 },
+    { label: 'includes a swipe just after the Sunday UTC reset', createdAt: '2026-10-25T00:00:00.001Z', expectedUsed: 1 },
+  ]) {
+    await t.test(label, async (t) => {
+      const now = new Date('2026-10-28T12:00:00.000Z');
+      t.mock.timers.enable({ apis: ['Date'], now });
+      const { diningDal, state } = createMockDal();
+      const studentId = 'student-reset-test';
+
+      // Start each case with a fresh account so earlier cases cannot affect the result.
+      await diningDal.upsertStudentDiningAccount({
+        student_id: studentId,
+        meal_plan_id: 'core21',
+        swipes_used: 0,
+        flex_meals_used: 0,
+        guest_passes_used: 0,
+        knight_bucks: 160.0,
+        dining_dollars: 0.0,
+      });
+
+      // Seed the ledger directly to place the swipe on either side of the boundary.
+      state.diningTransactions.push({
+        id: 'tx-reset-test',
+        student_id: studentId,
+        venue_id: 'commons',
+        transaction_type: 'meal_swipe',
+        amount: 1,
+        created_at: createdAt,
+      });
+
+      const summary = await getStudentDiningSummary(studentId, { now }, diningDal);
+      assert.equal(summary.swipesUsed, expectedUsed);
+      assert.equal(summary.swipesRemaining, 21 - expectedUsed);
+      assert.equal(state.diningTransactions.length, 1, 'Filtering must preserve the transaction history');
+    });
+  }
 
   await t.test('enforces tender sufficiency and rejects transactions with insufficient balance', () => {
     const mockSummary = {
@@ -100,7 +142,10 @@ test('Calvin Dining Service BLL Invariants', async (t) => {
     );
   });
 
-  await t.test('processes dining transaction and updates ledger & account balances atomically', async () => {
+  await t.test('processes dining transaction and updates ledger & account balances atomically', async (t) => {
+    const now = new Date('2026-10-28T12:30:00.000Z');
+    // Freeze the clock so the ledger and both summary reads use the same date.
+    t.mock.timers.enable({ apis: ['Date'], now });
     const { diningDal } = createMockDal();
     const studentId = 'student-test-uuid-2';
 
@@ -113,8 +158,6 @@ test('Calvin Dining Service BLL Invariants', async (t) => {
       knight_bucks: 125.0,
       dining_dollars: 0.0,
     });
-
-    const now = new Date('2026-10-28T12:30:00.000Z');
 
     // Conduct transaction for $12.50 Knight Bucks
     const result = await processTransaction(

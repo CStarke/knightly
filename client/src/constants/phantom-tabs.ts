@@ -39,14 +39,15 @@ export type PhantomTabId =
   | 'complete-club-profile'
   | 'campus-clubs'
   | 'club-detail'
-  | 'dining-activity';
+  | 'dining-activity'
+  | 'campus-map';
 
 export type PhantomTabMeta = {
   id: PhantomTabId;
   /** Human-readable display label for logging, analytics & testing */
   displayName: string;
   /** The root tab pathname this phantom tab attaches to */
-  rootPath: '/' | '/dining';
+  rootPath: '/' | '/dining' | '/safety';
   /** The horizontal slot index in the pager (0-indexed) */
   slotIndex: number;
   /** The slot index that navigating back / swiping right returns to */
@@ -60,6 +61,16 @@ export type PhantomTabMeta = {
 };
 
 export const PHANTOM_TABS: Record<PhantomTabId, PhantomTabMeta> = {
+  'campus-map': {
+    id: 'campus-map',
+    displayName: 'Campus Map',
+    rootPath: '/safety',
+    slotIndex: 3,
+    parentSlotIndex: 2,
+    defaultTitle: 'Campus map',
+    defaultSubtitle: 'Calvin University',
+    backA11yLabel: 'Go back to Safety',
+  },
   'complete-club-profile': {
     id: 'complete-club-profile',
     displayName: 'Complete Club Profile',
@@ -111,12 +122,18 @@ export type PhantomTabState = {
   isActivityOpen: boolean;
   showActivity: boolean;
   hasActiveClubId: boolean;
+  isMapOpen?: boolean;
+  showMap?: boolean;
 };
 
 /**
  * Determines which Phantom Tab is currently active, if any.
  */
 export function getActivePhantomTab(state: PhantomTabState): PhantomTabMeta | null {
+  if (state.pathname === '/safety' && state.activeIndex === 2 && state.isMapOpen) {
+    return PHANTOM_TABS['campus-map'];
+  }
+
   if (state.pathname === '/' && state.activeIndex === 0) {
     if (state.isClaimSetupOpen || state.showClubSetup) {
       return PHANTOM_TABS['complete-club-profile'];
@@ -148,6 +165,11 @@ export function getActivePhantomTab(state: PhantomTabState): PhantomTabMeta | nu
  * so that a closing phantom tab remains smoothly visible during its back-slide animation.
  */
 export function getBlankAfterSlot(state: PhantomTabState): number | null {
+  // Keep the map visible until its closing slide finishes; hide the leader-only Post slot.
+  if (state.pathname === '/safety' && state.activeIndex === 2 && (state.isMapOpen || state.showMap)) {
+    return PHANTOM_TABS['campus-map'].slotIndex;
+  }
+
   if (state.pathname === '/' && state.activeIndex === 0) {
     // If Club Detail is active OR transitioning out, slot 2 must be preserved, but slot 3+ blanked
     if ((state.clubsLevel === 2 || state.showClubDetail) && state.hasActiveClubId) {
