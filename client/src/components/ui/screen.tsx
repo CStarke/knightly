@@ -1,11 +1,29 @@
-import type { PropsWithChildren, ReactNode, RefObject } from 'react';
-import { StyleSheet, View, type StyleProp, type ViewStyle, FlatList, type FlatListProps } from 'react-native';
-import Animated, { useAnimatedScrollHandler } from 'react-native-reanimated';
+import { forwardRef, type ComponentProps, type PropsWithChildren, type ReactNode, type RefObject } from 'react';
+import { StyleSheet, View, type StyleProp, type ViewStyle, FlatList, type FlatListProps, type ScrollViewInstance } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomTabContentInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useStarfield } from '@/context/starfield-context';
 import { useTheme } from '@/hooks/use-theme';
+import { useHeaderOverlayInset } from '@/components/ui/header-overlay';
+import { useScreenScrollHandler } from '@/hooks/use-screen-scroll';
+
+/** Shared scroll surface for pages with custom keyboard/layout wrappers, including the composer. */
+export const ScreenScrollView = forwardRef<ScrollViewInstance, ComponentProps<typeof Animated.ScrollView>>(
+  ({ contentContainerStyle, ...props }, ref) => {
+    const headerInset = useHeaderOverlayInset();
+    const insets = useSafeAreaInsets();
+    const scrollHandler = useScreenScrollHandler();
+    return (
+      <Animated.ScrollView {...props} ref={ref} onScroll={scrollHandler} scrollEventThrottle={16}
+        contentContainerStyle={[contentContainerStyle, {
+          paddingTop: headerInset + Spacing.three,
+          paddingBottom: Math.max(insets.bottom, Spacing.two) + BottomTabContentInset,
+        }]} />
+    );
+  }
+);
 
 type ScreenProps = PropsWithChildren<{
   style?: StyleProp<ViewStyle>;
@@ -17,17 +35,12 @@ type ScreenProps = PropsWithChildren<{
 }>;
 
 export function Screen({ children, style, header, scroll = true, scrollViewRef }: ScreenProps) {
+  const headerInset = useHeaderOverlayInset();
   const theme = useTheme();
   const starfield = useStarfield();
   const insets = useSafeAreaInsets();
 
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      if (starfield) {
-        starfield.scrollY.value = event.contentOffset.y;
-      }
-    },
-  });
+  const scrollHandler = useScreenScrollHandler();
 
   return (
     <View style={[styles.fill, { backgroundColor: starfield ? 'transparent' : theme.background }]}>
@@ -38,7 +51,7 @@ export function Screen({ children, style, header, scroll = true, scrollViewRef }
           ref={scrollViewRef}
           style={styles.fill}
           contentContainerStyle={[styles.outer, {
-            paddingTop: Spacing.three,
+            paddingTop: headerInset + Spacing.three,
             paddingBottom: Math.max(insets.bottom, Spacing.two) + BottomTabContentInset,
           }]}
           keyboardShouldPersistTaps="handled"
@@ -50,7 +63,7 @@ export function Screen({ children, style, header, scroll = true, scrollViewRef }
           <View style={[styles.inner, style]}>{children}</View>
         </Animated.ScrollView>
       ) : (
-        <View style={[styles.fill, style]}>{children}</View>
+        <View style={[styles.fill, { paddingTop: headerInset }, style]}>{children}</View>
       )}
     </View>
   );
@@ -65,17 +78,12 @@ type ScreenFlatListProps<T> = Omit<FlatListProps<T>, 'contentContainerStyle' | '
 };
 
 export function ScreenFlatList<T>({ style, header, listRef, ListHeaderComponent, ...flatListProps }: ScreenFlatListProps<T>) {
+  const headerInset = useHeaderOverlayInset();
   const theme = useTheme();
   const starfield = useStarfield();
   const insets = useSafeAreaInsets();
 
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      if (starfield) {
-        starfield.scrollY.value = event.contentOffset.y;
-      }
-    },
-  });
+  const scrollHandler = useScreenScrollHandler();
 
   return (
     <View style={[styles.fill, { backgroundColor: starfield ? 'transparent' : theme.background }]}>
@@ -86,7 +94,7 @@ export function ScreenFlatList<T>({ style, header, listRef, ListHeaderComponent,
         ref={listRef as any}
         style={styles.fill}
         contentContainerStyle={[styles.outer, {
-          paddingTop: Spacing.three,
+          paddingTop: headerInset + Spacing.three,
           paddingBottom: Math.max(insets.bottom, Spacing.two) + BottomTabContentInset,
         }]}
         keyboardShouldPersistTaps="handled"

@@ -6,7 +6,7 @@ import { runOnJS } from 'react-native-reanimated';
 
 import { CampusMapContent } from '@/components/campus-map-content';
 import { HeaderBackButton } from '@/components/ui/header-back-button';
-import { Screen } from '@/components/ui/screen';
+import { HeaderOverlay } from '@/components/ui/header-overlay';
 import { SwipeableAppHeader } from '@/components/ui/swipeable-app-header';
 import { PHANTOM_TABS } from '@/constants/phantom-tabs';
 import { shouldClosePhantomPage } from '@/utils/phantom-page';
@@ -31,7 +31,7 @@ export default function CampusMapScreen(): ReactElement {
     }), [width, goBack]);
 
   return (
-    <Screen scroll={false} header={
+    <HeaderOverlay fadeOnScroll={false} header={
       <SwipeableAppHeader
         gesture={headerGesture}
         title={meta.defaultTitle ?? meta.displayName}
@@ -40,7 +40,7 @@ export default function CampusMapScreen(): ReactElement {
       />
     }>
       <CampusMapContent />
-    </Screen>
+    </HeaderOverlay>
   );
 }
 

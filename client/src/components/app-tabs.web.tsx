@@ -47,6 +47,7 @@ import { HeaderAvatar } from '@/components/header-avatar';
 import { SmartAppBanner } from '@/components/smart-app-banner';
 import { ThemedText } from '@/components/themed-text';
 import { AppHeader } from '@/components/ui/app-header';
+import { HeaderOverlay } from '@/components/ui/header-overlay';
 import { Icon, type MaterialSymbolName, type SfSymbolName } from '@/components/ui/icon';
 import { ParallaxStarfield } from '@/components/ui/starfield';
 import { getTabHeader } from '@/constants/tab-headers';
@@ -316,14 +317,15 @@ export default function AppTabs() {
                       /* Mobile Web Viewport (< 768px): Header + Scrollable Viewport + Grounded Bottom Bar */
                       <>
                         <SmartAppBanner />
-                        <AppHeader
+                        <HeaderOverlay fadeOnScroll={pathname === '/'} scrollKey={pathname} header={<AppHeader
                           title={currentHeader.title}
                           subtitle={currentHeader.subtitle}
                           right={currentHeader.right}
-                        />
+                        />}>
                         <View style={styles.mobileContentArea}>
                           <TabSlot style={styles.slot} />
                         </View>
+                        </HeaderOverlay>
                         <TabList asChild>
                           <BottomBar>
                             <TabTrigger name="index" href="/" asChild>
@@ -855,7 +857,7 @@ const styles = StyleSheet.create({
   sidebar: {
     marginVertical: 12,
     marginLeft: 12,
-    borderRadius: 20,
+    borderRadius: Radius.xl,
     borderWidth: 0,
     flexDirection: 'column',
     justifyContent: 'space-between',
@@ -875,7 +877,7 @@ const styles = StyleSheet.create({
     height: 86,
     position: 'relative',
     overflow: 'hidden',
-    borderRadius: 20,
+    borderRadius: Radius.xl,
     borderBottomWidth: 0,
     // Soft elevation shadow separating the maroon masthead from the navigation list without harsh lines
     shadowColor: Brand.maroonDark,

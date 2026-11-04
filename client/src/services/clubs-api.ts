@@ -1,3 +1,5 @@
+import { createTimedFetch } from '@/services/timed-fetch';
+
 /**
  * Campus Clubs & Leadership Claims API Client Service
  *
@@ -37,8 +39,7 @@ export interface ClaimClubApiResult {
  */
 export async function fetchClubsApi(filters: FetchClubsFilters = {}): Promise<Club[]> {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const request = createTimedFetch(2500);
 
     const queryParams = new URLSearchParams();
     if (filters.category && filters.category.toLowerCase() !== 'all') {
@@ -49,8 +50,7 @@ export async function fetchClubsApi(filters: FetchClubsFilters = {}): Promise<Cl
     }
 
     const url = `${API_BASE_URL}/clubs${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
+    const res = await request(url, {});
 
     if (res.ok) {
       const data = await res.json();
@@ -111,16 +111,13 @@ export async function claimClubApi(params: {
   const { rawCode, studentId, targetClubId } = params;
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    const request = createTimedFetch(3000);
 
-    const res = await fetch(`${API_BASE_URL}/clubs/claim`, {
+    const res = await request(`${API_BASE_URL}/clubs/claim`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ rawCode, studentId, targetClubId }),
-      signal: controller.signal,
     });
-    clearTimeout(timeoutId);
 
     if (res.ok) {
       const data = await res.json();
@@ -163,14 +160,12 @@ export async function claimClubApi(params: {
  */
 export async function fetchFollowedClubsApi(studentId: string): Promise<string[]> {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const request = createTimedFetch(2000);
 
-    const res = await fetch(
+    const res = await request(
       `${API_BASE_URL}/clubs/follows?studentId=${encodeURIComponent(studentId)}`,
-      { signal: controller.signal }
+      {}
     );
-    clearTimeout(timeoutId);
 
     if (res.ok) {
       const data = await res.json();
@@ -194,16 +189,13 @@ export async function fetchFollowedClubsApi(studentId: string): Promise<string[]
  */
 export async function followClubApi(studentId: string, clubId: string): Promise<boolean> {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const request = createTimedFetch(2000);
 
-    const res = await fetch(`${API_BASE_URL}/clubs/follow`, {
+    const res = await request(`${API_BASE_URL}/clubs/follow`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ studentId, clubId }),
-      signal: controller.signal,
     });
-    clearTimeout(timeoutId);
 
     return res.ok;
   } catch {
@@ -220,16 +212,13 @@ export async function followClubApi(studentId: string, clubId: string): Promise<
  */
 export async function unfollowClubApi(studentId: string, clubId: string): Promise<boolean> {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const request = createTimedFetch(2000);
 
-    const res = await fetch(`${API_BASE_URL}/clubs/follow`, {
+    const res = await request(`${API_BASE_URL}/clubs/follow`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ studentId, clubId }),
-      signal: controller.signal,
     });
-    clearTimeout(timeoutId);
 
     return res.ok;
   } catch {

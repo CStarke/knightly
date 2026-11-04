@@ -796,8 +796,9 @@ describe('Navigation, Tabs & Gestures Domain', () => {
       const loginScreenCode = readSrc('components/login-screen.tsx');
 
       assert.ok(!appHeaderCode.includes('Platform.OS === "web" ? WebHeaderInset : insets.top'));
-      assert.strictEqual(getAppHeaderHeight(0), 85);
-      assert.strictEqual(getAppHeaderHeight(47), 120);
+      // Include actual title/caption line heights so initial content and login docking do not jump.
+      assert.strictEqual(getAppHeaderHeight(0), 84);
+      assert.strictEqual(getAppHeaderHeight(47), 119);
       assert.strictEqual(SMART_APP_BANNER_HEIGHT, 44);
 
       assert.ok(loginScreenCode.includes('bannerOffset'));

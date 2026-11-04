@@ -6,7 +6,7 @@
  * and mobile web browsers (< 768px viewports in app-tabs.web.tsx).
  *
  * BRANDING & ERGONOMICS:
- * 1. Signature Calvin Gold Rule: 3px brand rule with 33° white scaffolding accent skews across the top edge.
+ * 1. Rounded Surface: Shared navigation styling clips the bar to its inset rounded outline.
  * 2. Absolute Grounded Docking: Anchored flush with bottom screen edge and clears safe area insets.
  * 3. Spring Pop & Lift Motion: Bouncy spring pops active icon up to 1.16x and lifts it smoothly to make room for label.
  * 4. Dual-Layer Icon Crossfade: Crossfades between textMuted outline and theme.tint solid icon.
@@ -33,7 +33,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Icon } from '@/components/ui/icon';
-import { Brand, Spacing } from '@/constants/theme';
+import { navigationChromeStyles } from '@/components/ui/navigation-chrome';
+import { Spacing } from '@/constants/theme';
 import { useTabNavigation, type TabMeta } from '@/context/tab-navigation-context';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -42,7 +43,7 @@ export interface BottomBarProps extends TabListProps {
 }
 
 /**
- * Grounded bottom bar container with Calvin Gold rule and ambient shadow.
+ * Rounded bottom bar container with safe-area spacing.
  */
 export function BottomBar({
   children,
@@ -65,16 +66,12 @@ export function BottomBar({
     <Animated.View
       style={[
         styles.bottomBarWrapper,
+        navigationChromeStyles.bottomBar,
         {
           backgroundColor: theme.backgroundElement,
         },
         animatedStyle,
       ]}>
-      {/* Signature Calvin Gold rule with 33° brand scaffolding accent */}
-      <View style={styles.ruleContainer}>
-        <View style={styles.rule} />
-        <View style={styles.ruleAccent} />
-      </View>
 
       <View
         {...props}
@@ -210,25 +207,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 10,
-  },
-  ruleContainer: {
-    width: '100%',
-    height: 3,
-    backgroundColor: Brand.gold,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  rule: {
-    flex: 1,
-    backgroundColor: Brand.gold,
-  },
-  ruleAccent: {
-    position: 'absolute',
-    left: '25%',
-    width: 32,
-    height: 3,
-    backgroundColor: '#FFFFFF',
-    transform: [{ skewX: '-33deg' }],
   },
   bar: {
     width: '100%',

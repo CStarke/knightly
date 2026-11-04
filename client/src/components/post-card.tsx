@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { memo } from 'react';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
@@ -16,6 +16,7 @@ import { useFeed } from '@/context/feed-context';
 import type { Post } from '@/data/feed';
 import { useTheme } from '@/hooks/use-theme';
 import { formatRelativeTime } from '@/utils/date-format';
+import { useRelativeClock } from '@/hooks/use-relative-clock';
 
 /**
  * Determines the visual tone/color for a post's category badge.
@@ -133,32 +134,12 @@ export interface PostCardProps {
   onPressOrg?: (clubId: string) => void;
 }
 
-export function PostCard({ post, variant = 'editorial', onPressOrg }: PostCardProps) {
+export const PostCard = memo(function PostCard({ post, variant = 'editorial', onPressOrg }: PostCardProps) {
   const theme = useTheme();
   const { isFollowing } = useClubFollow();
   const isGrid = variant === 'grid';
 
-  // Dynamic live relative time ticker
-  // Computes human-friendly relative age ("Just now", "10 minutes ago", "1 hour ago", "5 days ago")
-  // and updates periodically (every 30 seconds) so that relative times stay strictly accurate
-  // without requiring manual feed reloads or component unmounting.
-  const [relativeTime, setRelativeTime] = useState(() =>
-    formatRelativeTime(post.postedAt, post.createdAt, post.monotonicCreatedAt)
-  );
-
-  useEffect(() => {
-    setRelativeTime(formatRelativeTime(post.postedAt, post.createdAt, post.monotonicCreatedAt));
-    const interval = setInterval(() => {
-      setRelativeTime(formatRelativeTime(post.postedAt, post.createdAt, post.monotonicCreatedAt));
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [post.postedAt, post.createdAt, post.monotonicCreatedAt]);
-
-  // Access the private Saved Posts bookmarking functions from FeedContext.
-  const { toggleSavePost, isPostSaved } = useFeed();
-
-  // Check whether this post is saved by the current student for quick reference.
-  const isSaved = isPostSaved(post.id);
+  // Relative time updates live in the footer, leaving banners and card content untouched on clock ticks.
 
   // Step 1: Derive canonical club ID (fallback slugification for legacy posts without clubId)
   // WHY SLUGIFY FALLBACK:
@@ -206,6 +187,8 @@ export function PostCard({ post, variant = 'editorial', onPressOrg }: PostCardPr
                   contentFit="cover"
                   style={StyleSheet.absoluteFill}
                   transition={250}
+                  cachePolicy="memory-disk"
+                  recyclingKey={post.image}
                 />
               ) : null}
             </View>
@@ -215,6 +198,8 @@ export function PostCard({ post, variant = 'editorial', onPressOrg }: PostCardPr
               style={styles.image}
               contentFit="cover"
               transition={250}
+              cachePolicy="memory-disk"
+              recyclingKey={post.image}
             />
           )}
           {/* Subtle top scrim ensuring overlay badges contrast cleanly against bright photos */}
@@ -278,9 +263,7 @@ export function PostCard({ post, variant = 'editorial', onPressOrg }: PostCardPr
           "In 2 days", or exact date) dynamically based on current client clock and server timestamp.
         */}
         <View style={styles.footer}>
-          <ThemedText type="caption" themeColor="textMuted">
-            {relativeTime}
-          </ThemedText>
+          <PostTimestamp post={post} />
 
           {post.campusWide ? (
             <ThemedText type="caption" themeColor="textMuted">
@@ -289,29 +272,33 @@ export function PostCard({ post, variant = 'editorial', onPressOrg }: PostCardPr
           ) : null}
 
           {/* Allow individual students to bookmark/save this post for quick reference. */}
-          <Pressable
-            onPress={() => toggleSavePost(post.id)}
-            accessibilityRole="button"
-            accessibilityLabel={isSaved ? 'Remove saved post' : 'Save post'}
-            accessibilityState={{ selected: isSaved }}
-            hitSlop={10}
-            style={({ pressed }) => [
-              styles.favoriteButton,
-              pressed && styles.pressedPill,
-            ]}
-          >
-            <Icon
-              sf={isSaved ? 'star.fill' : 'star'}
-              md={isSaved ? 'star' : 'star_border'}
-              size={22}
-              color={isSaved ? Brand.gold : theme.textMuted}
-            />
-          </Pressable>
+          <SavePostButton postId={post.id} />
         </View>
       </View>
     </Card>
   );
-}
+});
+
+/** Isolates periodic timestamp rendering from the image-heavy parent card. */
+const PostTimestamp = memo(function PostTimestamp({ post }: { post: Post }) {
+  const now = useRelativeClock();
+  return <ThemedText type="caption" themeColor="textMuted">
+    {formatRelativeTime(post.postedAt, post.createdAt, post.monotonicCreatedAt, { now })}
+  </ThemedText>;
+});
+
+/** Bookmark context changes repaint the small button instead of every banner and paragraph. */
+const SavePostButton = memo(function SavePostButton({ postId }: { postId: string }) {
+  const theme = useTheme();
+  const { toggleSavePost, isPostSaved } = useFeed();
+  const isSaved = isPostSaved(postId);
+  return <Pressable onPress={() => toggleSavePost(postId)} accessibilityRole="button"
+    accessibilityLabel={isSaved ? 'Remove saved post' : 'Save post'} accessibilityState={{ selected: isSaved }}
+    hitSlop={10} style={({ pressed }) => [styles.favoriteButton, pressed && styles.pressedPill]}>
+    <Icon sf={isSaved ? 'star.fill' : 'star'} md={isSaved ? 'star' : 'star_border'} size={22}
+      color={isSaved ? Brand.gold : theme.textMuted} />
+  </Pressable>;
+});
 
 const styles = StyleSheet.create({
   card: {

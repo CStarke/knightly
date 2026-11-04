@@ -194,6 +194,7 @@ function getInitialFavoriteIds(): string[] {
 export function FeedProvider({ children }: { children: React.ReactNode }) {
   const auth = useContext(AuthContext);
   const user = auth?.user ?? null;
+  const savedAccountKey = getSavedPostsStorageKey(user);
 
   const [feedPosts, setFeedPosts] = useState<Post[]>(getInitialPosts);
   // Maintain saved post IDs in a Set for guaranteed O(1) constant-time membership lookups
@@ -205,7 +206,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
   // Re-synchronize saved posts whenever the authenticated student changes
   useEffect(() => {
     setSavedIds(new Set(loadSavedPostIds(user)));
-  }, [user]);
+  }, [savedAccountKey]);
 
   // Toggle saving a post with persistent storage scoped to student account
   const toggleSavePost = useCallback(
@@ -221,7 +222,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         return next;
       });
     },
-    [user]
+    [savedAccountKey]
   );
 
   // O(1) membership check
@@ -243,7 +244,8 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
   // merging with local state while preserving the offline seed data fallback.
   useEffect(() => {
     let mounted = true;
-    fetchFeedPosts().then((livePosts) => {
+    fetchFeedPosts({}, feedPosts).then((livePosts) => {
+      if (livePosts === feedPosts) return;
       if (mounted && livePosts.length > 0) {
         setFeedPosts((prev) => {
           const localOnly = prev.filter((p) => p.id.startsWith('p-local-'));

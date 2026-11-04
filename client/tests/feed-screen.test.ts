@@ -130,6 +130,14 @@ test('feed screen reconciles mobile saved posts with shared mobile/web filters',
     };
     collectPostCards(webFavScreen);
     assert.deepEqual(postCards.map(c => c.props.post.id), [samplePosts[2].id]);
+
+    // Narrow web viewports must virtualize just like phones, with post identity instead of row indexes.
+    width = 390;
+    state[0] = 'All Campus';
+    const mobileWebScreen = render();
+    assert.equal(mobileWebScreen.type, 'ScreenFlatList');
+    assert.equal(mobileWebScreen.props.keyExtractor([samplePosts[0]]), samplePosts[0].id);
+    assert.deepEqual(mobilePosts(mobileWebScreen), samplePosts);
   } finally {
     loadMock.mock.restore();
   }

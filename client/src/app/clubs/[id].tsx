@@ -5,6 +5,7 @@ import { useSharedValue } from 'react-native-reanimated';
 
 import { ClubDetailView } from '@/components/club-detail-view';
 import { AppHeader } from '@/components/ui/app-header';
+import { HeaderOverlay } from '@/components/ui/header-overlay';
 import { HeaderBackButton } from '@/components/ui/header-back-button';
 import { ParallaxStarfield } from '@/components/ui/starfield';
 import { StarfieldContext } from '@/context/starfield-context';
@@ -48,7 +49,7 @@ export default function ClubDetailScreen() {
           concise category in the subtitle keeps the header clean and uniform, letting the club's full
           identity shine in the hero card below.
         */}
-        <AppHeader
+        <HeaderOverlay scrollKey={id} header={<AppHeader
           title="View Club"
           subtitle={club ? club.category : 'Not found'}
           left={
@@ -57,8 +58,9 @@ export default function ClubDetailScreen() {
               accessibilityLabel="Go back"
             />
           }
-        />
+        />}>
         <ClubDetailView clubId={id} />
+        </HeaderOverlay>
       </View>
     </StarfieldContext.Provider>
   );

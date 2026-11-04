@@ -10,6 +10,14 @@ and this project adheres to semantic application versioning defined in `AGENTS.m
 ## [0.8.1] - Unreleased
 
 ### Changed
+- **Performance and scroll stability:** Batch starfield rendering into three cached image layers while preserving density/depth ratios; keep the sky stable during keyboard resize and long scrolling. Reserve header space before first paint and avoid restarting fade animations on every scroll event. Share a foreground-only timestamp clock, isolate timestamp/bookmark rendering, memoize post cards, cache/recycle banners, virtualize mobile-web feeds, retain stable card keys, and defer unvisited tab screens. Keep the rendered feed unchanged on offline refresh, skip redundant follow/account updates, parse timestamps once per sort, and always release network deadline timers. Align the root TypeScript configuration with the client for the documented verification command.
+- Keep rounded floating headers across pages, with scroll fade/reveal enabled only on News. Reset visibility on navigation and keep headers visible on other tabs and standalone pages.
+- Measure login's wordmark destination in the shared floating header and crossfade into exact-size text during the final glide, removing the abrupt end-of-flight text swap.
+- Share login's gentle easing with the header fade/reveal, including a subtle lift and scale; morph login into the floating header's inset, radius, and wordmark position on mobile and align desktop docking radius.
+- Keep the news-feed header fully visible for 192px of downward travel, then fade over another 1000px; reveal it after just 20px upward anywhere in the feed, with a smooth transition and touch-through while hidden.
+- Float native and mobile-web tab headers over the scrolling page with shared measured content insets, exposing page content through the rounded corners and surrounding gaps.
+- Remove the gold separator bars from shared headers and native/mobile-web bottom navigation.
+- Inset shared headers and bottom navigation with rounded corners on all four sides across native and mobile web; align desktop masthead and sidebar rounding with the same theme radius.
 - Make dining BLL transaction tests use a fixed clock and cover swipes immediately before, exactly at, and immediately after the current Sunday-midnight UTC reset. Campus timezone policy remains to be confirmed.
 
 ## [0.8.0] - 2026-10-31

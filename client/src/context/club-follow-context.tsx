@@ -116,7 +116,7 @@ export function ClubFollowProvider({
         setFollowedIds((prev) => {
           const next = new Set(prev);
           serverFollows.forEach((id) => next.add(id.toLowerCase()));
-          return next;
+          return next.size === prev.size ? prev : next;
         });
       }
     });
@@ -138,6 +138,7 @@ export function ClubFollowProvider({
     (clubId: string) => {
       const lower = clubId.toLowerCase();
       setFollowedIds((prev) => {
+        if (prev.has(lower)) return prev;
         const next = new Set(prev);
         next.add(lower);
         return next;
@@ -152,6 +153,7 @@ export function ClubFollowProvider({
     (clubId: string) => {
       const lower = clubId.toLowerCase();
       setFollowedIds((prev) => {
+        if (!prev.has(lower)) return prev;
         const next = new Set(prev);
         next.delete(lower);
         return next;

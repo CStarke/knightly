@@ -4,6 +4,7 @@ import { useSharedValue } from 'react-native-reanimated';
 
 import { CompleteClubProfileView } from '@/components/complete-club-profile-view';
 import { AppHeader } from '@/components/ui/app-header';
+import { HeaderOverlay } from '@/components/ui/header-overlay';
 import { HeaderBackButton } from '@/components/ui/header-back-button';
 import { ParallaxStarfield } from '@/components/ui/starfield';
 import { StarfieldContext } from '@/context/starfield-context';
@@ -36,7 +37,7 @@ export default function CompleteClubProfileScreen() {
     <StarfieldContext.Provider value={{ translateX, scrollY }}>
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <ParallaxStarfield translateX={translateX} scrollY={scrollY} />
-        <AppHeader
+        <HeaderOverlay header={<AppHeader
           title="Complete Profile"
           subtitle="CLAIM VERIFIED"
           left={
@@ -45,12 +46,13 @@ export default function CompleteClubProfileScreen() {
               accessibilityLabel="Go back"
             />
           }
-        />
+        />}>
         <CompleteClubProfileView
           code={code ?? ''}
           onBack={handleBack}
           onSuccess={handleSuccess}
         />
+        </HeaderOverlay>
       </View>
     </StarfieldContext.Provider>
   );

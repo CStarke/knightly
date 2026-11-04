@@ -25,10 +25,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SmartAppBanner, isSmartAppBannerDismissed, SMART_APP_BANNER_HEIGHT } from '@/components/smart-app-banner';
 import { ThemedText } from '@/components/themed-text';
-import { getAppHeaderHeight } from '@/components/ui/app-header';
+import { AppHeader, getAppHeaderHeight } from '@/components/ui/app-header';
 import { Icon } from '@/components/ui/icon';
 import { Brand, Fonts, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { APP_VERSION } from '@/constants/version';
+import { HeaderMotion } from '@/constants/motion';
+import { getHeaderDockingFrame } from '@/utils/header-docking';
 import { useAuth } from '@/context/auth-context';
 import { student } from '@/data/student';
 import { useTheme } from '@/hooks/use-theme';
@@ -111,8 +113,8 @@ export function LoginScreen() {
   // On mobile (native or mobile web), target position docks into the centered AppHeader
   const defaultHeaderX = isDesktopWeb
     ? 12 + Spacing.three + 2
-    : (windowWidth > MaxContentWidth ? (windowWidth - MaxContentWidth) / 2 : 0) + Spacing.three;
-  const defaultHeaderY = isDesktopWeb ? 12 + Spacing.four : bannerOffset + headerPaddingTop;
+    : getHeaderDockingFrame(1, windowWidth, bannerOffset).wordmarkLeft;
+  const defaultHeaderY = isDesktopWeb ? 12 + Spacing.four : bannerOffset + Spacing.two + headerPaddingTop;
   const defaultHeroWidth = 136;
   const defaultHeroHeight = 42;
   const formMainTop = Math.max(bannerOffset + headerPaddingTop + 30, (windowHeight - 402) / 2);
@@ -206,15 +208,16 @@ export function LoginScreen() {
           const heroCenterX = hx + hw / 2;
           const heroCenterY = hy + hh / 2;
 
-          const targetCenterX = tx + (hw * targetScale) / 2;
-          const targetCenterY = ty + (hh * targetScale) / 2;
+          // Measure the real destination center, including native font metrics and rounded-header insets.
+          const targetCenterX = tx + tw / 2;
+          const targetCenterY = ty + th / 2;
 
           deltaX.value = targetCenterX - heroCenterX;
           deltaY.value = targetCenterY - heroCenterY;
         }
       });
     });
-  }, [deltaX, deltaY, targetScale, bannerOffset]);
+  }, [deltaX, deltaY, targetScale, bannerOffset, isDesktopWeb, defaultHeaderX, defaultHeaderY]);
 
   // Measure on mount, window resize, and layout changes
   useEffect(() => {
@@ -312,8 +315,8 @@ export function LoginScreen() {
     setAppMounted(true);
 
     // Fluid ease-in-out slide curve for flight and shrink
-    const smoothSlideCurve = Easing.bezier(0.25, 0.1, 0.25, 1);
-    const ANIMATION_DURATION = 900;
+    const smoothSlideCurve = HeaderMotion.easing;
+    const ANIMATION_DURATION = HeaderMotion.loginDuration;
 
     const startFlightAnimation = () => {
       // Permanently freeze measurements so no layout shifts or late callbacks can touch delta
@@ -334,12 +337,14 @@ export function LoginScreen() {
         easing: smoothSlideCurve,
       });
 
+      // Blend into exact-size header text during the final settling motion, never swap in one frame.
+      wordmarkCrossfadeOpacity.value = withDelay(
+        ANIMATION_DURATION - 180,
+        withTiming(0, { duration: 180, easing: HeaderMotion.easing })
+      );
+
       const onFlightFinished = (finished?: boolean) => {
         if (finished) {
-          // Snap from the fractionally scaled flying wordmark to the pixel-perfect native target wordmark
-          // right before the overlay crossfades to the identically matching app-tabs beneath.
-          wordmarkCrossfadeOpacity.value = 0;
-
           // Once flight arrives at target, smoothly cross-fade overlay (160ms)
           // revealing the identical underlying UI with 100% continuous visibility
           overlayOpacity.value = withTiming(
@@ -360,7 +365,7 @@ export function LoginScreen() {
       if (isDesktopWeb) {
         // WHY INSET MORPH ON WEB:
         // Desktop web layout uses an inset, rounded floating sidebar with a Calvin Maroon masthead
-        // (left: 12, top: 12, width: 270, height: targetMastheadHeight, borderRadius: 20).
+        // (left: 12, top: 12, width: 270, height: targetMastheadHeight, borderRadius: Radius.xl).
         // Animating sidebarMorphProgress glides the maroon container from full-screen width/height
         // directly into the exact inset geometry, rounded contour, and ambient elevation of the masthead.
         sidebarMorphProgress.value = withTiming(
@@ -372,7 +377,7 @@ export function LoginScreen() {
           onFlightFinished
         );
       } else {
-        // Mobile: Cinematic vertical shrink animation of the maroon container into the 104px AppHeader
+        // Mobile: Shrink, inset and round the maroon surface into the floating AppHeader.
         headerHeight.value = withTiming(
           targetHeaderHeight,
           {
@@ -492,7 +497,7 @@ export function LoginScreen() {
       const currentLeft = 12 * p;
       const currentTop = 12 * p;
       const currentHeight = startH + (mastheadHeight.value - startH) * p;
-      const currentRadius = 20 * p;
+      const currentRadius = Radius.xl * p;
 
       return {
         position: 'absolute',
@@ -510,10 +515,12 @@ export function LoginScreen() {
         elevation: 2 * p,
       };
     }
+    const { left, top, width, borderRadius } = getHeaderDockingFrame(wordmarkProgress.value, windowWidth, bannerOffset);
     return {
-      top: bannerOffset,
+      left, top, width, borderRadius,
+      right: 'auto' as const,
       height: headerHeight.value,
-      width: '100%',
+      overflow: 'hidden' as const,
     };
   });
 
@@ -578,6 +585,19 @@ export function LoginScreen() {
     <Animated.View
       style={[styles.rootOverlay, rootOverlayAnimatedStyle]}
       pointerEvents={isTransitioning ? 'none' : 'auto'}>
+      {/* Measure the shared header at its final location, independently of the shrinking surface. */}
+      {!isDesktopWeb && (
+        <View pointerEvents="none" aria-hidden={true} accessibilityElementsHidden={true}
+          importantForAccessibility="no-hide-descendants"
+          style={[styles.mobileTargetMeasurementAnchor, { top: bannerOffset }]}>
+          <AppHeader
+            title="Knightly"
+            subtitle="Campus community & feed"
+            wordmarkRef={headerTargetRef}
+            onLayout={measurePositions}
+          />
+        </View>
+      )}
       {/* Static measurement anchor for Desktop Web docking coordinates */}
       {isDesktopWeb && (
         <View
@@ -620,7 +640,7 @@ export function LoginScreen() {
 
       {/* 1. Maroon Background Container:
           - Web: Horizontally and vertically glides into inset floating rounded sidebar masthead
-          - Mobile: Vertically shrinks from screenHeight down to targetHeaderHeight */}
+          - Mobile: Shrinks and rounds into the inset floating header */}
       <Animated.View style={[styles.maroonContainer, maroonBackgroundStyle]}>
         {isDesktopWeb ? (
           /* Web Sidebar Masthead Layout Container */
@@ -671,8 +691,6 @@ export function LoginScreen() {
                 <View style={styles.headerTitleGroup}>
                   {/* Perfect native text fades in instantly at the end of flight, preventing subpixel blur */}
                   <Animated.View
-                    ref={headerTargetRef}
-                    onLayout={measurePositions}
                     style={[styles.headerWordmarkRow, targetWordmarkAnimatedStyle]}>
                     <ThemedText type="title" style={styles.headerTitleText}>
                       Knightly
@@ -921,12 +939,18 @@ const styles = StyleSheet.create({
     pointerEvents: 'none',
     zIndex: -1,
   },
+  mobileTargetMeasurementAnchor: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    opacity: 0,
+  },
   webSidebarContainer: {
     position: 'absolute',
     top: 0,
     left: 0,
     width: 270,
-    borderRadius: 20,
+    borderRadius: Radius.xl,
     borderWidth: 0,
     overflow: 'hidden',
     zIndex: 10,
@@ -938,7 +962,7 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.three,
     position: 'relative',
     overflow: 'hidden',
-    borderRadius: 20,
+    borderRadius: Radius.xl,
     gap: 4,
     borderBottomWidth: 0,
     shadowColor: Brand.maroonDark,

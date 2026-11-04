@@ -12,7 +12,6 @@ import {
   Dimensions,
   Keyboard,
   Platform,
-  ScrollView,
   type ScrollViewInstance,
   StyleSheet,
   View,
@@ -23,7 +22,6 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DatePickerModal } from '@/components/date-picker-modal';
 import { LocationInfoModal } from '@/components/location-info-modal';
@@ -37,8 +35,8 @@ import {
 } from '@/components/post-form-sections';
 import { PostSuccessModal } from '@/components/post-success-modal';
 import { Button } from '@/components/ui/button';
-import { Screen } from '@/components/ui/screen';
-import { BottomTabContentInset, Spacing } from '@/constants/theme';
+import { ScreenScrollView } from '@/components/ui/screen';
+import { Spacing } from '@/constants/theme';
 import { type PostComposerState } from '@/hooks/use-post-composer';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
@@ -52,7 +50,6 @@ export function PostMobileView({ composer }: PostMobileViewProps) {
   const theme = useTheme();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const insets = useSafeAreaInsets();
 
   const scrollViewRef = useRef<ScrollViewInstance>(null);
   const keyboardHeight = useSharedValue(0);
@@ -192,17 +189,12 @@ export function PostMobileView({ composer }: PostMobileViewProps) {
           },
         ]}
       />
-      <Screen style={styles.screen} scroll={false}>
+      <View style={styles.screen}>
         <Animated.View style={animatedPageStyle}>
-          <ScrollView
+          <ScreenScrollView
             ref={scrollViewRef}
             scrollEnabled={!isCroppingInteracting}
-            contentContainerStyle={[
-              styles.scrollContent,
-              {
-                paddingBottom: Math.max(insets.bottom, Spacing.two) + BottomTabContentInset,
-              },
-            ]}
+            contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
@@ -345,7 +337,7 @@ export function PostMobileView({ composer }: PostMobileViewProps) {
               disabled={!canPublish}
               style={styles.publishBtn}
             />
-          </ScrollView>
+          </ScreenScrollView>
         </Animated.View>
 
         {/* Modals */}
@@ -367,7 +359,7 @@ export function PostMobileView({ composer }: PostMobileViewProps) {
           visible={showLocationInfoModal}
           onClose={() => setShowLocationInfoModal(false)}
         />
-      </Screen>
+      </View>
     </View>
   );
 }

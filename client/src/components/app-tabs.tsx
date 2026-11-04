@@ -44,11 +44,13 @@ import { ClubDetailView } from '@/components/club-detail-view';
 import { CompleteClubProfileView } from '@/components/complete-club-profile-view';
 import { SwipeableAppHeader } from '@/components/ui/swipeable-app-header';
 import { HeaderBackButton } from '@/components/ui/header-back-button';
+import { HeaderOverlay } from '@/components/ui/header-overlay';
+import { navigationChromeStyles } from '@/components/ui/navigation-chrome';
 import { Icon, type MaterialSymbolName, type SfSymbolName } from '@/components/ui/icon';
 import { ParallaxStarfield } from '@/components/ui/starfield';
 import { getTabHeader } from '@/constants/tab-headers';
 import { PHANTOM_TABS, getBlankAfterSlot } from '@/constants/phantom-tabs';
-import { Brand, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { DiningActivityProvider } from '@/context/dining-activity-context';
 import { ClubsNavigationProvider } from '@/context/clubs-navigation-context';
 import { TabPagerPriorityProvider } from '@/context/tab-pager-priority-context';
@@ -267,6 +269,16 @@ function SwipeableTabPager({
   const { state, descriptors, navigation } = Navigator.useContext();
   const pathname = usePathname();
   const { width } = useWindowDimensions();
+
+  // Mount only the active tab and its neighbors initially; retain visited tabs to preserve form/scroll state.
+  const [visitedTabs, setVisitedTabs] = useState(() => new Set([activeTabIndex]));
+  useEffect(() => {
+    setVisitedTabs((previous) => {
+      const next = new Set(previous);
+      for (let index = Math.max(0, activeTabIndex - 1); index <= Math.min(tabs.length - 1, activeTabIndex + 1); index++) next.add(index);
+      return next.size === previous.size ? previous : next;
+    });
+  }, [activeTabIndex, tabs.length]);
 
   /**
    * Fallback dimension calculator protecting against transient 0 or NaN measurements
@@ -1232,13 +1244,15 @@ function SwipeableTabPager({
                 {/* Parallax Starfield with 3 depth layers reacting to both horizontal and vertical scrolling */}
                 <ParallaxStarfield translateX={translateX} scrollY={scrollY} />
 
-                <SwipeableAppHeader
+                <HeaderOverlay fadeOnScroll={activeTabIndex === 0 && clubsLevel === 0 && !claimSetupState.isOpen && !showClubSetup}
+                  scrollKey={`${activeTabIndex}:${clubsLevel}:${activeClubId}:${claimSetupState.isOpen}:${showClubSetup}:${isActivityOpen}`}
+                  header={<SwipeableAppHeader
                   gesture={campusMap.headerGesture}
                   title={headerProps.title}
                   subtitle={headerProps.subtitle}
                   left={headerProps.left}
                   right={headerProps.right}
-                />
+                />}>
 
                 <GestureDetector gesture={pan}>
                   {/*
@@ -1328,7 +1342,7 @@ function SwipeableTabPager({
                             <ClubsDirectoryView />
                           ) : isShowingActivity ? (
                             <DiningActivityView />
-                          ) : descriptor ? (
+                          ) : descriptor && (visitedTabs.has(i) || Math.abs(i - activeTabIndex) <= 1) ? (
                             <TabContext.Provider value={descriptor.options}>
                               {descriptor.render()}
                             </TabContext.Provider>
@@ -1338,6 +1352,7 @@ function SwipeableTabPager({
                     })}
                   </Animated.View>
                 </GestureDetector>
+                </HeaderOverlay>
               </View>
             </StarfieldContext.Provider>
           </TabPagerPriorityProvider>
@@ -1368,16 +1383,12 @@ function BottomBar({
     <Animated.View
       style={[
         styles.bottomBarWrapper,
+        navigationChromeStyles.bottomBar,
         {
           backgroundColor: theme.backgroundElement,
         },
         animatedStyle,
       ]}>
-      {/* Signature Calvin Gold rule with 33° brand scaffolding accent separating bottom bar from the screen */}
-      <View style={styles.ruleContainer}>
-        <View style={styles.rule} />
-        <View style={styles.ruleAccent} />
-      </View>
 
       <View
         {...props}
@@ -1543,25 +1554,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 10,
-  },
-  ruleContainer: {
-    width: '100%',
-    height: 3,
-    backgroundColor: Brand.gold,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  rule: {
-    flex: 1,
-    backgroundColor: Brand.gold,
-  },
-  ruleAccent: {
-    position: 'absolute',
-    left: '25%',
-    width: 32,
-    height: 3,
-    backgroundColor: '#FFFFFF',
-    transform: [{ skewX: '-33deg' }],
   },
   bar: {
     width: '100%',

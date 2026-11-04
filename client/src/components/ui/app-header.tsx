@@ -1,8 +1,9 @@
-import type { PropsWithChildren, ReactNode } from "react";
-import { type LayoutChangeEvent, Platform, type StyleProp, StyleSheet, View, type ViewStyle } from "react-native";
+import type { PropsWithChildren, ReactNode, Ref } from "react";
+import { type LayoutChangeEvent, Platform, type StyleProp, StyleSheet, View, type ViewStyle, type ViewInstance } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
+import { navigationChromeStyles } from "@/components/ui/navigation-chrome";
 import {
   Brand,
   Fonts,
@@ -18,15 +19,18 @@ type AppHeaderProps = PropsWithChildren<{
   right?: ReactNode;
   style?: StyleProp<ViewStyle>;
   onLayout?: (event: LayoutChangeEvent) => void;
+  /** Measurement anchor for a continuous login-to-header wordmark handoff. */
+  wordmarkRef?: Ref<ViewInstance>;
 }>;
 
 export function getAppHeaderHeight(insetsTop: number): number {
   const paddingTop = insetsTop > 0 ? insetsTop + Spacing.one : Spacing.three;
-  return paddingTop + 50 + Spacing.three + 3;
+  // Title line (34), group gap (2), caption line (16), then bottom padding.
+  return paddingTop + 34 + 2 + 16 + Spacing.three;
 }
 
 /**
- * Calvin Maroon masthead with the title, gold period, and signature 33° scaffolding gold rule.
+ * Rounded Calvin Maroon masthead with the title and gold period.
  */
 export function AppHeader({
   title,
@@ -36,6 +40,7 @@ export function AppHeader({
   style,
   children,
   onLayout,
+  wordmarkRef,
 }: AppHeaderProps) {
   const insets = useSafeAreaInsets();
   const paddingTop = insets.top > 0 ? insets.top + Spacing.one : Spacing.three;
@@ -43,12 +48,12 @@ export function AppHeader({
   return (
     <View
       onLayout={onLayout}
-      style={[styles.header, { paddingTop, backgroundColor: Brand.maroon }, style]}
+      style={[styles.header, navigationChromeStyles.header, { paddingTop, backgroundColor: Brand.maroon }, style]}
     >
       <View style={styles.inner}>
         <View style={styles.titleRow}>
           <View style={styles.titleGroup}>
-            <View style={styles.wordmarkRow}>
+            <View ref={wordmarkRef} collapsable={false} style={styles.wordmarkRow}>
               {left ? <View style={styles.leftContainer}>{left}</View> : null}
               <ThemedText type="title" style={styles.title} numberOfLines={1} ellipsizeMode="tail">
                 {title}
@@ -68,11 +73,6 @@ export function AppHeader({
         {children}
       </View>
 
-      {/* Gold rule with 33° brand scaffolding accent */}
-      <View style={styles.ruleContainer}>
-        <View style={styles.rule} />
-        <View style={styles.ruleAccent} />
-      </View>
     </View>
   );
 }
@@ -104,6 +104,8 @@ const styles = StyleSheet.create({
   },
   wordmarkRow: {
     flexDirection: "row",
+    // Measure the wordmark itself rather than the potentially wider subtitle beneath it.
+    alignSelf: "flex-start",
     alignItems: "flex-end",
     gap: Spacing.one,
   },
@@ -134,24 +136,5 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 1.2,
     textTransform: "uppercase",
-  },
-  ruleContainer: {
-    width: "100%",
-    height: 3,
-    backgroundColor: Brand.gold,
-    position: "relative",
-    overflow: "hidden",
-  },
-  rule: {
-    flex: 1,
-    backgroundColor: Brand.gold,
-  },
-  ruleAccent: {
-    position: "absolute",
-    left: "25%",
-    width: 32,
-    height: 3,
-    backgroundColor: "#FFFFFF",
-    transform: [{ skewX: "-33deg" }],
   },
 });
