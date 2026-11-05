@@ -21,6 +21,8 @@
  */
 
 import { memo, useMemo } from "react";
+import { Image } from 'expo-image';
+import { createStarfieldLayerUri } from '@/utils/starfield-layer';
 import {
   StyleSheet,
   Dimensions,
@@ -183,23 +185,7 @@ export const ParallaxStarfield = memo(function ParallaxStarfield({
           layer1Style,
         ]}
       >
-        {layer1Stars.map((star) => (
-          <View
-            key={`l1-${star.id}`}
-            style={[
-              styles.star,
-              {
-                left: star.x,
-                top: star.y,
-                width: star.size,
-                height: star.size,
-                borderRadius: star.size / 2,
-                backgroundColor: star.color,
-                opacity: star.opacity,
-              },
-            ]}
-          />
-        ))}
+        <Image source={layer1Uri} style={StyleSheet.absoluteFill} contentFit="fill" transition={0} cachePolicy="memory" />
       </Animated.View>
 
       {/* Midground star layer (3x ratio) */}
@@ -210,27 +196,7 @@ export const ParallaxStarfield = memo(function ParallaxStarfield({
           layer2Style,
         ]}
       >
-        {layer2Stars.map((star) => (
-          <View
-            key={`l2-${star.id}`}
-            style={[
-              styles.star,
-              {
-                left: star.x,
-                top: star.y,
-                width: star.size,
-                height: star.size,
-                borderRadius: star.size / 2,
-                backgroundColor: star.color,
-                opacity: star.opacity,
-                shadowColor: star.color,
-                shadowOffset: { width: 0, height: 0 },
-                shadowOpacity: isDark ? 0.5 : 0.2,
-                shadowRadius: star.size * 0.8,
-              },
-            ]}
-          />
-        ))}
+        <Image source={layer2Uri} style={StyleSheet.absoluteFill} contentFit="fill" transition={0} cachePolicy="memory" />
       </Animated.View>
 
       {/* Foreground bright star layer (1x ratio) */}
@@ -241,41 +207,7 @@ export const ParallaxStarfield = memo(function ParallaxStarfield({
           layer3Style,
         ]}
       >
-        {layer3Stars.map((star) => (
-          <View
-            key={`l3-${star.id}`}
-            style={[
-              styles.star,
-              {
-                left: star.x,
-                top: star.y,
-                width: star.size,
-                height: star.size,
-                borderRadius: star.size / 2,
-                backgroundColor: star.color,
-                opacity: star.opacity,
-                shadowColor: star.color,
-                shadowOffset: { width: 0, height: 0 },
-                shadowOpacity: isDark ? 0.95 : 0.45,
-                shadowRadius: star.size * 1.3,
-              },
-            ]}
-          >
-            {star.isSparkle ? (
-              <View
-                style={[
-                  styles.sparkleCross,
-                  {
-                    width: star.size * 1.8,
-                    height: star.size * 1.8,
-                    borderColor: star.color,
-                    opacity: 0.6,
-                  },
-                ]}
-              />
-            ) : null}
-          </View>
-        ))}
+        <Image source={layer3Uri} style={StyleSheet.absoluteFill} contentFit="fill" transition={0} cachePolicy="memory" />
       </Animated.View>
     </View>
   );
@@ -290,15 +222,5 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 0,
     left: 0,
-  },
-  star: {
-    position: "absolute",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sparkleCross: {
-    position: "absolute",
-    borderWidth: StyleSheet.hairlineWidth,
-    transform: [{ rotate: "45deg" }],
   },
 });
