@@ -16,12 +16,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { formatBarcode, student as defaultStudent } from '../src/data/student';
-import {
-  fetchStudentProfile,
-  getDefaultStudentProfile,
-  updateDirectoryPreferenceApi,
-  type StudentProfile,
-} from '../src/services/student-api';
+import { fetchStudentProfile, getDefaultStudentProfile, updateDirectoryPreferenceApi } from '../src/services/student-api';
 
 describe('Student Profile & FERPA Directory API Invariants', () => {
   describe('Variable-Length Student IDs & Barcode Generation', () => {

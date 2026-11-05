@@ -1,12 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { KNIGHTLY_TABS } from './helpers/e2e-harness';
+
 import { CALVIN_EVENTS_SEED } from '../src/data/calvin-events-seed';
 import { student, formatBarcode } from '../src/data/student';
-import { getClubById, CALVIN_CLUBS } from '../src/data/clubs';
+import { CALVIN_CLUBS } from '../src/data/clubs';
 import { formatRawDateSegments } from '../src/components/segmented-date-input';
 import { resolveEventTimeRange, validateTimeRange } from '../src/utils/date-format';
-import { CALVIN_MEAL_PLANS, getStudentMealPlan, getSwipesRemaining, getSwipesTotal, type CalvinMealPlanId } from '../src/data/dining';
+import { getStudentMealPlan, getSwipesRemaining, getSwipesTotal, type CalvinMealPlanId } from '../src/data/dining';
 
 describe('End-to-End User Journeys (Headless Interactive Sessions)', () => {
   describe('Journey 1: Student Feed & Discovery Session', () => {

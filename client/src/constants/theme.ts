@@ -164,6 +164,10 @@ export const Radius = {
 
 /** Space reserved for the fixed top bar on web. */
 export const WebHeaderInset = 72;
+/** Native mastheads reach the screen edges; web retains its floating gutters. */
+export const HeaderHorizontalInset = Platform.OS === 'web' ? Spacing.two : 0;
+/** Native mastheads extend behind the status bar with safe-area padding inside. */
+export const HeaderTopInset = Platform.OS === 'web' ? Spacing.two : 0;
 export const MaxContentWidth = 800;
 
 /** Standard bottom content inset to provide generous breathing room above the floating tab bar across all tab screens. */

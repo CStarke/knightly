@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import fs from 'node:fs';
 import path from 'node:path';
-import { student, fullName, fullLegalName, greeting, formatBarcode } from '@/data/student';
+import { student, fullName, greeting, formatBarcode } from '@/data/student';
 import {
   PASSWORD_MASK_DELAY_MS,
   PASSWORD_MASK_DOT,
@@ -17,22 +17,12 @@ import {
   STAR_DENSITY_UNIT_AREA_PX,
   STARS_PER_10K_PX,
 } from '@/constants/starfield';
-import {
-  Brand,
-  Colors,
-  Fonts,
-  Radius,
-  Spacing,
-  WebHeaderInset,
-  MaxContentWidth,
-  BottomTabContentInset,
-} from '@/constants/theme';
+import { Brand, Colors, Radius, Spacing, WebHeaderInset, MaxContentWidth, BottomTabContentInset } from '@/constants/theme';
 
 describe('Auth, Student Profile & Theme System Domain', () => {
   // Simple unit simulation of AuthProvider core logic for testing
   function createAuthManager() {
     let isAuthenticated = false;
-    let isAppMounted = false;
     let user: {
       id: string;
       username: string;
@@ -447,6 +437,7 @@ describe('Auth, Student Profile & Theme System Domain', () => {
     });
 
     it('computes correct web sidebar docking coordinates and scale invariants', () => {
+
       const isWeb = true;
       const targetScale = isWeb ? 24 / 34 : 28 / 34;
       assert.strictEqual(targetScale, 24 / 34);

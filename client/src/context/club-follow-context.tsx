@@ -44,38 +44,6 @@ export const DEFAULT_FOLLOWED_CLUB_IDS: string[] = [
   'student-activities',
 ];
 
-
-function getFollowStorageKey(studentId: string): string {
-  return `knightly_followed_club_ids_${studentId.toLowerCase()}`;
-}
-
-function loadLocalFollowedIds(studentId: string, defaults: string[]): Set<string> {
-  const set = new Set(defaults.map((d) => d.toLowerCase()));
-  if (typeof window !== 'undefined' && window.localStorage) {
-    try {
-      const raw = window.localStorage.getItem(getFollowStorageKey(studentId));
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          parsed.forEach((id) => set.add(String(id).toLowerCase()));
-        }
-      }
-    } catch {}
-  }
-  return set;
-}
-
-function persistLocalFollowedIds(studentId: string, ids: Set<string>): void {
-  if (typeof window !== 'undefined' && window.localStorage) {
-    try {
-      window.localStorage.setItem(
-        getFollowStorageKey(studentId),
-        JSON.stringify(Array.from(ids))
-      );
-    } catch {}
-  }
-}
-
 type ClubFollowContextType = {
   followedClubIds: Set<string>;
   isFollowing: (clubId: string) => boolean;
@@ -116,7 +84,7 @@ export function ClubFollowProvider({
         setFollowedIds((prev) => {
           const next = new Set(prev);
           serverFollows.forEach((id) => next.add(id.toLowerCase()));
-          return next;
+          return next.size === prev.size ? prev : next;
         });
       }
     });
@@ -138,6 +106,7 @@ export function ClubFollowProvider({
     (clubId: string) => {
       const lower = clubId.toLowerCase();
       setFollowedIds((prev) => {
+        if (prev.has(lower)) return prev;
         const next = new Set(prev);
         next.add(lower);
         return next;
@@ -152,6 +121,7 @@ export function ClubFollowProvider({
     (clubId: string) => {
       const lower = clubId.toLowerCase();
       setFollowedIds((prev) => {
+        if (!prev.has(lower)) return prev;
         const next = new Set(prev);
         next.delete(lower);
         return next;

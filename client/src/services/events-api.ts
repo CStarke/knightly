@@ -1,3 +1,5 @@
+import { createTimedFetch } from '@/services/timed-fetch';
+
 /**
  * Calvin Events API Client Service
  *
@@ -15,7 +17,7 @@ import { CALVIN_EVENTS_SEED, type ScrapedCalvinEvent } from '@/data/calvin-event
 import { adaptCalvinEventToPost } from '@/utils/calvin-event-adapter';
 import type { Post } from '@/data/feed';
 
-const API_BASE_URL = 'http://localhost:3000/api';
+import { API_BASE_URL } from '@/services/api-config';
 
 /**
  * Fetches campus events from the server REST API or resolves from isolated seed data.
@@ -25,13 +27,9 @@ const API_BASE_URL = 'http://localhost:3000/api';
  */
 export async function fetchCampusEvents(pages: number = 3): Promise<Post[]> {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
+    const request = createTimedFetch(2000);
 
-    const res = await fetch(`${API_BASE_URL}/events?pages=${pages}`, {
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
+    const res = await request(`${API_BASE_URL}/events?pages=${pages}`);
 
     if (res.ok) {
       const data: ScrapedCalvinEvent[] = await res.json();

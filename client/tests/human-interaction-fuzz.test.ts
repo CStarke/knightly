@@ -1,9 +1,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { formatRawDateSegments } from '../src/components/segmented-date-input';
-import { MAX_TITLE_LENGTH, MAX_DESCRIPTION_LENGTH, MAX_LOCATION_LENGTH } from '../src/hooks/use-post-composer';
-import { formatPasswordDisplay, processPasswordMaskInput } from '../src/utils/masked-password';
-import { DateUtils, TimeUtils } from '../src/utils/date-format';
+import { MAX_TITLE_LENGTH, MAX_DESCRIPTION_LENGTH } from '../src/hooks/use-post-composer';
+import { formatPasswordDisplay } from '../src/utils/masked-password';
+import { TimeUtils } from '../src/utils/date-format';
 import { normalizeClubCode, isValidClubCode } from '../src/data/club-codes';
 import { feedCategories } from '../src/data/feed';
 

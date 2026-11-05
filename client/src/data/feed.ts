@@ -390,8 +390,11 @@ export function getPostTimestamp(post: Post): number {
  * Copies the array with spread syntax to avoid in-place mutation of the input list.
  */
 export function sortPostsByDate(postList: Post[]): Post[] {
-  // Higher timestamp means more recent date, placed earlier in the array (b - a)
-  return [...postList].sort((a, b) => getPostTimestamp(b) - getPostTimestamp(a));
+  // Parse legacy ISO timestamps once per post, rather than during every sort comparison.
+  // Descending timestamp retains the original order for ties and never mutates the source list.
+  return postList.map((post) => ({ post, timestamp: getPostTimestamp(post) }))
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .map(({ post }) => post);
 }
 
 /**

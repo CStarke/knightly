@@ -20,7 +20,7 @@ import { AuthContext } from '@/context/auth-context';
 import type { Club } from '@/data/clubs';
 import { CALVIN_EVENTS_SEED } from '@/data/calvin-events-seed';
 import { adaptCalvinEventToPost } from '@/utils/calvin-event-adapter';
-import { fetchCampusEvents } from '@/services/events-api';
+
 import { fetchFeedPosts, createPostApi, deletePostApi } from '@/services/posts-api';
 
 export type CreatePostInput = {
@@ -115,7 +115,6 @@ export function persistSavedPostIds(
   }
 }
 
-
 const LOCAL_AUTHORED_POSTS_KEY = 'knightly_local_authored_posts';
 
 export function loadLocalAuthoredPosts(): Post[] {
@@ -139,26 +138,6 @@ export function persistLocalAuthoredPosts(posts: Post[]): void {
   }
 }
 
-const DEMO_POST_OFFSETS_MS = [
-  25 * 60 * 1000, // 25 minutes ago
-  45 * 60 * 1000, // 45 minutes ago
-  1 * 3600 * 1000, // 1 hour ago
-  2 * 3600 * 1000, // 2 hours ago
-  3 * 3600 * 1000, // 3 hours ago
-  5 * 3600 * 1000, // 5 hours ago
-  7 * 3600 * 1000, // 7 hours ago
-  10 * 3600 * 1000, // 10 hours ago
-  14 * 3600 * 1000, // 14 hours ago
-  1 * 86400 * 1000, // 1 day ago
-  2 * 86400 * 1000, // 2 days ago
-  4 * 86400 * 1000, // 4 days ago
-  5 * 86400 * 1000, // 5 days ago
-  6 * 86400 * 1000, // 6 days ago
-  10 * 86400 * 1000, // 10 days ago
-  15 * 86400 * 1000, // 15 days ago
-  35 * 86400 * 1000, // 35 days ago (formats as full date)
-];
-
 function getInitialPosts(): Post[] {
   // Step 1: Record current wall-clock epoch timestamp
   const now = Date.now();
@@ -173,27 +152,10 @@ function getInitialPosts(): Post[] {
   return sortPostsByDate(combined);
 }
 
-const FAVORITES_STORAGE_KEY = 'knightly_favorite_post_ids';
-
-/**
- * Loads saved favorite post IDs from browser localStorage on web, or returns empty array.
- */
-function getInitialFavoriteIds(): string[] {
-  if (typeof window !== 'undefined' && window.localStorage) {
-    try {
-      const raw = window.localStorage.getItem(FAVORITES_STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch {}
-  }
-  return [];
-}
-
 export function FeedProvider({ children }: { children: React.ReactNode }) {
   const auth = useContext(AuthContext);
   const user = auth?.user ?? null;
+  const savedAccountKey = getSavedPostsStorageKey(user);
 
   const [feedPosts, setFeedPosts] = useState<Post[]>(getInitialPosts);
   // Maintain saved post IDs in a Set for guaranteed O(1) constant-time membership lookups
@@ -205,7 +167,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
   // Re-synchronize saved posts whenever the authenticated student changes
   useEffect(() => {
     setSavedIds(new Set(loadSavedPostIds(user)));
-  }, [user]);
+  }, [savedAccountKey]);
 
   // Toggle saving a post with persistent storage scoped to student account
   const toggleSavePost = useCallback(
@@ -221,7 +183,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         return next;
       });
     },
-    [user]
+    [savedAccountKey]
   );
 
   // O(1) membership check
@@ -243,7 +205,8 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
   // merging with local state while preserving the offline seed data fallback.
   useEffect(() => {
     let mounted = true;
-    fetchFeedPosts().then((livePosts) => {
+    fetchFeedPosts({}, feedPosts).then((livePosts) => {
+      if (livePosts === feedPosts) return;
       if (mounted && livePosts.length > 0) {
         setFeedPosts((prev) => {
           const localOnly = prev.filter((p) => p.id.startsWith('p-local-'));

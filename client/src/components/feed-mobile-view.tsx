@@ -14,7 +14,7 @@
  */
 
 import { useDeferredValue, useMemo, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 
 import {
   FeedEmptyState,
@@ -192,7 +192,7 @@ export function FeedMobileView() {
       initialNumToRender={5}
       maxToRenderPerBatch={5}
       windowSize={5}
-      removeClippedSubviews={true}
+      removeClippedSubviews={Platform.OS === 'android'}
       ListHeaderComponent={listHeader}
       ListEmptyComponent={listEmpty}
       renderItem={({ item: post }: { item: Post }) => (

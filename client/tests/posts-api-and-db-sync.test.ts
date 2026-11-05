@@ -15,7 +15,7 @@ import {
   type DatabasePostRow,
 } from '@/utils/post-database-adapter';
 import { fetchFeedPosts, createPostApi, deletePostApi } from '@/services/posts-api';
-import { feedCategories, type FeedCategory } from '@/data/feed';
+import { feedCategories } from '@/data/feed';
 import { CALVIN_CLUBS } from '@/data/clubs';
 
 test('Posts Database Adapter & API Service Invariants', async (t) => {

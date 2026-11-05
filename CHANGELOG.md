@@ -5,9 +5,25 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
-## [0.8.1] - Unreleased
+## [0.8.2] - Unreleased
 
 ### Changed
+- Update the application version to 0.8.2 and synchronize the displayed version, package metadata, lockfile, and Expo configuration.
+- Refresh the codebase guide for database integration, phantom pages, shared header fading, the modular composer, offline limits, and verification; use repository-relative links.
+- Remove unused client imports, obsolete demo and storage helpers, and stale declarations; clean up changelog merge markers without changing app behavior. Enforce unused-code checks in TypeScript and add `npm --prefix client run typecheck`.
+- Enable shared scroll fade and upward reveal for all page headers by default, including tabs and standalone pages; restore visibility when navigating.
+- Extend native headers across the full screen width and to the top edge, with square top corners, rounded lower corners, and safe-area padding for controls; align login docking and initial content spacing.
+- Give native headers 16px side gaps and a quicker scroll fade (64px grace, then 160px fade); align login docking and preserve web geometry and pacing.
+- Shorten the native floating navigation bar with balanced vertical padding; keep the home-indicator safe area outside its surface to center icons and labels.
+- Keep one stationary header above the pager; update its title, subtitle, and controls when swiping between tabs or navigating phantom pages.
+- **Performance and scroll stability:** Batch starfield rendering into three cached image layers while preserving density/depth ratios; keep the sky stable during keyboard resize and long scrolling. Reserve header space before first paint and avoid restarting fade animations on every scroll event. Share a foreground-only timestamp clock, isolate timestamp/bookmark rendering, memoize post cards, cache/recycle banners, virtualize mobile-web feeds, retain stable card keys, and defer unvisited tab screens. Keep the rendered feed unchanged on offline refresh, skip redundant follow/account updates, parse timestamps once per sort, and always release network deadline timers. Align the root TypeScript configuration with the client for the documented verification command.
+- Keep rounded floating headers across pages, with scroll fade/reveal enabled only on News. Reset visibility on navigation and keep headers visible on other tabs and standalone pages.
+- Measure login's wordmark destination in the shared floating header and crossfade into exact-size text during the final glide, removing the abrupt end-of-flight text swap.
+- Share login's gentle easing with the header fade/reveal, including a subtle lift and scale; morph login into the floating header's inset, radius, and wordmark position on mobile and align desktop docking radius.
+- Keep the news-feed header fully visible for 192px of downward travel, then fade over another 1000px; reveal it after just 20px upward anywhere in the feed, with a smooth transition and touch-through while hidden.
+- Float native and mobile-web tab headers over the scrolling page with shared measured content insets, exposing page content through the rounded corners and surrounding gaps.
+- Remove the gold separator bars from shared headers and native/mobile-web bottom navigation.
+- Inset shared headers and bottom navigation with rounded corners on all four sides across native and mobile web; align desktop masthead and sidebar rounding with the same theme radius.
 - Make dining BLL transaction tests use a fixed clock and cover swipes immediately before, exactly at, and immediately after the current Sunday-midnight UTC reset. Campus timezone policy remains to be confirmed.
 
 ## [0.8.0] - 2026-10-31

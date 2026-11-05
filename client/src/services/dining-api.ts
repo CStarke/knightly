@@ -1,3 +1,5 @@
+import { createTimedFetch } from '@/services/timed-fetch';
+
 /**
  * Calvin Autonomous Dining API Client Service
  *
@@ -96,11 +98,9 @@ export function getDefaultDiningSummary(): DiningSummary {
  */
 export async function fetchDiningVenuesApi(): Promise<EnrichedDiningVenue[]> {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const request = createTimedFetch(2500);
 
-    const res = await fetch(`${API_BASE_URL}/dining/venues`, { signal: controller.signal });
-    clearTimeout(timeoutId);
+    const res = await request(`${API_BASE_URL}/dining/venues`, {});
 
     if (res.ok) {
       const data = await res.json();
@@ -146,12 +146,10 @@ export async function fetchDiningSummaryApi(studentId?: string): Promise<DiningS
   const targetId = studentId || defaultStudent.id;
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const request = createTimedFetch(2500);
 
     const url = `${API_BASE_URL}/dining/summary?studentId=${encodeURIComponent(targetId)}`;
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
+    const res = await request(url, {});
 
     if (res.ok) {
       const data = await res.json();
@@ -189,16 +187,13 @@ export async function recordDiningTransactionApi(
   payload: DiningTransactionPayload
 ): Promise<DiningTransactionResult> {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const request = createTimedFetch(2500);
 
-    const res = await fetch(`${API_BASE_URL}/dining/transaction`, {
+    const res = await request(`${API_BASE_URL}/dining/transaction`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-      signal: controller.signal,
     });
-    clearTimeout(timeoutId);
 
     if (res.ok) {
       const data = await res.json();

@@ -1,3 +1,5 @@
+import { createTimedFetch } from '@/services/timed-fetch';
+
 /**
  * Posts & Unified Feed API Client Service
  *
@@ -45,10 +47,9 @@ export interface CreatePostPayload {
  * @param options - Query filters and pagination
  * @returns Array of Post objects ready for feed display
  */
-export async function fetchFeedPosts(options: FetchPostsOptions = {}): Promise<Post[]> {
+export async function fetchFeedPosts(options: FetchPostsOptions = {}, fallbackPosts?: Post[]): Promise<Post[]> {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const request = createTimedFetch(5000);
 
     const queryParams = new URLSearchParams();
     if (options.category && options.category.toLowerCase() !== 'all') {
@@ -65,8 +66,7 @@ export async function fetchFeedPosts(options: FetchPostsOptions = {}): Promise<P
     }
 
     const url = `${API_BASE_URL}/posts${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
+    const res = await request(url, {});
 
     if (res.ok) {
       const rows: DatabasePostRow[] = await res.json();
@@ -79,6 +79,8 @@ export async function fetchFeedPosts(options: FetchPostsOptions = {}): Promise<P
   }
 
   // ISOLATED HARDCODED FALLBACK (Required by Sprint 1 SLO SC2)
+  // Keep an already-rendered feed unchanged offline instead of rebuilding/re-timestamping its cards.
+  if (fallbackPosts) return fallbackPosts;
   const fallbackScraped = CALVIN_EVENTS_SEED.map((e, idx) =>
     adaptCalvinEventToPost(e, Date.now() - idx * 3600 * 1000)
   );
@@ -95,16 +97,13 @@ export async function fetchFeedPosts(options: FetchPostsOptions = {}): Promise<P
  */
 export async function createPostApi(payload: CreatePostPayload): Promise<Post | null> {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const request = createTimedFetch(8000);
 
-    const res = await fetch(`${API_BASE_URL}/posts`, {
+    const res = await request(`${API_BASE_URL}/posts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-      signal: controller.signal,
     });
-    clearTimeout(timeoutId);
 
     if (res.ok) {
       const createdRow: DatabasePostRow = await res.json();
@@ -129,14 +128,11 @@ export async function createPostApi(payload: CreatePostPayload): Promise<Post | 
  */
 export async function deletePostApi(id: string): Promise<boolean> {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const request = createTimedFetch(5000);
 
-    const res = await fetch(`${API_BASE_URL}/posts/${encodeURIComponent(id)}`, {
+    const res = await request(`${API_BASE_URL}/posts/${encodeURIComponent(id)}`, {
       method: 'DELETE',
-      signal: controller.signal,
     });
-    clearTimeout(timeoutId);
 
     return res.ok;
   } catch {

@@ -62,7 +62,8 @@ const categoryOptions: ("All" | FeedCategory)[] = [
 
 export default function FeedScreen() {
   const { width } = useWindowDimensions();
-  const isMobileApp = Platform.OS !== "web";
+  // Narrow mobile browsers need the same bounded render window as native phones.
+  const isMobileApp = Platform.OS !== "web" || width < 768;
 
   // Dedicated audience scope ("Following" vs "All Campus" vs "Saved")
   // Saved posts is accessible across both web and mobile toggle bars.
@@ -263,11 +264,12 @@ export default function FeedScreen() {
       <ScreenFlatList
         style={styles.screenInner}
         data={evenRows}
-        keyExtractor={(_, rowIdx) => `grid-row-${rowIdx}`}
+        // Keep existing cards mounted when a new post is prepended or filters change.
+        keyExtractor={(row) => row.map((post) => post.id).join(':')}
         initialNumToRender={5}
         maxToRenderPerBatch={5}
         windowSize={5}
-        removeClippedSubviews={true}
+        removeClippedSubviews={Platform.OS === 'android'}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={listEmpty}
         renderItem={({ item: row }) => (

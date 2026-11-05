@@ -7,26 +7,13 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import {
-  Platform,
-  StyleSheet,
-  TextInput,
-  View,
-  type NativeSyntheticEvent,
-  type StyleProp,
-  type TextInputKeyPressEvent,
-  type ViewStyle,
-} from 'react-native';
+import { Platform, StyleSheet, TextInput, View, type StyleProp, type TextInputKeyPressEvent, type ViewStyle } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { BlinkingCursor } from '@/components/ui/blinking-cursor';
 import { Brand, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import {
-  expandTwoDigitYear,
-  getMaxDaysForMonth,
-  parseDateSegments,
-} from '@/utils/date-format';
+import { expandTwoDigitYear, getMaxDaysForMonth } from '@/utils/date-format';
 
 // ============================================================================
 // Types & Contracts

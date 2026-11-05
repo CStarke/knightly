@@ -30,7 +30,7 @@ test('standalone map keeps web history, direct-link fallback, and header-only sw
     ['react-native-reanimated', { runOnJS: (callback: unknown) => callback }],
     ['@/components/campus-map-content', { CampusMapContent: 'MapContent' }],
     ['@/components/ui/header-back-button', { HeaderBackButton: 'Back' }],
-    ['@/components/ui/screen', { Screen: 'Screen' }],
+    ['@/components/ui/header-overlay', { HeaderOverlay: 'HeaderOverlay' }],
     ['@/components/ui/swipeable-app-header', { SwipeableAppHeader: 'Header' }],
   ]);
   const loader = Module as unknown as { _load: (request: string, ...args: unknown[]) => unknown };
@@ -40,6 +40,7 @@ test('standalone map keeps web history, direct-link fallback, and header-only sw
   try {
     const Screen = (require('@/app/campus-map') as { default: () => Element }).default;
     const screen = Screen();
+    assert.equal(screen.props.fadeOnScroll, undefined, 'map route inherits shared header behavior; map panning does not emit page scroll');
     const header = screen.props.header as Element;
     const back = header.props.left as Element;
     assert.equal(header.props.gesture, pan);

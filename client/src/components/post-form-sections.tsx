@@ -1,15 +1,5 @@
-import React from 'react';
-import {
-  type LayoutChangeEvent,
-  type NativeSyntheticEvent,
-  Pressable,
-  StyleProp,
-  StyleSheet,
-  type TextInputContentSizeChangeEvent,
-  type TextStyle,
-  View,
-  type ViewStyle,
-} from 'react-native';
+
+import { type LayoutChangeEvent, Pressable, StyleProp, StyleSheet, type TextInputContentSizeChangeEvent, type TextStyle, View, type ViewStyle } from 'react-native';
 
 import { FieldLabel } from '@/components/ui/field-label';
 import { FormTextInput } from '@/components/ui/form-text-input';

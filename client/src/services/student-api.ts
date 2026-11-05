@@ -1,3 +1,5 @@
+import { createTimedFetch } from '@/services/timed-fetch';
+
 /**
  * Student Academic Profile & FERPA Directory API Service
  *
@@ -96,8 +98,7 @@ export function getDefaultStudentProfile(): StudentProfile {
  */
 export async function fetchStudentProfile(username?: string): Promise<StudentProfile> {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const request = createTimedFetch(2500);
 
     const queryParams = new URLSearchParams();
     if (username) {
@@ -105,8 +106,7 @@ export async function fetchStudentProfile(username?: string): Promise<StudentPro
     }
 
     const url = `${API_BASE_URL}/student${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
+    const res = await request(url, {});
 
     if (res.ok) {
       const data = await res.json();
@@ -157,16 +157,13 @@ export async function updateDirectoryPreferenceApi(
   params: UpdateDirectoryPreferenceParams
 ): Promise<UpdateDirectoryResult> {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const request = createTimedFetch(2500);
 
-    const res = await fetch(`${API_BASE_URL}/student/directory-preference`, {
+    const res = await request(`${API_BASE_URL}/student/directory-preference`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
-      signal: controller.signal,
     });
-    clearTimeout(timeoutId);
 
     if (res.ok) {
       const data = await res.json();

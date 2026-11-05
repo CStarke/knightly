@@ -4,6 +4,7 @@ import { useSharedValue } from 'react-native-reanimated';
 
 import { ClubsDirectoryView } from '@/components/clubs-directory-view';
 import { AppHeader } from '@/components/ui/app-header';
+import { HeaderOverlay } from '@/components/ui/header-overlay';
 import { HeaderBackButton } from '@/components/ui/header-back-button';
 import { ParallaxStarfield } from '@/components/ui/starfield';
 import { StarfieldContext } from '@/context/starfield-context';
@@ -26,7 +27,7 @@ export default function ClubsDirectoryScreen() {
     <StarfieldContext.Provider value={{ translateX, scrollY }}>
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <ParallaxStarfield translateX={translateX} scrollY={scrollY} />
-        <AppHeader
+        <HeaderOverlay header={<AppHeader
           title="Campus Clubs"
           subtitle="Student orgs & communities"
           left={
@@ -35,8 +36,9 @@ export default function ClubsDirectoryScreen() {
               accessibilityLabel="Go back"
             />
           }
-        />
+        />}>
         <ClubsDirectoryView />
+        </HeaderOverlay>
       </View>
     </StarfieldContext.Provider>
   );

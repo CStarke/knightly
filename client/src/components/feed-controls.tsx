@@ -14,7 +14,6 @@
  * 4. Zero duplicate styling or markup drift between mobile and desktop views.
  */
 
-import React from 'react';
 import {
   Pressable,
   ScrollView,
