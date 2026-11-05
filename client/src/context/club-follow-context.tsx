@@ -44,38 +44,6 @@ export const DEFAULT_FOLLOWED_CLUB_IDS: string[] = [
   'student-activities',
 ];
 
-
-function getFollowStorageKey(studentId: string): string {
-  return `knightly_followed_club_ids_${studentId.toLowerCase()}`;
-}
-
-function loadLocalFollowedIds(studentId: string, defaults: string[]): Set<string> {
-  const set = new Set(defaults.map((d) => d.toLowerCase()));
-  if (typeof window !== 'undefined' && window.localStorage) {
-    try {
-      const raw = window.localStorage.getItem(getFollowStorageKey(studentId));
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          parsed.forEach((id) => set.add(String(id).toLowerCase()));
-        }
-      }
-    } catch {}
-  }
-  return set;
-}
-
-function persistLocalFollowedIds(studentId: string, ids: Set<string>): void {
-  if (typeof window !== 'undefined' && window.localStorage) {
-    try {
-      window.localStorage.setItem(
-        getFollowStorageKey(studentId),
-        JSON.stringify(Array.from(ids))
-      );
-    } catch {}
-  }
-}
-
 type ClubFollowContextType = {
   followedClubIds: Set<string>;
   isFollowing: (clubId: string) => boolean;

@@ -31,7 +31,7 @@ export default function CampusMapScreen(): ReactElement {
     }), [width, goBack]);
 
   return (
-    <HeaderOverlay fadeOnScroll={false} header={
+    <HeaderOverlay header={
       <SwipeableAppHeader
         gesture={headerGesture}
         title={meta.defaultTitle ?? meta.displayName}

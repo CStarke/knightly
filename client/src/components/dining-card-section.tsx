@@ -20,17 +20,7 @@ import { MealPlanStats } from '@/components/meal-plan-stats';
 import { Brand, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
 import { useDiningActivity } from '@/context/dining-activity-context';
-import {
-  flexMealsRemaining,
-  getSwipeResetText,
-  getSwipesTotal,
-  guestPassesRemaining,
-  hasFlexMeals,
-  hasGuestPasses,
-  isBlockPlan,
-  mealPlan,
-  swipesRemaining,
-} from '@/data/dining';
+import { hasFlexMeals, hasGuestPasses, mealPlan } from '@/data/dining';
 import { fullName } from '@/data/student';
 import { useTheme } from '@/hooks/use-theme';
 import {

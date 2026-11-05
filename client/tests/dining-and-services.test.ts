@@ -3,33 +3,8 @@ import assert from 'node:assert';
 import fs from 'node:fs';
 import path from 'node:path';
 import { resolveFeedColumnCount } from '@/data/feed';
-import {
-  CALVIN_MEAL_PLANS,
-  diningHalls,
-  diningDollarsSpentLastWeek,
-  flexMealsRemaining,
-  formatAmount,
-  getFlexMealsRemaining,
-  getGuestPassesRemaining,
-  getStudentMealPlan,
-  getSwipeMetricLabel,
-  getSwipeResetText,
-  getSwipesRemaining,
-  getSwipesTotal,
-  guestPassesRemaining,
-  hallStatus,
-  hasFlexMeals,
-  hasGuestPasses,
-  isBlockPlan,
-  knightBucksLabel,
-  knightBucksSpentLastWeek,
-  mealPlan,
-  swipesRemaining,
-  swipesUsedLastWeek,
-  transactions,
-  type Transaction,
-} from '@/data/dining';
-import { student } from '@/data/student';
+import { CALVIN_MEAL_PLANS, diningHalls, diningDollarsSpentLastWeek, flexMealsRemaining, formatAmount, getFlexMealsRemaining, getSwipeMetricLabel, getSwipeResetText, getSwipesRemaining, getSwipesTotal, guestPassesRemaining, hallStatus, isBlockPlan, knightBucksLabel, knightBucksSpentLastWeek, mealPlan, swipesRemaining, swipesUsedLastWeek, transactions, type Transaction } from '@/data/dining';
+
 import { departments, people, type Person, type PersonRole } from '@/data/directory';
 import { emergencyContacts, safetyAlerts, type SafetyAlert } from '@/data/safety';
 

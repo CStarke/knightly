@@ -1,9 +1,9 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedReaction, useAnimatedProps, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { advanceHeaderScroll, INITIAL_HEADER_SCROLL } from '@/utils/header-scroll';
 import { HeaderMotion } from '@/constants/motion';
-import { Spacing } from '@/constants/theme';
+import { HeaderTopInset, Spacing } from '@/constants/theme';
 import { getAppHeaderHeight } from '@/components/ui/app-header';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -20,8 +20,8 @@ export function useHeaderOverlayInset(): number {
   return useContext(HeaderOverlayInset);
 }
 
-/** Lets page content scroll beneath the header while keeping initial content clear of it. */
-export function HeaderOverlay({ header, children, fadeOnScroll = false, scrollKey }: {
+/** Reserves initial content space and fades every page header on downward scroll by default. */
+export function HeaderOverlay({ header, children, fadeOnScroll = true, scrollKey }: {
   header: ReactNode;
   children: ReactNode;
   fadeOnScroll?: boolean;
@@ -30,7 +30,7 @@ export function HeaderOverlay({ header, children, fadeOnScroll = false, scrollKe
 }) {
   const insets = useSafeAreaInsets();
   // Reserve the header before the first paint; measuring from zero made the entire page jump.
-  const [height, setHeight] = useState(() => getAppHeaderHeight(insets.top) + Spacing.two);
+  const [height, setHeight] = useState(() => getAppHeaderHeight(insets.top) + HeaderTopInset);
   const scrollY = useSharedValue(0);
   const scrollState = useSharedValue(INITIAL_HEADER_SCROLL);
   const opacity = useSharedValue(1);
@@ -47,7 +47,10 @@ export function HeaderOverlay({ header, children, fadeOnScroll = false, scrollKe
     (offset) => {
       if (!fadeOnScroll) return;
       const previous = scrollState.value;
-      const next = advanceHeaderScroll(previous, offset);
+      // Native headers clear the page after a short swipe; preserve web's existing scroll pacing.
+      const next = Platform.OS === 'web'
+        ? advanceHeaderScroll(previous, offset)
+        : advanceHeaderScroll(previous, offset, 160, 64);
       if (next === previous) return;
       scrollState.value = next;
       // Downward progress follows the finger directly: restarting withTiming every frame caused lag.

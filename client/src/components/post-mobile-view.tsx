@@ -7,7 +7,7 @@
  * and edge-to-edge mobile ergonomic controls.
  */
 
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   Dimensions,
   Keyboard,
@@ -39,7 +39,7 @@ import { ScreenScrollView } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
 import { type PostComposerState } from '@/hooks/use-post-composer';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useTheme } from '@/hooks/use-theme';
+
 import { handleSmoothInputFocus } from '@/utils/smooth-input-focus';
 
 export interface PostMobileViewProps {
@@ -47,7 +47,7 @@ export interface PostMobileViewProps {
 }
 
 export function PostMobileView({ composer }: PostMobileViewProps) {
-  const theme = useTheme();
+
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 

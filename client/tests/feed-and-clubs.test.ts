@@ -7,18 +7,7 @@ import {
   FOLLOWING_FEED_SEARCH_PLACEHOLDER,
   getFeedSearchPlaceholder,
 } from '@/components/feed-controls';
-import {
-  feedCategories,
-  filterFeedPosts,
-  followedOrgs,
-  posts,
-  resolveFeedColumnCount,
-  searchPosts,
-  forYouPosts,
-  getPostsByClubId,
-  type FeedCategory,
-  type Post,
-} from '@/data/feed';
+import { feedCategories, filterFeedPosts, followedOrgs, posts, resolveFeedColumnCount, searchPosts, getPostsByClubId, type FeedCategory, type Post } from '@/data/feed';
 import { formatRelativeTime } from '@/utils/date-format';
 import { distributeIntoRows } from '@/utils/chip-layout';
 import { adaptCalvinEventToPost } from '@/utils/calvin-event-adapter';

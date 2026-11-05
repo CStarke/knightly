@@ -16,8 +16,6 @@
  * All state and business logic are centralized in `usePostComposer()`.
  */
 
-import React from 'react';
-
 import { DatePickerModal, parseDateOrDefault } from '@/components/date-picker-modal';
 import { PostMobileView } from '@/components/post-mobile-view';
 import { PostNotLeaderView } from '@/components/post-not-leader-view';

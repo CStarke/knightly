@@ -17,9 +17,11 @@ const DOWNWARD_FADE_DISTANCE = 1000;
  * Negative overscroll is clamped to zero so top bounce cannot hide the masthead.
  * @param previous - State from the preceding scroll event.
  * @param rawOffset - Current vertical scroll offset in logical pixels.
+ * @param fadeDistance - Downward pixels over which opacity falls from one to zero.
+ * @param graceDistance - Downward pixels before fading starts.
  * @returns Fresh immutable state suitable for a Reanimated shared value.
  */
-export function advanceHeaderScroll(previous: HeaderScrollState, rawOffset: number): HeaderScrollState {
+export function advanceHeaderScroll(previous: HeaderScrollState, rawOffset: number, fadeDistance = DOWNWARD_FADE_DISTANCE, graceDistance = DOWNWARD_GRACE_DISTANCE): HeaderScrollState {
   'worklet';
   if (!Number.isFinite(rawOffset)) return previous;
   const offset = Math.max(0, rawOffset);
@@ -32,8 +34,8 @@ export function advanceHeaderScroll(previous: HeaderScrollState, rawOffset: numb
     return { offset, down: 0, up, opacity: up >= 20 ? 1 : previous.opacity };
   }
 
-  // Restart the long fade after a direction change instead of using absolute page depth.
-  const down = Math.min(DOWNWARD_GRACE_DISTANCE + DOWNWARD_FADE_DISTANCE, previous.down + delta);
-  const opacity = Math.min(previous.opacity, Math.max(0, 1 - Math.max(0, down - DOWNWARD_GRACE_DISTANCE) / DOWNWARD_FADE_DISTANCE));
+  // Restart the fade after a direction change instead of using absolute page depth.
+  const down = Math.min(graceDistance + fadeDistance, previous.down + delta);
+  const opacity = Math.min(previous.opacity, Math.max(0, 1 - Math.max(0, down - graceDistance) / fadeDistance));
   return { offset, down, up: 0, opacity };
 }

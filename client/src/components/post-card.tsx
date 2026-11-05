@@ -3,8 +3,6 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
-const isWeb = Platform.OS === 'web';
-
 import { ThemedText } from '@/components/themed-text';
 import { Badge, type BadgeTone } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -492,5 +490,4 @@ function MetaBadge({
     </View>
   );
 }
-
 

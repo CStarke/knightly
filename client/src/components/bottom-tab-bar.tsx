@@ -13,7 +13,7 @@
  */
 
 import type { TabListProps, TabTriggerSlotProps } from 'expo-router/ui';
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import {
   AppState,
   GestureResponderEvent,

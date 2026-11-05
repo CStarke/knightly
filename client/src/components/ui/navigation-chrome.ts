@@ -1,13 +1,16 @@
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 
-import { Radius, Spacing } from '@/constants/theme';
+import { HeaderHorizontalInset, HeaderTopInset, Radius, Spacing } from '@/constants/theme';
 
 /** Inset navigation surfaces so all four rounded corners show against the page. */
 export const navigationChromeStyles = StyleSheet.create({
   header: {
     borderRadius: Radius.xl,
-    marginHorizontal: Spacing.two,
-    marginTop: Spacing.two,
+    // Square native top corners to fill the status-bar region; retain rounded lower corners.
+    borderTopLeftRadius: Platform.OS === 'web' ? Radius.xl : 0,
+    borderTopRightRadius: Platform.OS === 'web' ? Radius.xl : 0,
+    marginHorizontal: HeaderHorizontalInset,
+    marginTop: HeaderTopInset,
     overflow: 'hidden',
   },
   bottomBar: {

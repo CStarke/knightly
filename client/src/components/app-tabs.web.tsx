@@ -232,7 +232,7 @@ export default function AppTabs() {
   const tabNavValue = useMemo<TabNavigationContextValue>(() => ({
     activeTabIndex: pathname === '/post' ? 4 : pathname === '/dining' ? 1 : pathname === '/safety' ? 2 : pathname === '/directory' ? 3 : 0,
     setActiveTabIndex: () => {},
-    navigateToTab: (targetIndex: number, targetHref?: string) => {
+    navigateToTab: (_targetIndex: number, targetHref?: string) => {
       const href = targetHref || '/';
       router.navigate(href as any);
     },
@@ -317,7 +317,7 @@ export default function AppTabs() {
                       /* Mobile Web Viewport (< 768px): Header + Scrollable Viewport + Grounded Bottom Bar */
                       <>
                         <SmartAppBanner />
-                        <HeaderOverlay fadeOnScroll={pathname === '/'} scrollKey={pathname} header={<AppHeader
+                        <HeaderOverlay scrollKey={pathname} header={<AppHeader
                           title={currentHeader.title}
                           subtitle={currentHeader.subtitle}
                           right={currentHeader.right}
@@ -466,7 +466,7 @@ type SidebarProps = TabListProps;
  */
 function Sidebar({ children, ...props }: SidebarProps) {
   const theme = useTheme();
-  const { user, isAuthenticated } = useAuth();
+  const { user } = useAuth();
   const { openClubsDirectory } = useClubsNavigation();
   const { isCollapsed, toggleCollapse, setIsHovered, expandProgress } = useSidebar();
 

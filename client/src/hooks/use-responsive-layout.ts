@@ -77,6 +77,7 @@ export function resolveColumnCount(width: number, isWeb: boolean = Platform.OS =
  */
 export function useResponsiveLayout(): ResponsiveLayoutState {
   const { width, height } = useWindowDimensions();
+
   const isWeb = Platform.OS === 'web';
   const breakpoint = resolveBreakpoint(width);
   const isCompact = width < 768;

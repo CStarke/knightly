@@ -2,16 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import fs from 'node:fs';
 import path from 'node:path';
-import {
-  DateUtils,
-  TimeUtils,
-  getMaxDaysForMonth,
-  parseDateSegments,
-  parseTimeToMinutes,
-  resolveEventTimeRange,
-  validateDate,
-  validateTimeRange,
-} from '@/utils/date-format';
+import { TimeUtils, getMaxDaysForMonth, parseTimeToMinutes, resolveEventTimeRange, validateDate, validateTimeRange } from '@/utils/date-format';
 import {
   formatDisplayDate,
   formatSingleDateInput,
@@ -213,7 +204,6 @@ describe('Date & Time Form Controls Domain', () => {
     });
 
     it('handles multiple consecutive backspaces smoothly down to empty string', () => {
-      let current = '10 / 15 / 2026';
       const steps = ['10 / 15 / 202', '10 / 15 / 20', '10 / 15 / 2', '10 / 15 / ', '10 / 1', '10 / ', '1'];
       for (const step of steps) {
         const next = step.slice(0, -1);

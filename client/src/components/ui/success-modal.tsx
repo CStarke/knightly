@@ -43,7 +43,6 @@ import { Button } from '@/components/ui/button';
 import { Icon, type MaterialSymbolName, type SfSymbolName } from '@/components/ui/icon';
 import { ModalDialog } from '@/components/ui/modal-dialog';
 import { Brand, Radius, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
 
 export type SuccessModalButton = {
   label: string;
@@ -88,7 +87,6 @@ export function SuccessModal({
   accentColor = Brand.renewGreen,
   style,
 }: SuccessModalProps) {
-  const theme = useTheme();
 
   const scale = useSharedValue(0.3);
   const opacity = useSharedValue(0);

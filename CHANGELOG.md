@@ -5,11 +5,17 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
-<<<<<<< HEAD
-=======
-## [0.8.1] - Unreleased
+## [0.8.2] - Unreleased
 
 ### Changed
+- Update the application version to 0.8.2 and synchronize the displayed version, package metadata, lockfile, and Expo configuration.
+- Refresh the codebase guide for database integration, phantom pages, shared header fading, the modular composer, offline limits, and verification; use repository-relative links.
+- Remove unused client imports, obsolete demo and storage helpers, and stale declarations; clean up changelog merge markers without changing app behavior. Enforce unused-code checks in TypeScript and add `npm --prefix client run typecheck`.
+- Enable shared scroll fade and upward reveal for all page headers by default, including tabs and standalone pages; restore visibility when navigating.
+- Extend native headers across the full screen width and to the top edge, with square top corners, rounded lower corners, and safe-area padding for controls; align login docking and initial content spacing.
+- Give native headers 16px side gaps and a quicker scroll fade (64px grace, then 160px fade); align login docking and preserve web geometry and pacing.
+- Shorten the native floating navigation bar with balanced vertical padding; keep the home-indicator safe area outside its surface to center icons and labels.
+- Keep one stationary header above the pager; update its title, subtitle, and controls when swiping between tabs or navigating phantom pages.
 - **Performance and scroll stability:** Batch starfield rendering into three cached image layers while preserving density/depth ratios; keep the sky stable during keyboard resize and long scrolling. Reserve header space before first paint and avoid restarting fade animations on every scroll event. Share a foreground-only timestamp clock, isolate timestamp/bookmark rendering, memoize post cards, cache/recycle banners, virtualize mobile-web feeds, retain stable card keys, and defer unvisited tab screens. Keep the rendered feed unchanged on offline refresh, skip redundant follow/account updates, parse timestamps once per sort, and always release network deadline timers. Align the root TypeScript configuration with the client for the documented verification command.
 - Keep rounded floating headers across pages, with scroll fade/reveal enabled only on News. Reset visibility on navigation and keep headers visible on other tabs and standalone pages.
 - Measure login's wordmark destination in the shared floating header and crossfade into exact-size text during the final glide, removing the abrupt end-of-flight text swap.
@@ -34,7 +40,6 @@ on, and trailing-slot visibility.
 - Reuse the standard header and map body across the native phantom page and the existing web/direct-link route. Preserve map pan/zoom controls, offline data, and the existing load-error message.
 - Isolate the new subpage lifecycle in a reusable hook; keep the map rendered until its close animation finishes.
 
->>>>>>> 74880163ce99c8f4ff36d0878ad96f4e880ff89d
 ## [0.7.1] - 2026-10-29
 
 ### Fixed

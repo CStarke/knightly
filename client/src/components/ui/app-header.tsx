@@ -1,16 +1,10 @@
 import type { PropsWithChildren, ReactNode, Ref } from "react";
-import { type LayoutChangeEvent, Platform, type StyleProp, StyleSheet, View, type ViewStyle, type ViewInstance } from "react-native";
+import { type LayoutChangeEvent, type StyleProp, StyleSheet, View, type ViewStyle, type ViewInstance } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
 import { navigationChromeStyles } from "@/components/ui/navigation-chrome";
-import {
-  Brand,
-  Fonts,
-  MaxContentWidth,
-  Spacing,
-  WebHeaderInset,
-} from "@/constants/theme";
+import { Brand, Fonts, MaxContentWidth, Spacing } from "@/constants/theme";
 
 type AppHeaderProps = PropsWithChildren<{
   title: string;

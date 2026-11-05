@@ -1,12 +1,5 @@
 import React, { useState } from 'react';
-import {
-  type LayoutChangeEvent,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { type LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { MaskedTimeInput, type MaskedTimeInputRef } from '@/components/masked-time-input';
 import { SegmentedDateInput } from '@/components/segmented-date-input';
@@ -20,7 +13,6 @@ import { Icon } from '@/components/ui/icon';
 import { ModalDialog, ModalHeader } from '@/components/ui/modal-dialog';
 import { Segmented } from '@/components/ui/segmented';
 import { Brand, Radius, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
 
 export const MAX_CUSTOM_WHEN_LENGTH = 25;
 
@@ -95,7 +87,7 @@ export function PostDateTimeSection({
   flat = false,
   onLayout,
 }: PostDateTimeSectionProps) {
-  const theme = useTheme();
+
   const [showInfoModal, setShowInfoModal] = useState(false);
 
   const SubCardContainer = flat ? View : Card;

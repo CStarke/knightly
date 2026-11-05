@@ -27,13 +27,13 @@ import { SmartAppBanner, isSmartAppBannerDismissed, SMART_APP_BANNER_HEIGHT } fr
 import { ThemedText } from '@/components/themed-text';
 import { AppHeader, getAppHeaderHeight } from '@/components/ui/app-header';
 import { Icon } from '@/components/ui/icon';
-import { Brand, Fonts, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
+import { Brand, Fonts, HeaderTopInset, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { APP_VERSION } from '@/constants/version';
 import { HeaderMotion } from '@/constants/motion';
 import { getHeaderDockingFrame } from '@/utils/header-docking';
 import { useAuth } from '@/context/auth-context';
 import { student } from '@/data/student';
-import { useTheme } from '@/hooks/use-theme';
+
 import {
   PASSWORD_MASK_DELAY_MS,
   PASSWORD_MASK_DOT,
@@ -48,7 +48,6 @@ export function LoginScreen() {
     Math.max(Dimensions.get('screen').height, windowHeight) + insets.bottom;
 
   const { signIn, user, setAppMounted } = useAuth();
-  const theme = useTheme();
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -114,7 +113,7 @@ export function LoginScreen() {
   const defaultHeaderX = isDesktopWeb
     ? 12 + Spacing.three + 2
     : getHeaderDockingFrame(1, windowWidth, bannerOffset).wordmarkLeft;
-  const defaultHeaderY = isDesktopWeb ? 12 + Spacing.four : bannerOffset + Spacing.two + headerPaddingTop;
+  const defaultHeaderY = isDesktopWeb ? 12 + Spacing.four : bannerOffset + HeaderTopInset + headerPaddingTop;
   const defaultHeroWidth = 136;
   const defaultHeroHeight = 42;
   const formMainTop = Math.max(bannerOffset + headerPaddingTop + 30, (windowHeight - 402) / 2);
@@ -518,6 +517,8 @@ export function LoginScreen() {
     const { left, top, width, borderRadius } = getHeaderDockingFrame(wordmarkProgress.value, windowWidth, bannerOffset);
     return {
       left, top, width, borderRadius,
+      borderTopLeftRadius: Platform.OS === 'web' ? borderRadius : 0,
+      borderTopRightRadius: Platform.OS === 'web' ? borderRadius : 0,
       right: 'auto' as const,
       height: headerHeight.value,
       overflow: 'hidden' as const,

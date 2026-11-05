@@ -150,8 +150,6 @@ type ClubLeadershipContextType = {
   completeClaimSetup: () => void;
 };
 
-const CLAIM_BANNER_DISMISSED_KEY = 'knightly_claim_banner_dismissed';
-
 const ClubLeadershipContext = createContext<ClubLeadershipContextType | null>(null);
 
 export function ClubLeadershipProvider({ children }: { children: ReactNode }) {

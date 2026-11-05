@@ -21,7 +21,6 @@
  * 4. 0-Bleed Web Tokens: Strict adherence to `@/constants/theme` tokens and zero raw hex values.
  */
 
-import React from 'react';
 import {
   StyleSheet,
   useWindowDimensions,
@@ -49,7 +48,6 @@ import { Screen } from '@/components/ui/screen';
 import { Brand, Radius, Spacing } from '@/constants/theme';
 import { type PostComposerState } from '@/hooks/use-post-composer';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useTheme } from '@/hooks/use-theme';
 
 export interface PostWebViewProps {
   composer: PostComposerState;
@@ -57,7 +55,7 @@ export interface PostWebViewProps {
 
 export function PostWebView({ composer }: PostWebViewProps) {
   const { width } = useWindowDimensions();
-  const theme = useTheme();
+
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 

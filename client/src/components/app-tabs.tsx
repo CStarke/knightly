@@ -7,7 +7,7 @@ import {
   type TabListProps,
   type TabTriggerSlotProps,
 } from 'expo-router/ui';
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AppState,
   BackHandler,
@@ -46,7 +46,7 @@ import { SwipeableAppHeader } from '@/components/ui/swipeable-app-header';
 import { HeaderBackButton } from '@/components/ui/header-back-button';
 import { HeaderOverlay } from '@/components/ui/header-overlay';
 import { navigationChromeStyles } from '@/components/ui/navigation-chrome';
-import { Icon, type MaterialSymbolName, type SfSymbolName } from '@/components/ui/icon';
+import { Icon } from '@/components/ui/icon';
 import { ParallaxStarfield } from '@/components/ui/starfield';
 import { getTabHeader } from '@/constants/tab-headers';
 import { PHANTOM_TABS, getBlankAfterSlot } from '@/constants/phantom-tabs';
@@ -171,7 +171,6 @@ const dismissKeyboard = () => {
  * resume intent drops to '/' triggered by Android native activities (e.g. ImagePicker).
  */
 
-
 export default function AppTabs() {
   const bottomBarTranslateY = useSharedValue(0);
   const { isLeader } = useClubLeadership();
@@ -293,7 +292,6 @@ function SwipeableTabPager({
     return 390; // Standard phone viewport fallback
   }, [width]);
 
-  const tabIndex = tabs.findIndex((tab) => tab.href === pathname);
   const activeTabIndexRef = useRef(activeTabIndex);
   activeTabIndexRef.current = activeTabIndex;
 
@@ -1128,6 +1126,7 @@ function SwipeableTabPager({
 
   const activeClub = activeClubId ? getClubById(activeClubId) : undefined;
 
+  // Keep the header outside the moving track; its contents follow the active destination.
   const currentTab = tabs[activeTabIndex] ?? tabs[0];
   const headerInfo = getTabHeader(currentTab.name);
 
@@ -1244,7 +1243,7 @@ function SwipeableTabPager({
                 {/* Parallax Starfield with 3 depth layers reacting to both horizontal and vertical scrolling */}
                 <ParallaxStarfield translateX={translateX} scrollY={scrollY} />
 
-                <HeaderOverlay fadeOnScroll={activeTabIndex === 0 && clubsLevel === 0 && !claimSetupState.isOpen && !showClubSetup}
+                <HeaderOverlay
                   scrollKey={`${activeTabIndex}:${clubsLevel}:${activeClubId}:${claimSetupState.isOpen}:${showClubSetup}:${isActivityOpen}`}
                   header={<SwipeableAppHeader
                   gesture={campusMap.headerGesture}
@@ -1386,6 +1385,8 @@ function BottomBar({
         navigationChromeStyles.bottomBar,
         {
           backgroundColor: theme.backgroundElement,
+          // Keep the home-indicator safe area outside the floating surface so its icons stay centered.
+          bottom: Math.max(insets.bottom, Spacing.two),
         },
         animatedStyle,
       ]}>
@@ -1396,7 +1397,6 @@ function BottomBar({
           styles.bar,
           {
             backgroundColor: theme.backgroundElement,
-            paddingBottom: Math.max(insets.bottom, Spacing.two),
           },
           style,
         ]}>
@@ -1559,7 +1559,7 @@ const styles = StyleSheet.create({
     width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: Spacing.one + 2,
+    paddingVertical: Spacing.one + 2,
     paddingHorizontal: Spacing.one,
   },
   tab: {

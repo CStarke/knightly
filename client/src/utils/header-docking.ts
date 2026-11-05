@@ -1,4 +1,4 @@
-import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
+import { HeaderHorizontalInset, HeaderTopInset, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 
 /**
  * Calculates the mobile login surface's flight into the shared floating masthead.
@@ -10,13 +10,12 @@ import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 export function getHeaderDockingFrame(progress: number, width: number, bannerOffset: number) {
   'worklet';
   const p = Math.max(0, Math.min(1, progress));
-  const inset = Spacing.two;
-  const targetWidth = Math.max(0, width - inset * 2);
+  const targetWidth = Math.max(0, width - HeaderHorizontalInset * 2);
   return {
-    left: inset * p,
-    top: bannerOffset + inset * p,
+    left: HeaderHorizontalInset * p,
+    top: bannerOffset + HeaderTopInset * p,
     width: width + (targetWidth - width) * p,
     borderRadius: Radius.xl * p,
-    wordmarkLeft: inset + Math.max(0, (targetWidth - MaxContentWidth) / 2) + Spacing.three,
+    wordmarkLeft: HeaderHorizontalInset + Math.max(0, (targetWidth - MaxContentWidth) / 2) + Spacing.three,
   };
 }

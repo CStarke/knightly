@@ -2,6 +2,14 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { advanceHeaderScroll, INITIAL_HEADER_SCROLL } from '@/utils/header-scroll';
 
+test('native pacing fades after a short swipe and preserves upward reveal', () => {
+  assert.equal(advanceHeaderScroll(INITIAL_HEADER_SCROLL, 64, 160, 64).opacity, 1);
+  assert.equal(advanceHeaderScroll(INITIAL_HEADER_SCROLL, 144, 160, 64).opacity, 0.5);
+  const hidden = advanceHeaderScroll(INITIAL_HEADER_SCROLL, 224, 160, 64);
+  assert.equal(hidden.opacity, 0);
+  assert.equal(advanceHeaderScroll(hidden, 204, 160, 64).opacity, 1);
+});
+
 test('header takes a long downward scroll to fade completely', () => {
   assert.equal(advanceHeaderScroll(INITIAL_HEADER_SCROLL, 192).opacity, 1);
   assert.equal(advanceHeaderScroll(INITIAL_HEADER_SCROLL, 692).opacity, 0.5);

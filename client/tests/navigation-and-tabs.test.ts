@@ -32,6 +32,7 @@ const TABS: Tab[] = [
  */
 function createUnifiedTabControllerMachine(initialPath: string = '/', width: number = 390) {
   let pathname = initialPath;
+
   let tabIndex = TABS.findIndex((t) => t.href === pathname);
   let activeTabIndex = tabIndex >= 0 ? tabIndex : 0;
   let headerIndex = activeTabIndex;

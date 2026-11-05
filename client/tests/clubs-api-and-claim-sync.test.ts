@@ -19,12 +19,7 @@ import {
   followClubApi,
   unfollowClubApi,
 } from '@/services/clubs-api';
-import {
-  normalizeClubCode,
-  formatClubCode,
-  checkClubCode,
-  DEMO_CLAIM_CODE_ABSTRACTION,
-} from '@/data/club-codes';
+import { normalizeClubCode, formatClubCode, DEMO_CLAIM_CODE_ABSTRACTION } from '@/data/club-codes';
 import { DEFAULT_FOLLOWED_CLUB_IDS } from '@/context/club-follow-context';
 import { CALVIN_CLUBS } from '@/data/clubs';
 
