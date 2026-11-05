@@ -21,8 +21,6 @@
  */
 
 import { memo, useMemo } from "react";
-import { Image } from 'expo-image';
-import { createStarfieldLayerUri } from '@/utils/starfield-layer';
 import {
   StyleSheet,
   Dimensions,
@@ -64,6 +62,27 @@ export type ParallaxStarfieldProps = {
   scrollY: SharedValue<number>;
   style?: StyleProp<ViewStyle>;
 };
+
+/** Render a generated star directly; parent layers own all animated movement. */
+const StarPoint = memo(function StarPoint({ star, glow = false }: { star: Star; glow?: boolean }) {
+  return (
+    <View style={{
+      position: 'absolute', left: star.x, top: star.y,
+      width: star.size, height: star.size, borderRadius: star.size / 2,
+      backgroundColor: star.color, opacity: star.opacity,
+      // Native shadows preserve foreground glow without SVG image decoding.
+      ...(glow ? { shadowColor: star.color, shadowOpacity: 0.7, shadowRadius: star.size,
+        shadowOffset: { width: 0, height: 0 } } : {}),
+    }}>
+      {star.isSparkle && <>
+        <View style={{ position: 'absolute', backgroundColor: star.color, opacity: 0.6,
+          width: star.size * 3, height: 0.5, left: -star.size, top: star.size / 2 }} />
+        <View style={{ position: 'absolute', backgroundColor: star.color, opacity: 0.6,
+          width: 0.5, height: star.size * 3, left: star.size / 2, top: -star.size }} />
+      </>}
+    </View>
+  );
+});
 
 export const ParallaxStarfield = memo(function ParallaxStarfield({
   translateX,
@@ -185,7 +204,7 @@ export const ParallaxStarfield = memo(function ParallaxStarfield({
           layer1Style,
         ]}
       >
-        <Image source={layer1Uri} style={StyleSheet.absoluteFill} contentFit="fill" transition={0} cachePolicy="memory" />
+        {layer1Stars.map((star) => <StarPoint key={star.id} star={star} />)}
       </Animated.View>
 
       {/* Midground star layer (3x ratio) */}
@@ -196,7 +215,7 @@ export const ParallaxStarfield = memo(function ParallaxStarfield({
           layer2Style,
         ]}
       >
-        <Image source={layer2Uri} style={StyleSheet.absoluteFill} contentFit="fill" transition={0} cachePolicy="memory" />
+        {layer2Stars.map((star) => <StarPoint key={star.id} star={star} glow />)}
       </Animated.View>
 
       {/* Foreground bright star layer (1x ratio) */}
@@ -207,7 +226,7 @@ export const ParallaxStarfield = memo(function ParallaxStarfield({
           layer3Style,
         ]}
       >
-        <Image source={layer3Uri} style={StyleSheet.absoluteFill} contentFit="fill" transition={0} cachePolicy="memory" />
+        {layer3Stars.map((star) => <StarPoint key={star.id} star={star} glow />)}
       </Animated.View>
     </View>
   );

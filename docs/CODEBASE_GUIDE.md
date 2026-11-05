@@ -2,7 +2,7 @@
 
 A plain-English map of the current implementation for contributors who need to find a feature, understand its data flow, or change it safely.
 
-**Reviewed:** November 5, 2026. **Application version:** `0.8.1` (unreleased). This guide describes the working tree, including shared header fading and the latest code cleanup. Source files are the authority when implementation and older documentation disagree.
+**Reviewed:** November 5, 2026. **Application version:** `0.8.4` (unreleased). This guide describes the working tree, including shared header fading and the latest code cleanup. Source files are the authority when implementation and older documentation disagree.
 
 ## Table of Contents
 
