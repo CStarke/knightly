@@ -5,7 +5,16 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
-## [0.8.3] - Unreleased
+## [0.8.4] - Unreleased
+
+### Changed
+- Refresh the README for current data integration, shared UI, offline behavior, contributor documentation, and type checking.
+- Synchronize the application version, client package and lockfile, and Expo configuration at 0.8.4, one bugfix increment above main.
+
+### Fixed
+- Fix startup crashing with undefined starfield image variables by rendering the generated stars directly in all three parallax layers.
+
+## [0.8.3]
 
 ### Fixed
 - Let feed category chips scroll through the page gutters to the screen edges, with end spacing inside the scrolling content.

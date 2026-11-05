@@ -1,6 +1,6 @@
 # Knightly — Calvin University Student App
 
-> **Current Version:** `v.0.6.1`
+> **Current Version:** `v.0.8.4`
 
 Knightly is a mobile application built for Calvin University students, providing a centralized hub for everyday campus life, student organizations, dining, safety, and campus resources.
 
@@ -21,7 +21,7 @@ David Idowu, Daniel Okereke, Caleb Starkenburg, Kellen Morford, and John Zhan
 ## Tech Stack & Architecture
 
 - **Mobile Client (`client/`)**: Built on **Expo SDK 58** (React 19.3, React Native 0.88, Expo Router 58, Reanimated 4.7, Gesture Handler).
-- **Backend API (`server/`)**: Express & Node.js backend with Supabase integration and offline/mock fallback layers.
+- **Backend API (`server/`)**: Express & Node.js backend with Supabase/PostgreSQL, separate business and data access layers, and offline seed fallbacks.
 - **Design Tokens**: Standardized Calvin maroon (`#5E1A24`), gold (`#E8B019`), typography, and light/dark theme palettes in `client/src/constants/theme.ts`.
 - **Testing**: Automated unit & integration tests covering tab navigation invariants, gesture state machines, stress lifecycles, and date/time formatting.
 
@@ -42,6 +42,7 @@ npm run install:all
 
 # 2. Start the Expo development client
 npm start
+# Use npm run dev to start both the backend and Expo together.
 # Press 'a' for Android, 'i' for iOS simulator, or 'w' for Web
 
 # 3. (Optional) Run the backend API server in a separate terminal
@@ -59,6 +60,9 @@ npm --prefix client test
 
 # Run server tests specifically
 npm --prefix server test
+
+# Check strict TypeScript types
+npm --prefix client run typecheck
 ```
 
 ---
@@ -68,7 +72,7 @@ npm --prefix server test
 ### 1. Authentication & Onboarding
 - **Interactive Login (`client/src/components/login-screen.tsx`)**: Prototype sign-in with local username/password validation and demo student profiles (e.g. `jmd42`); credentials are not authenticated against Calvin systems.
 - **Keyboard-Aware Elevation**: Smooth physics-based input lift animation (`formRaise`) ensuring input fields remain centered and clear of the virtual keyboard.
-- **Subtle Version Watermark**: Displays the current application version (`v.0.6.1`) in the bottom-right corner.
+- **Subtle Version Watermark**: Displays the current application version (`v.0.8.4`) in the bottom-right corner.
 
 ### 2. Tabs & Navigation
 The application features a custom bottom tab bar with fluid horizontal follow-my-finger pan gestures and a 340ms bidirectional ease-in-out cubic-bezier lateral camera glide:
@@ -82,7 +86,7 @@ The application features a custom bottom tab bar with fluid horizontal follow-my
 
 - **Campus Clubs Ecosystem**:
   - **Clubs Directory (`client/src/components/clubs-directory-view.tsx`)**: Searchable and filterable directory of student organizations.
-  - **Follow Context (`client/src/context/club-follow-context.tsx`)**: Real-time follow/unfollow actions with dynamic feed updates.
+  - **Follow Context (`client/src/context/club-follow-context.tsx`)**: Follow/unfollow actions with local persistence, dynamic feed updates, and background database synchronization.
   - **Club Claiming (`client/src/components/claim-club-modal.tsx`)**: Student leaders can claim organization ownership via passcodes.
   - **Profile Completion (`client/src/components/complete-club-profile-view.tsx`)**: Guided onboarding for leaders to customize organization details.
   - **Dynamic Post Tab**: Verified club leaders automatically unlock the 5th **Post** tab in the navigation bar.
@@ -91,13 +95,13 @@ The application features a custom bottom tab bar with fluid horizontal follow-my
   - **Banner Media**: Interactive cropper (`inline-image-cropper.tsx`) locked to standard 16:9 banner dimensions with photo picker integration.
   - **Organization Selector**: Switch between managed clubs for posting.
   - **Scheduling & Details**: Segmented date/time input components (`segmented-date-input.tsx`, `masked-time-input.tsx`) and calendar modal (`date-picker-modal.tsx`).
-  - **Publishing Confirmation**: Instant post confirmation modal (`post-success-modal.tsx`) with a "View in Feed" smooth navigation shortcut.
+  - **Publishing Confirmation**: Server-authoritative publication timestamps, local authored-post caching, and an instant post confirmation modal (`post-success-modal.tsx`) with a "View in Feed" smooth navigation shortcut.
 
 - **Dining & Digital Knight Card (`client/src/app/(tabs)/dining.tsx`)**:
   - **Digital Student ID (`client/src/app/card.tsx`)**: Full-screen modal presenting an on-device vector-rendered Code 39 barcode (`barcode.tsx`), brightness auto-elevation via `expo-brightness`, and tap-to-dismiss.
   - **Venue Hours & Status**: Time-based status indicators and configured service windows for Commons, Knollcrest, Uppercrust, Johnny's, and Peet's Coffee; Knollcrest is currently closed.
-  - **Meal Counters & Dash Meters**: Visual unit-based meters for meal swipes and guest passes.
-  - **Dining Activity Ledger (`client/src/components/dining-activity.tsx`)**: Sample transaction history showing meal swipe usage and dining dollars; balances and transactions currently use local demo data.
+  - **Meal Counters & Dash Meters**: Database-backed dining balances, meal swipes, and guest passes with seed fallbacks when the API is unavailable.
+  - **Dining Activity Ledger (`client/src/components/dining-activity.tsx`)**: Sample transaction history showing meal swipe usage and dining dollars; this screen currently uses local demo transactions. Backend dining services separately support an immutable transaction ledger.
 
 - **Campus Safety (`client/src/app/(tabs)/safety.tsx`)**:
   - One-touch emergency calling (`tel:`) connecting directly to Campus Safety dispatch.
@@ -110,6 +114,14 @@ The application features a custom bottom tab bar with fluid horizontal follow-my
 
 ---
 
+## Shared UI & Offline Reliability
+
+- **Shared templates**: `Screen`, `ModalDialog`, and form controls centralize keyboard handling, safe areas, dismissal, and theme behavior.
+- **Floating headers**: Shared rounded headers overlay scrolling pages; the news header fades after extended downward scrolling and reveals on upward scrolling.
+- **Phantom pages**: Native club and campus-map views open within the pager with swipe-back navigation.
+- **Starfield**: Three directly rendered parallax layers preserve area-based density and the 5:3:1 depth ratio while keeping the background stable during keyboard resizing and scrolling.
+- **Offline limits**: Seed data and local caches preserve browsing when the API is unavailable. Database writes and authentication remain subject to the prototype limitations described in the [codebase guide](docs/CODEBASE_GUIDE.md#21-offline-behavior-and-current-limits).
+
 ## Native Reliability & Gesture Engine
 
 - **Decoupled Intent Interception (`client/src/app/+native-intent.ts`)**: Drops spurious unrouted root intents (`/`) triggered when returning from external Android native activities (e.g. system image picker) while preserving genuine deep links.
@@ -117,6 +129,11 @@ The application features a custom bottom tab bar with fluid horizontal follow-my
 - **Cinematic Easing**: Utilizes an ease-in-out curve (`Easing.bezier(0.4, 0.0, 0.2, 1.0)`) with zero initial derivative, preventing frame drops during concurrent slot mountings.
 
 ## Documentation
+
+- **[Codebase Guide](docs/CODEBASE_GUIDE.md)**: Current feature map, data flows, offline limits, and contributor verification.
+- **[Architecture](docs/ARCHITECTURE.md)**: System structure and implementation design.
+- **[Database Design](docs/DATABASE_DESIGN.md)**: PostgreSQL schema, permissions, and transaction rules.
+- **[Multi-Developer Workflow](docs/MULTI_DEV_WORKFLOW.md)**: Branching, collaboration, and version reconciliation.
 
 - **[Coding Standards & Guidelines](docs/CodingStandard.md)**: Engineering practices, TypeScript invariants, pure SVG standards, commenting standards, and platform lifecycle handling.
 - **[Backend REST API Specification](docs/api.md)**: Server endpoint contracts, payload schemas, and server-authoritative timestamp policies.
@@ -127,7 +144,7 @@ The application features a custom bottom tab bar with fluid horizontal follow-my
 
 Knightly uses strict semantic application versioning defined in `client/src/constants/version.ts`, package manifests, and displayed on the Login Screen:
 
-- **Current Version:** `v.0.6.1`
+- **Current Version:** `v.0.8.4`
 - **Feature Push:** Increment the **center digit** (`0.#.0`) and reset the last digit to 0 (e.g., `v.0.1.0` → `v.0.2.0`).
 - **Bugfix / Hotfix:** Increment the **last digit** (`0.0.#`) (e.g., `v.0.1.0` → `v.0.1.1`).
 - **Major Release:** Increment the **first digit** (`#.0.0`) when major application overhauls occur (e.g., `v.0.9.0` → `v.1.0.0`).
