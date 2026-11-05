@@ -21,8 +21,6 @@
  */
 
 import { memo, useMemo } from "react";
-import { Image } from 'expo-image';
-import { createStarfieldLayerUri } from '@/utils/starfield-layer';
 import {
   StyleSheet,
   Dimensions,
@@ -165,12 +163,8 @@ export const ParallaxStarfield = memo(function ParallaxStarfield({
 
   const baseBg = isDark ? "#07080A" : theme.background;
 
-  // Three cached images replace hundreds of native views and per-star shadow compositing operations.
-  // Generation and density stay unchanged; only the rendering representation is batched.
-  const layer1Uri = useMemo(() => createStarfieldLayerUri(layer1Stars, canvasWidth, canvasHeight, 0), [layer1Stars, canvasWidth, canvasHeight]);
-  const layer2Uri = useMemo(() => createStarfieldLayerUri(layer2Stars, canvasWidth, canvasHeight, isDark ? 0.5 : 0.2), [layer2Stars, canvasWidth, canvasHeight, isDark]);
-  const layer3Uri = useMemo(() => createStarfieldLayerUri(layer3Stars, canvasWidth, canvasHeight, isDark ? 0.95 : 0.45), [layer3Stars, canvasWidth, canvasHeight, isDark]);
-
+  // Render stars directly so the sky does not depend on SVG data-URI image decoding.
+  // Keep transforms on the three parent layers so scrolling stays on the UI thread.
   return (
     <View
       pointerEvents="none"
@@ -189,7 +183,23 @@ export const ParallaxStarfield = memo(function ParallaxStarfield({
           layer1Style,
         ]}
       >
-        <Image source={layer1Uri} style={StyleSheet.absoluteFill} contentFit="fill" transition={0} cachePolicy="memory" />
+        {layer1Stars.map((star) => (
+          <View
+            key={`l1-${star.id}`}
+            style={[
+              styles.star,
+              {
+                left: star.x,
+                top: star.y,
+                width: star.size,
+                height: star.size,
+                borderRadius: star.size / 2,
+                backgroundColor: star.color,
+                opacity: star.opacity,
+              },
+            ]}
+          />
+        ))}
       </Animated.View>
 
       {/* Midground star layer (3x ratio) */}
@@ -200,7 +210,27 @@ export const ParallaxStarfield = memo(function ParallaxStarfield({
           layer2Style,
         ]}
       >
-        <Image source={layer2Uri} style={StyleSheet.absoluteFill} contentFit="fill" transition={0} cachePolicy="memory" />
+        {layer2Stars.map((star) => (
+          <View
+            key={`l2-${star.id}`}
+            style={[
+              styles.star,
+              {
+                left: star.x,
+                top: star.y,
+                width: star.size,
+                height: star.size,
+                borderRadius: star.size / 2,
+                backgroundColor: star.color,
+                opacity: star.opacity,
+                shadowColor: star.color,
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: isDark ? 0.5 : 0.2,
+                shadowRadius: star.size * 0.8,
+              },
+            ]}
+          />
+        ))}
       </Animated.View>
 
       {/* Foreground bright star layer (1x ratio) */}
@@ -211,7 +241,41 @@ export const ParallaxStarfield = memo(function ParallaxStarfield({
           layer3Style,
         ]}
       >
-        <Image source={layer3Uri} style={StyleSheet.absoluteFill} contentFit="fill" transition={0} cachePolicy="memory" />
+        {layer3Stars.map((star) => (
+          <View
+            key={`l3-${star.id}`}
+            style={[
+              styles.star,
+              {
+                left: star.x,
+                top: star.y,
+                width: star.size,
+                height: star.size,
+                borderRadius: star.size / 2,
+                backgroundColor: star.color,
+                opacity: star.opacity,
+                shadowColor: star.color,
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: isDark ? 0.95 : 0.45,
+                shadowRadius: star.size * 1.3,
+              },
+            ]}
+          >
+            {star.isSparkle ? (
+              <View
+                style={[
+                  styles.sparkleCross,
+                  {
+                    width: star.size * 1.8,
+                    height: star.size * 1.8,
+                    borderColor: star.color,
+                    opacity: 0.6,
+                  },
+                ]}
+              />
+            ) : null}
+          </View>
+        ))}
       </Animated.View>
     </View>
   );
@@ -226,5 +290,15 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 0,
     left: 0,
+  },
+  star: {
+    position: "absolute",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sparkleCross: {
+    position: "absolute",
+    borderWidth: StyleSheet.hairlineWidth,
+    transform: [{ rotate: "45deg" }],
   },
 });

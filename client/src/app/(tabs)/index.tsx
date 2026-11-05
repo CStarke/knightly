@@ -159,6 +159,7 @@ export default function FeedScreen() {
           value={category}
           onChange={handleCategoryChange}
           tone="gold"
+          edgeInset={Spacing.three}
         />
       </View>
 
