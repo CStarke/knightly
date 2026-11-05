@@ -57,6 +57,8 @@ type ChipRowProps<T extends string> = {
   value: T;
   onChange: (value: T) => void;
   tone?: ChipTone;
+  /** Parent horizontal padding to extend through; end spacing scrolls with the chips. */
+  edgeInset?: number;
 };
 
 export function ChipRow<T extends string>({
@@ -64,6 +66,7 @@ export function ChipRow<T extends string>({
   value,
   onChange,
   tone = 'gold',
+  edgeInset = 0,
 }: ChipRowProps<T>) {
   const { isInnerScrollActive, setInnerScrollActive } = useTabPagerPriority();
   const scrollRef = useRef<any>(null);
@@ -144,6 +147,8 @@ export function ChipRow<T extends string>({
   return (
     <GestureDetector gesture={panClaimGesture}>
       <View
+        // Extend the scroll viewport through page gutters instead of clipping chips inside them.
+        style={{ marginHorizontal: -edgeInset }}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchEnd}
@@ -164,7 +169,7 @@ export function ChipRow<T extends string>({
           onScrollBeginDrag={handleTouchStart}
           onScrollEndDrag={handleTouchEnd}
           onMomentumScrollEnd={handleTouchEnd}
-          contentContainerStyle={styles.row}>
+          contentContainerStyle={[styles.row, { paddingHorizontal: edgeInset }]}>
           {options.map((option) => (
             <Chip
               key={option}

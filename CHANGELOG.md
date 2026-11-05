@@ -5,7 +5,13 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
-## [0.8.2] - Unreleased
+## [0.8.3] - Unreleased
+
+### Fixed
+- Let feed category chips scroll through the page gutters to the screen edges, with end spacing inside the scrolling content.
+- Restore directly rendered background stars after the cached SVG-image conversion made them disappear; preserve density, depth ratios, glow, parallax, and keyboard/scroll stability.
+
+## [0.8.2]
 
 ### Changed
 - Update the application version to 0.8.2 and synchronize the displayed version, package metadata, lockfile, and Expo configuration.

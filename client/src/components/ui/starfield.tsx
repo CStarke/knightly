@@ -165,12 +165,8 @@ export const ParallaxStarfield = memo(function ParallaxStarfield({
 
   const baseBg = isDark ? "#07080A" : theme.background;
 
-  // Three cached images replace hundreds of native views and per-star shadow compositing operations.
-  // Generation and density stay unchanged; only the rendering representation is batched.
-  const layer1Uri = useMemo(() => createStarfieldLayerUri(layer1Stars, canvasWidth, canvasHeight, 0), [layer1Stars, canvasWidth, canvasHeight]);
-  const layer2Uri = useMemo(() => createStarfieldLayerUri(layer2Stars, canvasWidth, canvasHeight, isDark ? 0.5 : 0.2), [layer2Stars, canvasWidth, canvasHeight, isDark]);
-  const layer3Uri = useMemo(() => createStarfieldLayerUri(layer3Stars, canvasWidth, canvasHeight, isDark ? 0.95 : 0.45), [layer3Stars, canvasWidth, canvasHeight, isDark]);
-
+  // Render stars directly so the sky does not depend on SVG data-URI image decoding.
+  // Keep transforms on the three parent layers so scrolling stays on the UI thread.
   return (
     <View
       pointerEvents="none"
