@@ -5,7 +5,13 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
-## [0.8.4] - Unreleased
+## [0.8.5] - Unreleased
+
+### Fixed
+- Balance news-card footer spacing by grouping wrapping metadata beside a fixed-size save control; keep desktop card content naturally spaced and long logistics text within the card. Use compact 16px bundled outline/solid star assets for reliable filled saved states on every platform in a 32px control with an expanded touch area; keep the event scope grouped beside the timestamp.
+- Restore the pre-cleanup starfield appearance from commit 7488016: outlined foreground diamonds, round distant and midground stars, and original layer-specific glow. Retain keyboard-resize and long-scroll stability. Remove the unused cached SVG cross renderer and add regression coverage for the active diamond renderer and shared background integration.
+
+## [0.8.4]
 
 ### Changed
 - Refresh the README for current data integration, shared UI, offline behavior, contributor documentation, and type checking.
