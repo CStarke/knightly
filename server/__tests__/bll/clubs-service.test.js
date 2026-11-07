@@ -109,6 +109,59 @@ test('Clubs & Cryptographic Claim Code BLL Invariants', async (t) => {
     );
   });
 
+  // Each attempt starts with its own unredeemed code unless the test explicitly retries.
+  function createClaimFixture() {
+    const { clubsDal, state } = createMockDal();
+    const rawCode = '2A6Q-MTK3-R9';
+    const codeHash = hashClaimCode(normalizeClaimCode(rawCode));
+    const expiresAt = '2026-11-07T12:00:00.000Z';
+    state.claimCodes.set(codeHash, {
+      id: 'code-acm', club_id: 'acm', code_hash: codeHash, expires_at: expiresAt,
+      is_redeemed: false, redeemed_by_student_id: null, redeemed_at: null,
+    });
+    return { clubsDal, state, codeHash, expiresAt, rawCode };
+  }
+
+  await t.test('rejects the wrong club and allows a retry for the intended club', async () => {
+    const { clubsDal, state, codeHash, rawCode } = createClaimFixture();
+    const claim = { rawCode, studentId: 'student-42', now: new Date('2026-11-07T11:00:00Z') };
+    const originalCode = { ...state.claimCodes.get(codeHash) };
+
+    await assert.rejects(
+      redeemClaimCode({ ...claim, targetClubId: 'abstraction' }, clubsDal),
+      /not valid for club/
+    );
+    assert.deepEqual(state.memberships, []);
+    assert.deepEqual(state.claimCodes.get(codeHash), originalCode);
+
+    // Retry with the same code to prove the rejected attempt did not consume it.
+    await redeemClaimCode({ ...claim, targetClubId: 'acm' }, clubsDal);
+    assert.equal(state.memberships.length, 1);
+    assert.equal(state.memberships[0].club_id, 'acm');
+    assert.equal(state.memberships[0].student_id, claim.studentId);
+  });
+
+  await t.test('accepts a claim one millisecond before expiration', async () => {
+    const { clubsDal, state, rawCode, expiresAt } = createClaimFixture();
+    const now = new Date(Date.parse(expiresAt) - 1);
+    const result = await redeemClaimCode({ rawCode, studentId: 'student-42', targetClubId: 'acm', now }, clubsDal);
+    assert.equal(result.success, true);
+    assert.equal(state.memberships.length, 1);
+    assert.equal(state.memberships[0].club_id, 'acm');
+  });
+
+  await t.test('rejects a claim exactly at expiration without consuming the code', async () => {
+    const { clubsDal, state, codeHash, rawCode, expiresAt } = createClaimFixture();
+    const originalCode = { ...state.claimCodes.get(codeHash) };
+    // Passing the exact expiration instant makes the result independent of the system clock.
+    await assert.rejects(
+      redeemClaimCode({ rawCode, studentId: 'student-42', targetClubId: 'acm', now: new Date(expiresAt) }, clubsDal),
+      /has expired/
+    );
+    assert.deepEqual(state.memberships, []);
+    assert.deepEqual(state.claimCodes.get(codeHash), originalCode);
+  });
+
   await t.test('strictly suppresses follower_count from public club queries (non-social invariant)', async () => {
     const { clubsDal, state } = createMockDal();
     state.clubs.set('acm', {
