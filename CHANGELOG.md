@@ -5,6 +5,11 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
+## [0.8.6] - Unreleased
+
+### Added
+- Added tests verifying that a claim code remains usable after a wrong-club attempt and that it succeeds one millisecond before expiration but is rejected exactly at expiration.
+
 ## [0.8.5] - Unreleased
 
 ### Fixed
