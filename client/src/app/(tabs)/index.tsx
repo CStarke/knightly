@@ -41,6 +41,8 @@ import { RefreshButton } from "@/components/ui/refresh-button";
 import { Screen, ScreenFlatList } from "@/components/ui/screen";
 import { SearchField } from "@/components/ui/search-field";
 import { Segmented } from "@/components/ui/segmented";
+import { ErrorBanner } from "@/components/ui/error-banner";
+import { FeedLoadingSkeleton } from "@/components/ui/skeleton";
 import { Brand, Radius, Spacing } from "@/constants/theme";
 import { useClubFollow } from "@/context/club-follow-context";
 import { useClubsNavigation } from "@/context/clubs-navigation-context";
@@ -79,7 +81,17 @@ export default function FeedScreen() {
   const deferredQuery = useDeferredValue(query);
 
   // Get all feed posts, saved favorite posts, and feed refresh actions.
-  const { posts: dynamicPosts, savedPosts, favoritePosts, refreshFeed, isRefreshing } = useFeed();
+  const {
+    posts: dynamicPosts,
+    savedPosts,
+    favoritePosts,
+    refreshFeed,
+    isRefreshing,
+    isLoading,
+    error,
+    retryFeed,
+    clearError,
+  } = useFeed();
   const { isFollowing, followedCount } = useClubFollow();
   const { openClubsDirectory } = useClubsNavigation();
 
@@ -154,6 +166,18 @@ export default function FeedScreen() {
         />
       </View>
 
+      {/* Step A2: Request-Failure Banner with Retry (US-N07) */}
+      {error ? (
+        <ErrorBanner
+          title="Unable to connect to campus network"
+          message={error}
+          onRetry={retryFeed}
+          isRetrying={isRefreshing}
+          onDismiss={clearError}
+          variant="banner"
+        />
+      ) : null}
+
       {/* Step B: Audience Scope Toggle */}
       <View style={styles.scopeToggleWrapper}>
         <Segmented
@@ -213,7 +237,15 @@ export default function FeedScreen() {
 
   const listEmpty = (
     <View style={[styles.screenInner, isMobileApp && styles.mobileEmptyContainer]}>
-      {visible.length === 0 ? (
+      {error && dynamicPosts.length === 0 ? (
+        <ErrorBanner
+          title="Unable to load campus feed"
+          message={error}
+          onRetry={retryFeed}
+          isRetrying={isRefreshing}
+          variant="card"
+        />
+      ) : visible.length === 0 ? (
         // Show a message when the student has no favorite posts.
         (deferredScope === "Saved" || (deferredScope as string) === "Favorites") && (savedPosts?.length === 0 || favoritePosts?.length === 0) ? (
           <Card style={styles.emptyCard}>
@@ -267,9 +299,19 @@ export default function FeedScreen() {
             </Card>
           )
         )
-        ) : null}
+      ) : null}
     </View>
   );
+
+  // Step 6: Animated Loading Skeleton View (US-N07)
+  if (isLoading && dynamicPosts.length === 0) {
+    return (
+      <Screen style={styles.screenInner}>
+        {listHeader}
+        <FeedLoadingSkeleton numColumns={numColumns} count={numColumns * 2} />
+      </Screen>
+    );
+  }
 
   if (isMobileApp) {
     return (

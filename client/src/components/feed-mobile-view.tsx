@@ -17,9 +17,11 @@ import { useDeferredValue, useMemo, useState } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 
 import {
+  ErrorBanner,
   FeedEmptyState,
   FeedFilterChips,
   FeedFollowingBanner,
+  FeedLoadingSkeleton,
   FeedSearchField,
 } from "@/components/feed-controls";
 import { PostCard } from "@/components/post-card";
@@ -53,7 +55,17 @@ export function FeedMobileView() {
   const deferredMobileCategories = useDeferredValue(mobileCategories);
   const deferredQuery = useDeferredValue(query);
 
-  const { posts: dynamicPosts, savedPosts, favoritePosts } = useFeed();
+  const {
+    posts: dynamicPosts,
+    savedPosts,
+    favoritePosts,
+    refreshFeed,
+    isRefreshing,
+    isLoading,
+    error,
+    retryFeed,
+    clearError,
+  } = useFeed();
   const { isFollowing, followedCount } = useClubFollow();
   const { openClubsDirectory } = useClubsNavigation();
 
@@ -156,8 +168,30 @@ export function FeedMobileView() {
           onPress={openClubsDirectory}
         />
       )}
+
+      {/* Request-Failure Banner with Actionable Retry (US-N07) */}
+      {error ? (
+        <ErrorBanner
+          title="Unable to connect to campus network"
+          message={error}
+          onRetry={retryFeed}
+          isRetrying={isRefreshing}
+          onDismiss={clearError}
+          variant="banner"
+        />
+      ) : null}
     </View>
   );
+
+  // Animated Loading Skeleton View (US-N07)
+  if (isLoading && dynamicPosts.length === 0) {
+    return (
+      <View style={styles.screenInner}>
+        {listHeader}
+        <FeedLoadingSkeleton numColumns={1} count={3} />
+      </View>
+    );
+  }
 
   // List Empty Component
   const isNoFollowingPosts =
@@ -168,21 +202,32 @@ export function FeedMobileView() {
   const isNoSavedPosts =
     deferredMobileScope === "Saved" && (savedPosts?.length === 0 || favoritePosts?.length === 0);
 
-  const listEmpty = visible.length === 0 ? (
-    <View style={[styles.screenInner, styles.mobileEmptyContainer]}>
-      <FeedEmptyState
-        type={
-          isNoSavedPosts
-            ? "no-saved-posts"
-            : isNoFollowingPosts
-            ? "no-following-posts"
-            : "no-filter-matches"
-        }
-        onBrowseClubs={openClubsDirectory}
-        onClearFilters={handleClear}
-      />
-    </View>
-  ) : undefined;
+  const listEmpty =
+    error && dynamicPosts.length === 0 ? (
+      <View style={[styles.screenInner, styles.mobileEmptyContainer]}>
+        <ErrorBanner
+          title="Unable to load campus feed"
+          message={error}
+          onRetry={retryFeed}
+          isRetrying={isRefreshing}
+          variant="card"
+        />
+      </View>
+    ) : visible.length === 0 ? (
+      <View style={[styles.screenInner, styles.mobileEmptyContainer]}>
+        <FeedEmptyState
+          type={
+            isNoSavedPosts
+              ? "no-saved-posts"
+              : isNoFollowingPosts
+              ? "no-following-posts"
+              : "no-filter-matches"
+          }
+          onBrowseClubs={openClubsDirectory}
+          onClearFilters={handleClear}
+        />
+      </View>
+    ) : undefined;
 
   return (
     <ScreenFlatList
@@ -193,6 +238,8 @@ export function FeedMobileView() {
       maxToRenderPerBatch={5}
       windowSize={5}
       removeClippedSubviews={Platform.OS === 'android'}
+      refreshing={isRefreshing}
+      onRefresh={refreshFeed}
       ListHeaderComponent={listHeader}
       ListEmptyComponent={listEmpty}
       renderItem={({ item: post }: { item: Post }) => (

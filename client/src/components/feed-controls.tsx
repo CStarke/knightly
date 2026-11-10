@@ -243,7 +243,8 @@ export function FeedFollowingBanner({
 export type FeedEmptyStateType =
   | 'no-following-posts'
   | 'no-filter-matches'
-  | 'no-saved-posts';
+  | 'no-saved-posts'
+  | 'no-posts';
 
 export interface FeedEmptyStateProps {
   type: FeedEmptyStateType;
@@ -296,6 +297,23 @@ export function FeedEmptyState({
     );
   }
 
+  if (type === 'no-posts') {
+    return (
+      <Card style={[styles.emptyCard, style]}>
+        <Icon sf="newspaper" md="article" size={28} color={Brand.gold} />
+        <ThemedText type="smallBold">{title ?? 'No campus announcements yet'}</ThemedText>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.emptySub}>
+          {subtitle ?? 'Check back soon for upcoming university events and student club activities.'}
+        </ThemedText>
+        {onBrowseClubs && (
+          <Pressable onPress={onBrowseClubs} style={styles.emptyCta}>
+            <ThemedText style={styles.emptyCtaText}>{buttonLabel ?? 'Browse Campus Clubs'}</ThemedText>
+          </Pressable>
+        )}
+      </Card>
+    );
+  }
+
   return (
     <Card style={[styles.emptyCard, style]}>
       <Icon sf="magnifyingglass" md="search" size={26} color={Brand.gold} />
@@ -311,6 +329,18 @@ export function FeedEmptyState({
     </Card>
   );
 }
+
+// Re-export error banner and skeleton templates for single-source feed controls (AGENTS.md Rule 4.5)
+export { ErrorBanner, type ErrorBannerProps } from '@/components/ui/error-banner';
+export {
+  FeedLoadingSkeleton,
+  PostCardSkeleton,
+  Skeleton,
+  SkeletonCard,
+  SkeletonLine,
+  type FeedLoadingSkeletonProps,
+  type PostCardSkeletonProps,
+} from '@/components/ui/skeleton';
 
 // ============================================================================
 // 8. Shared Styles

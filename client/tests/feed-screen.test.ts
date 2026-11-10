@@ -23,11 +23,13 @@ test('feed screen reconciles mobile saved posts with shared mobile/web filters',
     ['components/themed-text', ['ThemedText']],
     ['components/ui/card', ['Card']],
     ['components/ui/chip', ['ChipRow']],
+    ['components/ui/error-banner', ['ErrorBanner']],
     ['components/ui/icon', ['Icon']],
     ['components/ui/refresh-button', ['RefreshButton']],
     ['components/ui/screen', ['Screen', 'ScreenFlatList']],
     ['components/ui/search-field', ['SearchField']],
     ['components/ui/segmented', ['Segmented']],
+    ['components/ui/skeleton', ['FeedLoadingSkeleton']],
   ] as const) {
     stubs.set(`@/${path}`, Object.fromEntries(names.map(name => [name, component(name)])));
   }
