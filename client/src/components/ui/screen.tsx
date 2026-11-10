@@ -17,8 +17,9 @@ export const ScreenScrollView = forwardRef<ScrollViewInstance, ComponentProps<ty
     const scrollHandler = useScreenScrollHandler();
     return (
       <Animated.ScrollView {...props} ref={ref} onScroll={scrollHandler} scrollEventThrottle={16}
+        contentInsetAdjustmentBehavior="never"
         contentContainerStyle={[contentContainerStyle, {
-          paddingTop: headerInset + Spacing.three,
+          paddingTop: headerInset + Spacing.two,
           paddingBottom: Math.max(insets.bottom, Spacing.two) + BottomTabContentInset,
         }]} />
     );
@@ -77,12 +78,12 @@ export function Screen({
           ref={scrollViewRef}
           style={styles.fill}
           contentContainerStyle={[styles.outer, {
-            paddingTop: headerInset + Spacing.three,
+            paddingTop: headerInset + Spacing.two,
             paddingBottom: Math.max(insets.bottom, Spacing.two) + BottomTabContentInset,
           }]}
           keyboardShouldPersistTaps="handled"
           automaticallyAdjustKeyboardInsets={true}
-          contentInsetAdjustmentBehavior="automatic"
+          contentInsetAdjustmentBehavior="never"
           showsVerticalScrollIndicator={false}
           onScroll={scrollHandler}
           scrollEventThrottle={16}
@@ -147,12 +148,12 @@ export function ScreenFlatList<T>({
         ref={listRef as any}
         style={styles.fill}
         contentContainerStyle={[styles.outer, {
-          paddingTop: headerInset + Spacing.three,
+          paddingTop: headerInset + Spacing.two,
           paddingBottom: Math.max(insets.bottom, Spacing.two) + BottomTabContentInset,
         }]}
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets={true}
-        contentInsetAdjustmentBehavior="automatic"
+        contentInsetAdjustmentBehavior="never"
         showsVerticalScrollIndicator={false}
         onScroll={scrollHandler}
         scrollEventThrottle={16}

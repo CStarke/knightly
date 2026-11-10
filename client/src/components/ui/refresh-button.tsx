@@ -155,8 +155,14 @@ export function RefreshButton({
         style,
       ]}
     >
-      <Animated.View style={[styles.innerRow, rootAnimatedStyle]}>
-        <Animated.View style={iconAnimatedStyle}>
+      <Animated.View
+        style={[
+          styles.innerRow,
+          label ? styles.innerRowWithLabel : styles.innerRowIconOnly,
+          rootAnimatedStyle,
+        ]}
+      >
+        <Animated.View style={[styles.iconWrapper, iconAnimatedStyle]}>
           <Icon
             sf="arrow.clockwise"
             md="refresh"
@@ -192,7 +198,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
+  },
+  innerRowWithLabel: {
+    gap: 6,
+  },
+  innerRowIconOnly: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 20,
+    height: 20,
   },
   pill: {
     borderRadius: Radius.pill,
@@ -206,7 +224,7 @@ const styles = StyleSheet.create({
   pillMedium: {
     paddingHorizontal: Spacing.three,
     paddingVertical: 7,
-    height: 36,
+    height: 42,
   },
   iconOnly: {
     borderRadius: Radius.pill,
@@ -219,8 +237,8 @@ const styles = StyleSheet.create({
     height: 28,
   },
   iconMedium: {
-    width: 36,
-    height: 36,
+    width: 42,
+    height: 42,
   },
   ghost: {
     paddingHorizontal: 4,

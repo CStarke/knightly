@@ -343,6 +343,25 @@ describe('US-N06: Pull-to-Refresh & Manual Refresh Actions Test Suite', () => {
         'screen.tsx must not hardcode raw #5E1A24 hex value; use Brand.maroon token'
       );
     });
+
+    it('Layout Invariant: Screen and ScreenFlatList enforce contentInsetAdjustmentBehavior="never" and tight Spacing.two top padding', () => {
+      const code = readSrc('components/ui/screen.tsx');
+
+      // Verify contentInsetAdjustmentBehavior is explicitly 'never' to eliminate iOS double-inset gap
+      assert.ok(
+        code.includes('contentInsetAdjustmentBehavior="never"'),
+        'screen.tsx must specify contentInsetAdjustmentBehavior="never" to avoid awkward top dead space on iOS'
+      );
+      assert.strictEqual(
+        code.includes('contentInsetAdjustmentBehavior="automatic"'),
+        false,
+        'screen.tsx must not use contentInsetAdjustmentBehavior="automatic"'
+      );
+      assert.ok(
+        code.includes('paddingTop: headerInset + Spacing.two'),
+        'screen.tsx must tighten top padding to headerInset + Spacing.two'
+      );
+    });
   });
 
   // ==========================================================================
@@ -506,6 +525,17 @@ describe('US-N06: Pull-to-Refresh & Manual Refresh Actions Test Suite', () => {
         const customIcon = customBtn.props.children.props.children[0].props.children;
         assert.strictEqual(customIcon.props.color, '#00AAFF');
       });
+    });
+
+    it('Layout & Centering: medium button uses 42px height to match SearchField with centered icon wrapper', () => {
+      const code = readSrc('components/ui/refresh-button.tsx');
+
+      assert.ok(code.includes('iconWrapper:'), 'RefreshButton must declare iconWrapper container');
+      assert.ok(code.includes('innerRowIconOnly:'), 'RefreshButton must declare innerRowIconOnly style');
+      assert.ok(
+        code.includes('width: 42') && code.includes('height: 42'),
+        'RefreshButton must support 42px medium dimension to align with SearchField'
+      );
     });
   });
 
