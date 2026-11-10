@@ -10,7 +10,7 @@ export type Person = {
   department: string;
   email: string;
   phone?: string;
-  /** Office for faculty/staff, residence hall for students. */
+  /** Office location for faculty/staff. */
   location: string;
   classYear?: number;
   officeHours?: string;

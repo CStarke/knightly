@@ -60,12 +60,10 @@ function formatStudentProfile(rawStudent) {
     minor: rawStudent.minor,
     cardNumber: rawStudent.card_number,
     barcode: rawStudent.barcode || formatBarcode(rawStudent.student_id),
-    residence: rawStudent.residence,
-    advisor: rawStudent.advisor,
     role: rawStudent.role,
     directoryOptIn: !!rawStudent.directory_opt_in,
     directoryPrompted: !!rawStudent.directory_prompted,
-    directoryVisibleFields: rawStudent.directory_visible_fields || { email: true, phone: false, residence: false },
+    directoryVisibleFields: rawStudent.directory_visible_fields || { email: true, phone: false },
   };
 }
 
@@ -90,7 +88,7 @@ async function setDirectoryPreferences(
   // Step 1: Update student record and mark directory_prompted as TRUE
   const updatedStudent = await studentDal.updateDirectoryPreferences(studentId, {
     directoryOptIn,
-    directoryVisibleFields: directoryVisibleFields || { email: true, phone: false, residence: false },
+    directoryVisibleFields: directoryVisibleFields || { email: true, phone: false },
   });
 
   // Step 2: Synchronize directory table listing

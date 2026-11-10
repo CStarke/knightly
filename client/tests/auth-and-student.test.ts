@@ -109,8 +109,6 @@ describe('Auth, Student Profile & Theme System Domain', () => {
       assert.strictEqual(student.standing, 'Student');
       assert.strictEqual(student.classYear, 2028);
       assert.ok(student.email.endsWith('@calvin.edu'));
-      assert.ok(student.residence.length > 0);
-      assert.ok(student.advisor.length > 0);
     });
 
     it('generates appropriate time-of-day greetings across 24 hours', () => {

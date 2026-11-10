@@ -23,6 +23,11 @@ Knightly coordinates announcements, student organization leadership, campus safe
 
 ## 2. Relational Entity-Relationship Diagram (ERD)
 
+A vector render of the complete relational schema is exported to [`DATABASE_ERD.svg`](DATABASE_ERD.svg).
+
+![Knightly Relational Entity-Relationship Diagram (ERD)](DATABASE_ERD.svg)
+
+### Mermaid Specification
 ```mermaid
 erDiagram
     STUDENTS ||--o{ CLUB_FOLLOWS : follows
@@ -39,9 +44,7 @@ erDiagram
 
     MEAL_PLANS ||--o{ STUDENT_DINING_ACCOUNTS : "assigned to"
     DINING_VENUES ||--o{ DINING_HOURS : operates
-    DINING_VENUES ||--o{ DINING_STATIONS : features
     DINING_VENUES ||--o{ DINING_TRANSACTIONS : processes
-    DINING_STATIONS ||--o{ DINING_MENU_ITEMS : serves
 
     POSTS ||--o{ SAVED_POSTS : "saved in"
 
@@ -59,12 +62,10 @@ erDiagram
         string minor
         string card_number "VARCHAR(32)"
         string barcode "VARCHAR(48): 00000{id}00"
-        string residence "Hall & Room"
-        string advisor
         string role "student|moderator|admin"
         boolean directory_opt_in "FERPA directory preference"
         boolean directory_prompted "Has seen onboarding popup"
-        jsonb directory_visible_fields "{email: true, phone: false, residence: false}"
+        jsonb directory_visible_fields "{email: true, phone: false}"
         timestamptz created_at
         timestamptz updated_at
     }
@@ -74,7 +75,6 @@ erDiagram
         string name
         string category "Standard 13 taxonomy"
         string mark "2-letter monogram"
-        string tagline
         text description
         string meeting_schedule
         string location
@@ -187,21 +187,6 @@ erDiagram
         int end_minute_after_midnight
     }
 
-    DINING_STATIONS {
-        uuid id PK
-        string venue_id FK
-        string name "Grill, Homestyle, Pure Eats, Deli"
-    }
-
-    DINING_MENU_ITEMS {
-        uuid id PK
-        uuid station_id FK
-        string item_name
-        boolean is_vegetarian
-        boolean is_vegan
-        boolean is_gluten_free
-    }
-
     DINING_TRANSACTIONS {
         uuid id PK
         uuid student_id FK
@@ -251,16 +236,6 @@ erDiagram
         text interests
         boolean is_public_visible "Computed or FERPA approved"
     }
-
-    AUDIT_LOGS {
-        uuid id PK
-        uuid actor_id FK
-        string action "claim_club|create_post|delete_post|update_role|dining_override"
-        string target_type "post|club|student|dining"
-        string target_id
-        jsonb metadata
-        timestamptz created_at
-    }
 ```
 
 ---
@@ -283,12 +258,10 @@ erDiagram
 | `minor` | VARCHAR(150) | NULL | Secondary minor |
 | `card_number` | VARCHAR(32) | NOT NULL | Card identifier printed on physical Knight Card |
 | `barcode` | VARCHAR(14) | GENERATED ALWAYS AS STORED | 14-digit hardware scanner code: `'00000' \|\| student_id \|\| '00'` |
-| `residence` | VARCHAR(150) | NULL | Residence hall & room (e.g. `Boer-Bennink Hall, Rm 214`) |
-| `advisor` | VARCHAR(150) | NULL | Assigned faculty advisor |
 | `role` | VARCHAR(32) | NOT NULL, DEFAULT `'student'` | `student`, `moderator`, `admin` |
 | `directory_opt_in` | BOOLEAN | NOT NULL, DEFAULT `FALSE` | FERPA consent: display in student directory |
 | `directory_prompted` | BOOLEAN | NOT NULL, DEFAULT `FALSE` | True if student has seen the first-login onboarding popup |
-| `directory_visible_fields` | JSONB | NOT NULL, DEFAULT `{"email": true, ...}` | Granular fields approved for directory display |
+| `directory_visible_fields` | JSONB | NOT NULL, DEFAULT `'{"email": true, "phone": false}'::jsonb` | Granular fields approved for directory display (`email`, `phone`) |
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT `NOW()` | Record creation timestamp |
 | `updated_at` | TIMESTAMPTZ | NOT NULL, DEFAULT `NOW()` | Last profile update |
 
@@ -352,7 +325,30 @@ erDiagram
 
 ---
 
-### 3.5 `club_claim_codes` & `club_memberships`
+### 3.5 `clubs`
+| Column | Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | VARCHAR(64) | PK | Unique organization slug (e.g. `'abstraction'`, `'acm'`) |
+| `name` | VARCHAR(150) | NOT NULL | Full club or organization name |
+| `category` | VARCHAR(64) | NOT NULL | One of standard 13 categories |
+| `mark` | VARCHAR(8) | NOT NULL | 2-character monogram badge |
+| `description` | TEXT | NOT NULL | Full overview of organization mission |
+| `meeting_schedule` | VARCHAR(150) | NULL | Meeting cadence (e.g. `'Tuesdays at 7:00 PM'`) |
+| `location` | VARCHAR(150) | NULL | Primary meeting room or hall |
+| `contact_email` | VARCHAR(255) | NULL | Contact email address |
+| `leader_name` | VARCHAR(150) | NULL | Primary contact or leader |
+| `primary_color` | VARCHAR(16) | NOT NULL, DEFAULT `'#8C2131'` | Calvin Maroon or brand primary hex |
+| `secondary_color` | VARCHAR(16) | NOT NULL, DEFAULT `'#E8B019'` | Collegiate Gold or brand secondary hex |
+| `sf_icon` | VARCHAR(64) | NOT NULL, DEFAULT `'person.2.fill'` | SF Symbol identifier |
+| `md_icon` | VARCHAR(64) | NOT NULL, DEFAULT `'groups'` | Material Icon identifier |
+| `image_url` | TEXT | NULL | Club avatar or hero image URL |
+| `is_department` | BOOLEAN | NOT NULL, DEFAULT `FALSE` | Distinguishes academic departments from student clubs |
+| `follower_count` | INT | NOT NULL, DEFAULT 0 | Internal metric (strictly suppressed from public UI) |
+| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT `NOW()` | Record creation timestamp |
+
+---
+
+### 3.6 `club_claim_codes` & `club_memberships`
 #### `club_claim_codes`
 | Column | Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
@@ -444,7 +440,7 @@ Conforming to **Project Implementation Requirement (VV7, VV10)**:
 
 ### 6.1 DAL Modules
 - `server/dal/student-dal.js`: Queries and updates student profiles, Knight Card barcode lookups, FERPA directory opt-in status.
-- `server/dal/dining-dal.js`: Queries dining halls, stations, logs immutable transactions, queries meal balances.
+- `server/dal/dining-dal.js`: Queries dining halls, operating hours, logs immutable transactions, queries meal balances.
 - `server/dal/posts-dal.js`: Queries reverse-chronological feed, category filtering, search vector queries, post creation.
 - `server/dal/clubs-dal.js`: Queries club directory, follow/unfollow mutations, claim code verification & redemption.
 - `server/dal/safety-dal.js`: Queries active emergency contacts and safety alerts.
