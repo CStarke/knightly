@@ -1,8 +1,6 @@
 import assert from 'node:assert/strict';
 import { mock, test } from 'node:test';
 import { createSharedClock } from '@/utils/shared-clock';
-import { createStarfieldLayerUri } from '@/utils/starfield-layer';
-import { calculateStarCounts, generateStars } from '@/constants/starfield';
 import { createTimedFetch } from '@/services/timed-fetch';
 import { fetchFeedPosts } from '@/services/posts-api';
 import { posts } from '@/data/feed';
@@ -50,23 +48,6 @@ test('shared clock sleeps in background and immediately refreshes on foreground 
   unsubscribe();
   clock.setActive(true);
   assert.equal(schedules, 1, 'no timer should restart without subscribers');
-});
-
-test('batched star images preserve every generated star, deterministic layout and native-safe SVG', () => {
-  const counts = calculateStarCounts(858, 1744);
-  let total = 0;
-  for (const count of [counts.distant, counts.midground, counts.foreground]) {
-    const stars = generateStars(count, 858, 1744, 1337, [1, 3], [0.2, 0.8], ['#FFFFFF']);
-    const uri = createStarfieldLayerUri(stars, 858, 1744, 0.5);
-    assert.equal(uri, createStarfieldLayerUri(stars, 858, 1744, 0.5));
-    const svg = decodeURIComponent(uri.split(',')[1]);
-    total += (svg.match(/data-star=/g) ?? []).length;
-    assert.doesNotMatch(svg, /<(?:defs|use|filter)\b/);
-    assert.match(svg, /viewBox="0 0 858 1744"/);
-  }
-  assert.equal(total, counts.total);
-  assert.equal(counts.distant / counts.foreground, 5);
-  assert.equal(counts.midground / counts.foreground, 3);
 });
 
 test('request deadlines are cleaned up after immediate offline failures and successful responses', async () => {

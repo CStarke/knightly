@@ -63,27 +63,6 @@ export type ParallaxStarfieldProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-/** Render a generated star directly; parent layers own all animated movement. */
-const StarPoint = memo(function StarPoint({ star, glow = false }: { star: Star; glow?: boolean }) {
-  return (
-    <View style={{
-      position: 'absolute', left: star.x, top: star.y,
-      width: star.size, height: star.size, borderRadius: star.size / 2,
-      backgroundColor: star.color, opacity: star.opacity,
-      // Native shadows preserve foreground glow without SVG image decoding.
-      ...(glow ? { shadowColor: star.color, shadowOpacity: 0.7, shadowRadius: star.size,
-        shadowOffset: { width: 0, height: 0 } } : {}),
-    }}>
-      {star.isSparkle && <>
-        <View style={{ position: 'absolute', backgroundColor: star.color, opacity: 0.6,
-          width: star.size * 3, height: 0.5, left: -star.size, top: star.size / 2 }} />
-        <View style={{ position: 'absolute', backgroundColor: star.color, opacity: 0.6,
-          width: 0.5, height: star.size * 3, left: star.size / 2, top: -star.size }} />
-      </>}
-    </View>
-  );
-});
-
 export const ParallaxStarfield = memo(function ParallaxStarfield({
   translateX,
   scrollY,
@@ -184,8 +163,7 @@ export const ParallaxStarfield = memo(function ParallaxStarfield({
 
   const baseBg = isDark ? "#07080A" : theme.background;
 
-  // Render stars directly so the sky does not depend on SVG data-URI image decoding.
-  // Keep transforms on the three parent layers so scrolling stays on the UI thread.
+  // Restore the pre-cleanup circles, layer-specific glow, and foreground diamond outlines.
   return (
     <View
       pointerEvents="none"
@@ -204,7 +182,23 @@ export const ParallaxStarfield = memo(function ParallaxStarfield({
           layer1Style,
         ]}
       >
-        {layer1Stars.map((star) => <StarPoint key={star.id} star={star} />)}
+        {layer1Stars.map((star) => (
+          <View
+            key={`l1-${star.id}`}
+            style={[
+              styles.star,
+              {
+                left: star.x,
+                top: star.y,
+                width: star.size,
+                height: star.size,
+                borderRadius: star.size / 2,
+                backgroundColor: star.color,
+                opacity: star.opacity,
+              },
+            ]}
+          />
+        ))}
       </Animated.View>
 
       {/* Midground star layer (3x ratio) */}
@@ -215,7 +209,27 @@ export const ParallaxStarfield = memo(function ParallaxStarfield({
           layer2Style,
         ]}
       >
-        {layer2Stars.map((star) => <StarPoint key={star.id} star={star} glow />)}
+        {layer2Stars.map((star) => (
+          <View
+            key={`l2-${star.id}`}
+            style={[
+              styles.star,
+              {
+                left: star.x,
+                top: star.y,
+                width: star.size,
+                height: star.size,
+                borderRadius: star.size / 2,
+                backgroundColor: star.color,
+                opacity: star.opacity,
+                shadowColor: star.color,
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: isDark ? 0.5 : 0.2,
+                shadowRadius: star.size * 0.8,
+              },
+            ]}
+          />
+        ))}
       </Animated.View>
 
       {/* Foreground bright star layer (1x ratio) */}
@@ -226,7 +240,41 @@ export const ParallaxStarfield = memo(function ParallaxStarfield({
           layer3Style,
         ]}
       >
-        {layer3Stars.map((star) => <StarPoint key={star.id} star={star} glow />)}
+        {layer3Stars.map((star) => (
+          <View
+            key={`l3-${star.id}`}
+            style={[
+              styles.star,
+              {
+                left: star.x,
+                top: star.y,
+                width: star.size,
+                height: star.size,
+                borderRadius: star.size / 2,
+                backgroundColor: star.color,
+                opacity: star.opacity,
+                shadowColor: star.color,
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: isDark ? 0.95 : 0.45,
+                shadowRadius: star.size * 1.3,
+              },
+            ]}
+          >
+            {star.isSparkle ? (
+              <View
+                style={[
+                  styles.sparkleDiamond,
+                  {
+                    width: star.size * 1.8,
+                    height: star.size * 1.8,
+                    borderColor: star.color,
+                    opacity: 0.6,
+                  },
+                ]}
+              />
+            ) : null}
+          </View>
+        ))}
       </Animated.View>
     </View>
   );
@@ -241,5 +289,15 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 0,
     left: 0,
+  },
+  star: {
+    position: "absolute",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sparkleDiamond: {
+    position: "absolute",
+    borderWidth: StyleSheet.hairlineWidth,
+    transform: [{ rotate: "45deg" }],
   },
 });

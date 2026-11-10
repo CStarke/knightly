@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Badge, type BadgeTone } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
+import { FavoriteStar } from '@/components/ui/favorite-star';
 import { Brand, Fonts, Radius, Spacing } from '@/constants/theme';
 import { getPresetBannerDetails, isPresetBanner } from '@/constants/preset-banners';
 import { useClubFollow } from '@/context/club-follow-context';
@@ -261,15 +262,15 @@ export const PostCard = memo(function PostCard({ post, variant = 'editorial', on
           "In 2 days", or exact date) dynamically based on current client clock and server timestamp.
         */}
         <View style={styles.footer}>
-          <PostTimestamp post={post} />
-
-          {post.campusWide ? (
-            <ThemedText type="caption" themeColor="textMuted">
-              Campus-wide
-            </ThemedText>
-          ) : null}
-
-          {/* Allow individual students to bookmark/save this post for quick reference. */}
+          {/* Group quiet metadata on the left, keeping the compact save action separate. */}
+          <View style={styles.footerMetadata}>
+            <PostTimestamp post={post} />
+            {post.campusWide ? (
+              <ThemedText type="caption" themeColor="textMuted">
+                Campus-wide
+              </ThemedText>
+            ) : null}
+          </View>
           <SavePostButton postId={post.id} />
         </View>
       </View>
@@ -280,7 +281,7 @@ export const PostCard = memo(function PostCard({ post, variant = 'editorial', on
 /** Isolates periodic timestamp rendering from the image-heavy parent card. */
 const PostTimestamp = memo(function PostTimestamp({ post }: { post: Post }) {
   const now = useRelativeClock();
-  return <ThemedText type="caption" themeColor="textMuted">
+  return <ThemedText type="caption" themeColor="textMuted" style={styles.timestamp}>
     {formatRelativeTime(post.postedAt, post.createdAt, post.monotonicCreatedAt, { now })}
   </ThemedText>;
 });
@@ -292,8 +293,8 @@ const SavePostButton = memo(function SavePostButton({ postId }: { postId: string
   const isSaved = isPostSaved(postId);
   return <Pressable onPress={() => toggleSavePost(postId)} accessibilityRole="button"
     accessibilityLabel={isSaved ? 'Remove saved post' : 'Save post'} accessibilityState={{ selected: isSaved }}
-    hitSlop={10} style={({ pressed }) => [styles.favoriteButton, pressed && styles.pressedPill]}>
-    <Icon sf={isSaved ? 'star.fill' : 'star'} md={isSaved ? 'star' : 'star_border'} size={22}
+    hitSlop={6} style={({ pressed }) => [styles.favoriteButton, pressed && styles.pressedPill]}>
+    <FavoriteStar saved={isSaved} size={16}
       color={isSaved ? Brand.gold : theme.textMuted} />
   </Pressable>;
 });
@@ -386,8 +387,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     flex: 1,
+    minWidth: 0,
   },
   noImageOrgText: {
+    flexShrink: 1,
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 0.2,
@@ -398,7 +401,6 @@ const styles = StyleSheet.create({
   },
   webContent: {
     flex: 1,
-    justifyContent: 'space-between',
   },
   title: {
     fontFamily: Fonts.serif,
@@ -430,6 +432,7 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 13,
+    flexShrink: 1,
   },
   body: {
     lineHeight: 21,
@@ -437,11 +440,26 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: Spacing.two,
+    marginTop: 'auto',
     paddingTop: Spacing.one,
   },
+  footerMetadata: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    columnGap: Spacing.two,
+    rowGap: Spacing.half,
+  },
+  timestamp: {
+    flexShrink: 1,
+  },
   favoriteButton: {
-    padding: 6,
+    width: 32,
+    height: 32,
+    flexShrink: 0,
     borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',

@@ -19,6 +19,16 @@ and this project adheres to semantic application versioning defined in `AGENTS.m
   - Updated `docs/DATABASE_DESIGN.md` specification, Mermaid diagram, and data dictionary to match the streamlined schema.
   - Exported comprehensive relational Entity-Relationship Diagram to [`docs/DATABASE_ERD.svg`](docs/DATABASE_ERD.svg).
   - Updated `docs/api.md` student endpoints and FERPA directory contracts.
+## [0.8.6] - Unreleased
+
+### Added
+- Added tests verifying that a claim code remains usable after a wrong-club attempt and that it succeeds one millisecond before expiration but is rejected exactly at expiration.
+
+## [0.8.5] - Unreleased
+
+### Fixed
+- Balance news-card footer spacing by grouping wrapping metadata beside a fixed-size save control; keep desktop card content naturally spaced and long logistics text within the card. Use compact 16px bundled outline/solid star assets for reliable filled saved states on every platform in a 32px control with an expanded touch area; keep the event scope grouped beside the timestamp.
+- Restore the pre-cleanup starfield appearance from commit 7488016: outlined foreground diamonds, round distant and midground stars, and original layer-specific glow. Retain keyboard-resize and long-scroll stability. Remove the unused cached SVG cross renderer and add regression coverage for the active diamond renderer and shared background integration.
 
 ## [0.8.4]
 
