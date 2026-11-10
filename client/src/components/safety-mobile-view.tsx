@@ -17,10 +17,17 @@ import {
 } from '@/components/safety-sections';
 import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
+import { useSafety } from '@/context/safety-context';
 
 export function SafetyMobileView() {
+  const { isRefreshing, refreshSafety } = useSafety();
+
   return (
-    <Screen style={styles.screenInner}>
+    <Screen
+      style={styles.screenInner}
+      refreshing={isRefreshing}
+      onRefresh={refreshSafety}
+    >
       {/* Primary Emergency Action: Immediate 1-tap dialer to Calvin Dispatch */}
       <SafetyEmergencyButton />
 

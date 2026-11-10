@@ -146,8 +146,8 @@ It consolidates:
   - *Verification & Code Reference:* Implemented in `theme.ts`, `useTheme`, and `useColorScheme`. Full light and dark themes using official Calvin Maroon (`#8C2131`) and Collegiate Gold (`#E8B019`) color tokens.
 - [x] **US-N05:** As a web user, I want a top navigation bar, so the app works with a mouse and larger screen.
   - *Verification & Code Reference:* Implemented in `AppTabsWeb` and `AppHeader`. Features desktop navbar with clickable tab links, avatar, and quick links.
-- [ ] **US-N06:** As a student, I want a refresh action on the feed, dining, and safety screens, so I can request updated information without reopening the app.
-  - *Status:* **Pending Implementation.** Pull-to-refresh (`RefreshControl`) gestures and manual refresh buttons have not yet been wired into the feed, dining, or safety view components.
+- [x] **US-N06:** As a student, I want a refresh action on the feed, dining, and safety screens, so I can request updated information without reopening the app.
+  - *Verification & Code Reference:* Implemented template-level pull-to-refresh (`RefreshControl`) in `Screen` and `ScreenFlatList` with brand tokens (`Brand.gold` `#E8B019`, `Brand.maroon` `#5E1A24`). Implemented consolidated `RefreshButton` component with Reanimated spinning icon and accessibility labels. Wired pull-to-refresh and manual refresh buttons across Feed (`index.tsx`, `feed-context.tsx`), Dining (`DiningMobileView`, `DiningWebView`, `DiningHallsSection`, `dining-context.tsx`), and Safety (`SafetyMobileView`, `SafetyWebView`, `SafetyAlertsSection`, `safety-context.tsx`, `safety-api.ts`). Verified with 47 tests in `client/tests/refresh-actions-us-n06.test.ts`.
 - [ ] **US-N07:** As a student, I want separate loading, no-results, and request-failure messages, with retry after a failure, so I understand what happened and can try again.
   - *Status:* **Partial Implementation.** No-results empty states are implemented (`FeedEmptyState`). However, explicit animated loading skeletons and error banners with retry buttons on network failure are not yet implemented.
 

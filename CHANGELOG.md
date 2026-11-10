@@ -5,6 +5,17 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
+## [0.9.0] - Unreleased
+
+### Added
+- **US-N06 (Pull-to-Refresh & Manual Refresh Actions)**:
+  - Added template-level Calvin-branded pull-to-refresh (`RefreshControl`) to `Screen` and `ScreenFlatList` in `client/src/components/ui/screen.tsx` using centralized theme tokens (`Brand.gold`, `Brand.maroon`).
+  - Added consolidated, accessible `RefreshButton` component in `client/src/components/ui/refresh-button.tsx` with tactile micro-spring bounce and Reanimated rotational spin animation.
+  - Implemented `FeedContext` refresh coordination (`refreshFeed()`, `isRefreshing`) with pull-to-refresh on `ScreenFlatList` (mobile) and `Screen` (web), plus a manual `RefreshButton` in `listHeader`.
+  - Implemented `DiningContext` (`useDining()`, `refreshDining()`, `isRefreshing`) coordinating student swipe balances (`KnightIdCardSection`) and venue operating windows (`DiningHallsSection`), with pull-to-refresh in `DiningMobileView` / `DiningWebView` and manual `RefreshButton` in `DiningHallsSection`.
+  - Implemented `SafetyContext` (`useSafety()`, `refreshSafety()`, `isRefreshing`) coordinating active safety advisories and emergency contacts with `client/src/services/safety-api.ts` and `GET /api/safety/alerts` in `server/server.js`, with pull-to-refresh in `SafetyMobileView` / `SafetyWebView` and manual `RefreshButton` in `SafetyAlertsSection`.
+  - Added 47 comprehensive invariant tests in `client/tests/refresh-actions-us-n06.test.ts`.
+
 ## [0.8.6] - Unreleased
 
 ### Added

@@ -13,10 +13,17 @@ import { KnightIdCardSection } from '@/components/dining-card-section';
 import { DiningHallsSection, DiningMenuSection } from '@/components/dining-venues-section';
 import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
+import { useDining } from '@/context/dining-context';
 
 export function DiningMobileView() {
+  const { isRefreshing, refreshDining } = useDining();
+
   return (
-    <Screen style={styles.screenInner}>
+    <Screen
+      style={styles.screenInner}
+      refreshing={isRefreshing}
+      onRefresh={refreshDining}
+    >
       <KnightIdCardSection />
       <DiningHallsSection />
       <DiningMenuSection />

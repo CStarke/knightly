@@ -8,7 +8,6 @@
  */
 
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -20,14 +19,10 @@ import { MealPlanStats } from '@/components/meal-plan-stats';
 import { Brand, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/auth-context';
 import { useDiningActivity } from '@/context/dining-activity-context';
+import { useDining } from '@/context/dining-context';
 import { hasFlexMeals, hasGuestPasses, mealPlan } from '@/data/dining';
 import { fullName } from '@/data/student';
 import { useTheme } from '@/hooks/use-theme';
-import {
-  fetchDiningSummaryApi,
-  getDefaultDiningSummary,
-  type DiningSummary,
-} from '@/services/dining-api';
 
 export function SubMeter({
   label,
@@ -68,21 +63,7 @@ export function KnightIdCardSection() {
   const theme = useTheme();
   const { openActivity } = useDiningActivity();
   const { user } = useAuth();
-
-  const [summary, setSummary] = useState<DiningSummary>(getDefaultDiningSummary);
-
-  useEffect(() => {
-    let mounted = true;
-    const targetId = user?.studentId || user?.id;
-    fetchDiningSummaryApi(targetId).then((data) => {
-      if (mounted && data) {
-        setSummary(data);
-      }
-    });
-    return () => {
-      mounted = false;
-    };
-  }, [user?.id, user?.studentId]);
+  const { summary } = useDining();
 
   const displayName = user?.fullName ?? fullName;
   const isBlock = summary.cadence === 'semester';
