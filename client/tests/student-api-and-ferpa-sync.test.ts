@@ -79,7 +79,6 @@ describe('Student Profile & FERPA Directory API Invariants', () => {
       assert.deepStrictEqual(profile.directoryVisibleFields, {
         email: true,
         phone: false,
-        residence: false,
       });
     });
 
@@ -101,7 +100,6 @@ describe('Student Profile & FERPA Directory API Invariants', () => {
         directoryVisibleFields: {
           email: true,
           phone: true,
-          residence: false,
         },
       });
 
@@ -113,18 +111,15 @@ describe('Student Profile & FERPA Directory API Invariants', () => {
       const fields = {
         email: true,
         phone: false,
-        residence: false,
       };
 
-      // Email is visible, phone & residence are hidden
+      // Email is visible, phone is hidden
       assert.strictEqual(fields.email, true);
       assert.strictEqual(fields.phone, false);
-      assert.strictEqual(fields.residence, false);
 
       // Student toggles phone visibility
       const updated = { ...fields, phone: true };
       assert.strictEqual(updated.phone, true);
-      assert.strictEqual(updated.residence, false);
     });
   });
 });

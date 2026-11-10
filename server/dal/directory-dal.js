@@ -81,7 +81,7 @@ async function syncStudentDirectoryListing(student, client = getDefaultClient())
     department: student.major,
     email: fields.email !== false ? student.email : null,
     phone: fields.phone ? student.phone : null,
-    office_location: fields.residence ? student.residence : null,
+    office_location: null,
     office_hours: null,
     pronouns: null,
     interests: null,

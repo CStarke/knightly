@@ -58,7 +58,7 @@ Knightly leverages a **dual REST strategy**:
       "role": "student",
       "directoryOptIn": false,
       "directoryPrompted": true,
-      "directoryVisibleFields": { "email": true, "phone": false, "residence": false }
+      "directoryVisibleFields": { "email": true, "phone": false }
     }
     ```
 
@@ -69,7 +69,7 @@ Knightly leverages a **dual REST strategy**:
     {
       "studentId": "uuid-here",
       "directoryOptIn": true,
-      "directoryVisibleFields": { "email": true, "phone": false, "residence": false }
+      "directoryVisibleFields": { "email": true, "phone": false }
     }
     ```
   - **Response `200 OK`**: Updated student profile.

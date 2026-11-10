@@ -78,7 +78,7 @@ test('Student & FERPA Directory BLL Invariants', async (t) => {
       major: 'Computer Science',
       directory_opt_in: false,
       directory_prompted: false,
-      directory_visible_fields: { email: true, phone: false, residence: false },
+      directory_visible_fields: { email: true, phone: false },
     });
 
     // Student opts in during first-login onboarding popup
@@ -86,7 +86,7 @@ test('Student & FERPA Directory BLL Invariants', async (t) => {
       {
         studentId,
         directoryOptIn: true,
-        directoryVisibleFields: { email: true, phone: true, residence: false },
+        directoryVisibleFields: { email: true, phone: true },
       },
       studentDal,
       directoryDal

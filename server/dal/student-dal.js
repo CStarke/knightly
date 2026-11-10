@@ -149,7 +149,7 @@ async function provisionStudent(username, client = getDefaultClient()) {
       role: 'student',
       directory_opt_in: false,
       directory_prompted: false,
-      directory_visible_fields: { email: true, phone: false, residence: false },
+      directory_visible_fields: { email: true, phone: false },
     })
     .select()
     .single();
@@ -197,7 +197,7 @@ async function updateDirectoryPreferences(id, { directoryOptIn, directoryVisible
     .update({
       directory_opt_in: !!directoryOptIn,
       directory_prompted: true,
-      directory_visible_fields: directoryVisibleFields || { email: true, phone: false, residence: false },
+      directory_visible_fields: directoryVisibleFields || { email: true, phone: false },
       updated_at: new Date().toISOString(),
     });
 

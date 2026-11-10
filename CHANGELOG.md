@@ -21,6 +21,18 @@ and this project adheres to semantic application versioning defined in `AGENTS.m
 - **Refresh Spinner Centering**: Centered the rotating refresh glyph inside a dedicated square `iconWrapper` container in `client/src/components/ui/refresh-button.tsx`, removed unconditional flex gaps in icon-only mode, and set medium size to 42px to align flush with `SearchField` in the Knightly feed search row.
 - **Refresh Button Label Alignment**: Centered label text vertically within small and medium refresh button pills by setting `type="caption"`, applying explicit tight `lineHeight: 14` / `16`, disabling Android font padding (`includeFontPadding: false`), and removing vertical padding constraints in `client/src/components/ui/refresh-button.tsx`.
 
+### Changed
+- **Database Schema Streamlining**:
+  - Removed academically-focused fields (`residence` and `advisor`) from `students` table, client models, and authentication context.
+  - Simplified FERPA directory privacy visibility preferences to two fields (`email`, `phone`), removing `residence`.
+  - Dropped unused `dining_stations` and `dining_menu_items` tables and queries, consolidating dining architecture around venues, operating hours, and autonomous student ledger balances.
+  - Removed `audit_logs` table stub and references.
+  - Removed legacy `tagline` column from `clubs` table to match client UI.
+  - Authored standalone DDL migration script `server/db/migrations/004_streamline_schema.sql` and updated existing migrations and seeds.
+- **Documentation & ERD**:
+  - Updated `docs/DATABASE_DESIGN.md` specification, Mermaid diagram, and data dictionary to match the streamlined schema.
+  - Exported comprehensive relational Entity-Relationship Diagram to [`docs/DATABASE_ERD.svg`](docs/DATABASE_ERD.svg).
+  - Updated `docs/api.md` student endpoints and FERPA directory contracts.
 ## [0.8.6] - Unreleased
 
 ### Added

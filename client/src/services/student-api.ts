@@ -37,8 +37,6 @@ export interface StudentProfile {
   minor?: string;
   cardNumber: string;
   barcode: string;
-  residence?: string;
-  advisor?: string;
   role?: string;
   directoryOptIn: boolean;
   directoryPrompted: boolean;
@@ -80,12 +78,10 @@ export function getDefaultStudentProfile(): StudentProfile {
     minor: defaultStudent.minor,
     cardNumber: defaultStudent.cardNumber,
     barcode: defaultStudent.barcode,
-    residence: defaultStudent.residence,
-    advisor: defaultStudent.advisor,
     role: 'student',
     directoryOptIn: false,
     directoryPrompted: false,
-    directoryVisibleFields: { email: true, phone: false, residence: false },
+    directoryVisibleFields: { email: true, phone: false },
   };
 }
 
@@ -129,12 +125,10 @@ export async function fetchStudentProfile(username?: string): Promise<StudentPro
           minor: data.minor || defaultStudent.minor,
           cardNumber: data.cardNumber || defaultStudent.cardNumber,
           barcode: data.barcode || formatBarcode(data.studentId || defaultStudent.id),
-          residence: data.residence || data.residenceHall || defaultStudent.residence,
-          advisor: data.advisor || defaultStudent.advisor,
           role: data.role || 'student',
           directoryOptIn: !!data.directoryOptIn,
           directoryPrompted: !!data.directoryPrompted,
-          directoryVisibleFields: data.directoryVisibleFields || { email: true, phone: false, residence: false },
+          directoryVisibleFields: data.directoryVisibleFields || { email: true, phone: false },
         };
       }
     }
