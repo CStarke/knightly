@@ -162,7 +162,7 @@ export function RefreshButton({
           rootAnimatedStyle,
         ]}
       >
-        <Animated.View style={[styles.iconWrapper, iconAnimatedStyle]}>
+        <Animated.View style={[styles.iconWrapper, isSmall ? styles.iconWrapperSmall : styles.iconWrapperMedium, iconAnimatedStyle]}>
           <Icon
             sf="arrow.clockwise"
             md="refresh"
@@ -173,6 +173,7 @@ export function RefreshButton({
 
         {label ? (
           <ThemedText
+            type="caption"
             style={[
               styles.labelText,
               isSmall ? styles.labelSmall : styles.labelMedium,
@@ -200,7 +201,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   innerRowWithLabel: {
-    gap: 6,
+    gap: 5,
   },
   innerRowIconOnly: {
     alignItems: 'center',
@@ -209,21 +210,27 @@ const styles = StyleSheet.create({
   iconWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  iconWrapperSmall: {
+    width: 14,
+    height: 14,
+  },
+  iconWrapperMedium: {
     width: 20,
     height: 20,
   },
   pill: {
     borderRadius: Radius.pill,
     borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pillSmall: {
     paddingHorizontal: Spacing.two + 2,
-    paddingVertical: 5,
     height: 28,
   },
   pillMedium: {
     paddingHorizontal: Spacing.three,
-    paddingVertical: 7,
     height: 42,
   },
   iconOnly: {
@@ -247,12 +254,16 @@ const styles = StyleSheet.create({
   labelText: {
     fontWeight: '700',
     letterSpacing: 0.2,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   labelSmall: {
     fontSize: 12,
+    lineHeight: 14,
   },
   labelMedium: {
     fontSize: 13,
+    lineHeight: 16,
   },
   pressed: {
     opacity: 0.75,

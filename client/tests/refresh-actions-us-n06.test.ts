@@ -537,6 +537,15 @@ describe('US-N06: Pull-to-Refresh & Manual Refresh Actions Test Suite', () => {
         'RefreshButton must support 42px medium dimension to align with SearchField'
       );
     });
+
+    it('Label Vertical Centering: sets type="caption", explicit lineHeight, and includeFontPadding=false', () => {
+      const code = readSrc('components/ui/refresh-button.tsx');
+
+      assert.ok(code.includes('type="caption"'), 'RefreshButton must use type="caption" on ThemedText to avoid oversized default lineHeight');
+      assert.ok(code.includes('includeFontPadding: false'), 'RefreshButton must disable Android font padding for tight button centering');
+      assert.ok(code.includes('textAlignVertical: \'center\''), 'RefreshButton must vertically center label text');
+      assert.ok(code.includes('lineHeight: 14'), 'RefreshButton small label must set explicit tight lineHeight');
+    });
   });
 
   // ==========================================================================
