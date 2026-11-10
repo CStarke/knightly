@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -9,9 +10,10 @@ type SectionHeaderProps = {
   caption?: string;
   actionLabel?: string;
   onAction?: () => void;
+  right?: ReactNode;
 };
 
-export function SectionHeader({ title, caption, actionLabel, onAction }: SectionHeaderProps) {
+export function SectionHeader({ title, caption, actionLabel, onAction, right }: SectionHeaderProps) {
   const theme = useTheme();
 
   return (
@@ -25,7 +27,9 @@ export function SectionHeader({ title, caption, actionLabel, onAction }: Section
         ) : null}
       </View>
 
-      {actionLabel ? (
+      {right ? (
+        right
+      ) : actionLabel ? (
         <Pressable onPress={onAction} style={({ pressed }) => pressed && styles.pressed}>
           <ThemedText type="smallBold" style={{ color: theme.tint }}>
             {actionLabel}

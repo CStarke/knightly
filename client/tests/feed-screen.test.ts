@@ -24,6 +24,7 @@ test('feed screen reconciles mobile saved posts with shared mobile/web filters',
     ['components/ui/card', ['Card']],
     ['components/ui/chip', ['ChipRow']],
     ['components/ui/icon', ['Icon']],
+    ['components/ui/refresh-button', ['RefreshButton']],
     ['components/ui/screen', ['Screen', 'ScreenFlatList']],
     ['components/ui/search-field', ['SearchField']],
     ['components/ui/segmented', ['Segmented']],
@@ -31,7 +32,13 @@ test('feed screen reconciles mobile saved posts with shared mobile/web filters',
     stubs.set(`@/${path}`, Object.fromEntries(names.map(name => [name, component(name)])));
   }
   stubs.set('@/context/feed-context', {
-    useFeed: () => ({ posts: samplePosts, savedPosts: favorites, favoritePosts: favorites }),
+    useFeed: () => ({
+      posts: samplePosts,
+      savedPosts: favorites,
+      favoritePosts: favorites,
+      refreshFeed: async () => {},
+      isRefreshing: false,
+    }),
   });
   stubs.set('@/context/club-follow-context', {
     useClubFollow: () => ({ isFollowing: (id: string) => id === followedClub, followedCount: 1 }),

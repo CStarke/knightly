@@ -46,6 +46,10 @@ type FeedContextType = {
   favoritePosts: Post[];
   toggleFavorite: (id: string) => void;
   isFavorite: (id: string) => boolean;
+
+  // Manual and pull-to-refresh actions (US-N06)
+  refreshFeed: () => Promise<void>;
+  isRefreshing: boolean;
 };
 
 const FeedContext = createContext<FeedContextType | null>(null);
@@ -200,6 +204,35 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
 
   const { isFollowing, toggleFollow } = useClubFollow();
 
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  /**
+   * Refreshes the feed by querying fresh posts from the backend API.
+   *
+   * WHY PRESERVING LOCAL ONLY POSTS:
+   * Newly published posts created during this session (`p-local-*`) survive refreshes
+   * while fresh updates from Supabase are synchronized seamlessly.
+   *
+   * OFFLINE RESILIENCE:
+   * Wrapped in try/catch to ensure the app never crashes when the server is unreachable.
+   */
+  const refreshFeed = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      const livePosts = await fetchFeedPosts({}, feedPosts);
+      if (livePosts && livePosts.length > 0) {
+        setFeedPosts((prev) => {
+          const localOnly = prev.filter((p) => p.id.startsWith('p-local-'));
+          return sortPostsByDate([...localOnly, ...livePosts]);
+        });
+      }
+    } catch {
+      // Swallowed gracefully per Sprint 1 SLO SC2
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [feedPosts]);
+
   // SPRINT 1 SLO DIRECTIVE (SC2):
   // Asynchronously retrieve fresh events from the server REST API (/api/events),
   // merging with local state while preserving the offline seed data fallback.
@@ -334,6 +367,10 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       favoritePosts: savedPosts,
       toggleFavorite: toggleSavePost,
       isFavorite: isPostSaved,
+
+      // Manual and pull-to-refresh actions (US-N06)
+      refreshFeed,
+      isRefreshing,
     }),
     [
       feedPosts,
@@ -342,6 +379,8 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       savedPosts,
       toggleSavePost,
       isPostSaved,
+      refreshFeed,
+      isRefreshing,
     ]
   );
 

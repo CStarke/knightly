@@ -37,6 +37,7 @@ import { ThemedText } from "@/components/themed-text";
 import { Card } from "@/components/ui/card";
 import { ChipRow } from "@/components/ui/chip";
 import { Icon } from "@/components/ui/icon";
+import { RefreshButton } from "@/components/ui/refresh-button";
 import { Screen, ScreenFlatList } from "@/components/ui/screen";
 import { SearchField } from "@/components/ui/search-field";
 import { Segmented } from "@/components/ui/segmented";
@@ -77,8 +78,8 @@ export default function FeedScreen() {
   const deferredCategory = useDeferredValue(category);
   const deferredQuery = useDeferredValue(query);
 
-  // Get all feed posts and the student's saved favorite posts.
-  const { posts: dynamicPosts, savedPosts, favoritePosts } = useFeed();
+  // Get all feed posts, saved favorite posts, and feed refresh actions.
+  const { posts: dynamicPosts, savedPosts, favoritePosts, refreshFeed, isRefreshing } = useFeed();
   const { isFollowing, followedCount } = useClubFollow();
   const { openClubsDirectory } = useClubsNavigation();
 
@@ -130,18 +131,28 @@ export default function FeedScreen() {
 
   const listHeader = (
     <View style={styles.filterSection}>
-      {/* Step A: Live Keyword Search Input */}
-      <SearchField
-        value={query}
-        onChangeText={setQuery}
-        placeholder={
-          scope === "Favorites"
-            ? "Search saved favorite posts..."
-            : scope === "Following"
-            ? "Search followed clubs & campus alerts..."
-            : "Search all events, clubs, locations..."
-        }
-      />
+      {/* Step A: Live Keyword Search Input & Manual Refresh Action (US-N06) */}
+      <View style={styles.searchRow}>
+        <View style={styles.searchFieldWrapper}>
+          <SearchField
+            value={query}
+            onChangeText={setQuery}
+            placeholder={
+              scope === "Favorites"
+                ? "Search saved favorite posts..."
+                : scope === "Following"
+                ? "Search followed clubs & campus alerts..."
+                : "Search all events, clubs, locations..."
+            }
+          />
+        </View>
+        <RefreshButton
+          onRefresh={refreshFeed}
+          refreshing={isRefreshing}
+          size="medium"
+          accessibilityLabel="Refresh campus feed"
+        />
+      </View>
 
       {/* Step B: Audience Scope Toggle */}
       <View style={styles.scopeToggleWrapper}>
@@ -271,6 +282,8 @@ export default function FeedScreen() {
         maxToRenderPerBatch={5}
         windowSize={5}
         removeClippedSubviews={Platform.OS === 'android'}
+        refreshing={isRefreshing}
+        onRefresh={refreshFeed}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={listEmpty}
         renderItem={({ item: row }) => (
@@ -288,7 +301,11 @@ export default function FeedScreen() {
 
   // Web Layout (Scroll View with multi-column grid)
   return (
-    <Screen style={styles.screenInner}>
+    <Screen
+      style={styles.screenInner}
+      refreshing={isRefreshing}
+      onRefresh={refreshFeed}
+    >
       {listHeader}
       <View style={styles.evenGrid}>
         {evenRows.map((row, rowIdx) => (
@@ -318,6 +335,14 @@ const styles = StyleSheet.create({
   filterSection: {
     gap: Spacing.two,
     marginBottom: Spacing.two,
+  },
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two,
+  },
+  searchFieldWrapper: {
+    flex: 1,
   },
   scopeToggleWrapper: {
     alignSelf: "stretch",

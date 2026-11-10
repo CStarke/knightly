@@ -10,14 +10,15 @@
 
 import { DiningMobileView } from '@/components/dining-mobile-view';
 import { DiningWebView } from '@/components/dining-web-view';
+import { DiningProvider } from '@/context/dining-context';
 import { useResponsiveLayout } from '@/hooks/use-responsive-layout';
 
 export default function DiningScreen() {
   const { isCompact } = useResponsiveLayout();
 
-  if (isCompact) {
-    return <DiningMobileView />;
-  }
-
-  return <DiningWebView />;
+  return (
+    <DiningProvider>
+      {isCompact ? <DiningMobileView /> : <DiningWebView />}
+    </DiningProvider>
+  );
 }

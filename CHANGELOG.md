@@ -7,6 +7,20 @@ and this project adheres to semantic application versioning defined in `AGENTS.m
 
 ## [0.9.0] - Unreleased
 
+### Added
+- **US-N06 (Pull-to-Refresh & Manual Refresh Actions)**:
+  - Added template-level Calvin-branded pull-to-refresh (`RefreshControl`) to `Screen` and `ScreenFlatList` in `client/src/components/ui/screen.tsx` using centralized theme tokens (`Brand.gold`, `Brand.maroon`).
+  - Added consolidated, accessible `RefreshButton` component in `client/src/components/ui/refresh-button.tsx` with tactile micro-spring bounce and Reanimated rotational spin animation.
+  - Implemented `FeedContext` refresh coordination (`refreshFeed()`, `isRefreshing`) with pull-to-refresh on `ScreenFlatList` (mobile) and `Screen` (web), plus a manual `RefreshButton` in `listHeader`.
+  - Implemented `DiningContext` (`useDining()`, `refreshDining()`, `isRefreshing`) coordinating student swipe balances (`KnightIdCardSection`) and venue operating windows (`DiningHallsSection`), with pull-to-refresh in `DiningMobileView` / `DiningWebView` and manual `RefreshButton` in `DiningHallsSection`.
+  - Implemented `SafetyContext` (`useSafety()`, `refreshSafety()`, `isRefreshing`) coordinating active safety advisories and emergency contacts with `client/src/services/safety-api.ts` and `GET /api/safety/alerts` in `server/server.js`, with pull-to-refresh in `SafetyMobileView` / `SafetyWebView` and manual `RefreshButton` in `SafetyAlertsSection`.
+  - Added 50 comprehensive invariant tests in `client/tests/refresh-actions-us-n06.test.ts`.
+
+### Fixed
+- **Screen Header Spacing**: Tightened scroll view top padding from `headerInset + Spacing.three` to `headerInset + Spacing.two` and configured `contentInsetAdjustmentBehavior="never"` across `Screen`, `ScreenFlatList`, and `ScreenScrollView` in `client/src/components/ui/screen.tsx`, eliminating iOS double-inset dead space between the top title card and page content.
+- **Refresh Spinner Centering**: Centered the rotating refresh glyph inside a dedicated square `iconWrapper` container in `client/src/components/ui/refresh-button.tsx`, removed unconditional flex gaps in icon-only mode, and set medium size to 42px to align flush with `SearchField` in the Knightly feed search row.
+- **Refresh Button Label Alignment**: Centered label text vertically within small and medium refresh button pills by setting `type="caption"`, applying explicit tight `lineHeight: 14` / `16`, disabling Android font padding (`includeFontPadding: false`), and removing vertical padding constraints in `client/src/components/ui/refresh-button.tsx`.
+
 ### Changed
 - **Database Schema Streamlining**:
   - Removed academically-focused fields (`residence` and `advisor`) from `students` table, client models, and authentication context.

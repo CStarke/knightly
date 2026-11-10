@@ -14,11 +14,13 @@ import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ListRow } from '@/components/ui/list-row';
+import { RefreshButton } from '@/components/ui/refresh-button';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Spacing } from '@/constants/theme';
-import { emergencyContacts, safetyAlerts, type SafetyAlert } from '@/data/safety';
-import { useTheme } from '@/hooks/use-theme';
+import { type SafetyAlert } from '@/data/safety';
 import { useCampusMapNavigation } from '@/context/campus-map-navigation-context';
+import { useSafety } from '@/context/safety-context';
+import { useTheme } from '@/hooks/use-theme';
 
 export const severityTone = {
   critical: 'danger',
@@ -95,17 +97,30 @@ export function SafetyQuickAssistCard(): ReactElement {
  */
 export function SafetyAlertsSection() {
   const theme = useTheme();
+  const { alerts, isRefreshing, refreshSafety } = useSafety();
 
   return (
     <View style={styles.section}>
-      <SectionHeader title="Alerts" caption="Last 48 hours" />
+      <SectionHeader
+        title="Alerts"
+        caption="Last 48 hours"
+        right={
+          <RefreshButton
+            onRefresh={refreshSafety}
+            refreshing={isRefreshing}
+            label="Refresh"
+            size="small"
+            accessibilityLabel="Refresh campus safety alerts"
+          />
+        }
+      />
       <Card flush>
-        {safetyAlerts.map((alert: SafetyAlert, index: number) => (
+        {alerts.map((alert: SafetyAlert, index: number) => (
           <View
             key={alert.id}
             style={[
               styles.alert,
-              index < safetyAlerts.length - 1 && {
+              index < alerts.length - 1 && {
                 borderBottomWidth: StyleSheet.hairlineWidth,
                 borderBottomColor: theme.border,
               },
@@ -139,11 +154,13 @@ export function SafetyAlertsSection() {
  * Essential Campus Emergency & University Services Directory.
  */
 export function SafetyNumbersSection() {
+  const { contacts } = useSafety();
+
   return (
     <View style={styles.section}>
       <SectionHeader title="Numbers" />
       <Card flush>
-        {emergencyContacts.map((contact, index) => (
+        {contacts.map((contact, index) => (
           <ListRow
             key={contact.id}
             title={contact.name}
@@ -152,7 +169,7 @@ export function SafetyNumbersSection() {
             md="call"
             tone={contact.urgent ? 'danger' : 'default'}
             onPress={() => dialPhone(contact.phone)}
-            last={index === emergencyContacts.length - 1}
+            last={index === contacts.length - 1}
           />
         ))}
       </Card>

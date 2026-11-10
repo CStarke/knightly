@@ -16,10 +16,17 @@ import { KnightIdCardSection } from '@/components/dining-card-section';
 import { DiningHallsSection, DiningMenuSection } from '@/components/dining-venues-section';
 import { Screen } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
+import { useDining } from '@/context/dining-context';
 
 export function DiningWebView() {
+  const { isRefreshing, refreshDining } = useDining();
+
   return (
-    <Screen style={styles.screenInner}>
+    <Screen
+      style={styles.screenInner}
+      refreshing={isRefreshing}
+      onRefresh={refreshDining}
+    >
       <View style={styles.desktopSplit}>
         {/* Left Column: Digital Student ID Card & Balance DashMeters */}
         <View style={styles.desktopLeftCol}>

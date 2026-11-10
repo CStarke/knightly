@@ -6,54 +6,37 @@
  * Reused in identical parity between `DiningMobileView` and `DiningWebView` with zero code drift.
  */
 
-import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { RefreshButton } from '@/components/ui/refresh-button';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Spacing } from '@/constants/theme';
-import { diningHalls, hallStatus } from '@/data/dining';
+import { useDining } from '@/context/dining-context';
+import { diningHalls } from '@/data/dining';
 import { useTheme } from '@/hooks/use-theme';
-import {
-  fetchDiningVenuesApi,
-  type EnrichedDiningVenue,
-} from '@/services/dining-api';
 
 export function DiningHallsSection() {
   const theme = useTheme();
-
-  const [venues, setVenues] = useState<EnrichedDiningVenue[]>(() =>
-    diningHalls.map((hall) => {
-      const status = hallStatus(hall);
-      return {
-        id: hall.id,
-        name: hall.name,
-        location: hall.location,
-        status: status.open ? 'Open' : 'Closed',
-        currentMeal: status.label,
-        hours: status.detail,
-        acceptsSwipes: hall.acceptsSwipes,
-      };
-    })
-  );
-
-  useEffect(() => {
-    let mounted = true;
-    fetchDiningVenuesApi().then((freshVenues) => {
-      if (mounted && freshVenues && freshVenues.length > 0) {
-        setVenues(freshVenues);
-      }
-    });
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  const { venues, refreshDining, isRefreshing } = useDining();
 
   return (
     <View style={styles.section}>
-      <SectionHeader title="Dining halls" caption="Hours for today" />
+      <SectionHeader
+        title="Dining halls"
+        caption="Hours for today"
+        right={
+          <RefreshButton
+            onRefresh={refreshDining}
+            refreshing={isRefreshing}
+            label="Refresh"
+            size="small"
+            accessibilityLabel="Refresh dining hall hours and balances"
+          />
+        }
+      />
       <Card flush>
         {venues.map((venue, index) => {
           const isOpen = venue.status === 'Open';

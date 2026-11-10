@@ -10,14 +10,15 @@
 
 import { SafetyMobileView } from '@/components/safety-mobile-view';
 import { SafetyWebView } from '@/components/safety-web-view';
+import { SafetyProvider } from '@/context/safety-context';
 import { useResponsiveLayout } from '@/hooks/use-responsive-layout';
 
 export default function SafetyScreen() {
   const { isCompact } = useResponsiveLayout();
 
-  if (isCompact) {
-    return <SafetyMobileView />;
-  }
-
-  return <SafetyWebView />;
+  return (
+    <SafetyProvider>
+      {isCompact ? <SafetyMobileView /> : <SafetyWebView />}
+    </SafetyProvider>
+  );
 }
