@@ -22,8 +22,6 @@ export type AuthUser = {
   classYear: number;
   cardNumber?: string;
   barcode?: string;
-  residence?: string;
-  advisor?: string;
   directoryOptIn?: boolean;
   directoryPrompted?: boolean;
   directoryVisibleFields?: DirectoryVisibleFields;
@@ -110,7 +108,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       barcode: `00000${provisionalId}00`,
       directoryOptIn: false,
       directoryPrompted: false,
-      directoryVisibleFields: { email: true, phone: false, residence: false },
+      directoryVisibleFields: { email: true, phone: false },
     });
 
     setIsAuthenticated(true);
@@ -135,8 +133,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
             standing: profile.standing || prev.standing,
             major: profile.major || prev.major,
             minor: profile.minor || prev.minor,
-            residence: profile.residence || prev.residence,
-            advisor: profile.advisor || prev.advisor,
             directoryOptIn: profile.directoryOptIn,
             directoryPrompted: profile.directoryPrompted,
             directoryVisibleFields: profile.directoryVisibleFields,

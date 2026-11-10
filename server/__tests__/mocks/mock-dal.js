@@ -133,7 +133,7 @@ function createMockDal() {
         card_number: '2490001',
         directory_opt_in: false,
         directory_prompted: false,
-        directory_visible_fields: { email: true, phone: false, residence: false },
+        directory_visible_fields: { email: true, phone: false },
       };
       state.students.set(st.id, st);
       return st;

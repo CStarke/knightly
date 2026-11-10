@@ -192,11 +192,7 @@ async function getDiningVenues(client = getDefaultClient()) {
     .from('dining_venues')
     .select(`
       *,
-      dining_hours (*),
-      dining_stations (
-        *,
-        dining_menu_items (*)
-      )
+      dining_hours (*)
     `);
 
   if (error) {

@@ -54,14 +54,14 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 -- 4. Insert Core Campus Clubs
-INSERT INTO clubs (id, name, category, mark, tagline, description, meeting_schedule, location, contact_email, leader_name, primary_color, secondary_color, sf_icon, md_icon, is_department)
+INSERT INTO clubs (id, name, category, mark, description, meeting_schedule, location, contact_email, leader_name, primary_color, secondary_color, sf_icon, md_icon, is_department)
 VALUES
-    ('calvin-university', 'Calvin University', 'Official', 'CU', 'Official university events, chapel services, lectures & community gatherings', 'Official campus events, daily chapel services, academic colloquia, arts performances, and university-wide gatherings.', 'Daily Chapel · 10:00 AM', 'Calvin Chapel', 'events@calvin.edu', 'Student Life', '#8C2131', '#E8B019', 'building.columns', 'account_balance', true),
-    ('abstraction', 'Abstraction', 'Academics', 'AB', 'Calvin’s premier software & creative coding guild', 'A community of student developers building creative software projects, exploring algorithms, and participating in regional hackathons.', 'Wednesdays · 6:30 PM - 8:30 PM', 'North Hall 276 (CS Lab)', 'abstraction@calvin.edu', 'Sophia Chen (President)', '#0A2E36', '#14B8A6', 'chevron.left.forwardslash.chevron.right', 'code', false),
-    ('acm', 'ACM Student Chapter', 'Academics', 'AC', 'Hack nights, coding challenges & tech projects', 'Calvin''s official student chapter of the Association for Computing Machinery. We host bi-weekly hack nights and tech talks.', 'Thursdays · 7:00 PM - 11:00 PM', 'North Hall 276', 'acm@calvin.edu', 'Sophia Chen', '#15514A', '#3FA08F', 'laptopcomputer', 'computer', false),
-    ('calvin-theatre', 'Calvin Theatre Company', 'The Arts', 'CT', 'Student theatrical productions & performances', 'Dedicated to producing thought-provoking drama and comedy.', 'Rehearsals Mon/Wed/Fri', 'Gezon Auditorium', 'theatre@calvin.edu', 'David Kim', '#5C1D24', '#D48B30', 'theatermasks.fill', 'theater_comedy', false),
-    ('knights-athletics', 'Knights Athletics', 'Athletics', 'KA', 'NCAA Division III varsity sports & student cheering section', 'Official home of the Calvin Knights.', 'Game schedules published weekly', 'Spoelhof Fieldhouse', 'athletics@calvin.edu', 'Coaching Staff', '#8C2131', '#E8B019', 'trophy.fill', 'emoji_events', true),
-    ('student-activities', 'Student Activities Office', 'Social', 'SA', 'Campus traditions, concerts, and Airband', 'Fostering vibrant student life and traditions.', 'Van Noord Arena / Commons', 'Commons Union', 'activities@calvin.edu', 'SAO Staff', '#8C2131', '#F5CD00', 'sparkles', 'celebration', true)
+    ('calvin-university', 'Calvin University', 'Official', 'CU', 'Official campus events, daily chapel services, academic colloquia, arts performances, and university-wide gatherings.', 'Daily Chapel · 10:00 AM', 'Calvin Chapel', 'events@calvin.edu', 'Student Life', '#8C2131', '#E8B019', 'building.columns', 'account_balance', true),
+    ('abstraction', 'Abstraction', 'Academics', 'AB', 'A community of student developers building creative software projects, exploring algorithms, and participating in regional hackathons.', 'Wednesdays · 6:30 PM - 8:30 PM', 'North Hall 276 (CS Lab)', 'abstraction@calvin.edu', 'Sophia Chen (President)', '#0A2E36', '#14B8A6', 'chevron.left.forwardslash.chevron.right', 'code', false),
+    ('acm', 'ACM Student Chapter', 'Academics', 'AC', 'Calvin''s official student chapter of the Association for Computing Machinery. We host bi-weekly hack nights and tech talks.', 'Thursdays · 7:00 PM - 11:00 PM', 'North Hall 276', 'acm@calvin.edu', 'Sophia Chen', '#15514A', '#3FA08F', 'laptopcomputer', 'computer', false),
+    ('calvin-theatre', 'Calvin Theatre Company', 'The Arts', 'CT', 'Dedicated to producing thought-provoking drama and comedy.', 'Rehearsals Mon/Wed/Fri', 'Gezon Auditorium', 'theatre@calvin.edu', 'David Kim', '#5C1D24', '#D48B30', 'theatermasks.fill', 'theater_comedy', false),
+    ('knights-athletics', 'Knights Athletics', 'Athletics', 'KA', 'Official home of the Calvin Knights.', 'Game schedules published weekly', 'Spoelhof Fieldhouse', 'athletics@calvin.edu', 'Coaching Staff', '#8C2131', '#E8B019', 'trophy.fill', 'emoji_events', true),
+    ('student-activities', 'Student Activities Office', 'Social', 'SA', 'Fostering vibrant student life and traditions.', 'Van Noord Arena / Commons', 'Commons Union', 'activities@calvin.edu', 'SAO Staff', '#8C2131', '#F5CD00', 'sparkles', 'celebration', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- 5. Insert Prototype Test Student Persona (John Doe)
@@ -76,7 +76,7 @@ EXCEPTION
         NULL; -- Gracefully ignore if running in restricted environments
 END $$;
 
-INSERT INTO students (id, student_id, username, email, first_name, middle_name, last_name, class_year, standing, major, minor, card_number, residence, advisor, role, directory_opt_in, directory_prompted)
+INSERT INTO students (id, student_id, username, email, first_name, middle_name, last_name, class_year, standing, major, minor, card_number, role, directory_opt_in, directory_prompted)
 VALUES (
     '9b919086-788b-48de-85c6-df9a204f05c5',
     '2346052',
@@ -90,8 +90,6 @@ VALUES (
     'Computer Science',
     'Mathematics',
     '2346052',
-    'Boer-Bennink Hall, Rm 214',
-    'Dr. Naomi Vermeer',
     'student',
     false,
     false
