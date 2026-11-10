@@ -7,7 +7,7 @@
  * - Student information is NOT publicly listed by default.
  * - On first sign-in, students are presented this onboarding dialog to explicitly
  *   choose whether they wish to be listed in the campus-wide directory, and if so,
- *   which contact fields (email, phone, residence hall) should be visible.
+ *   which contact fields (email, phone) should be visible.
  *
  * TEMPLATE-LEVEL INHERITANCE INVARIANT:
  * Strictly inherits the centralized `ModalDialog` template from `@/components/ui/modal-dialog`,
@@ -28,7 +28,6 @@ import { useTheme } from '@/hooks/use-theme';
 export type DirectoryVisibleFields = {
   email: boolean;
   phone: boolean;
-  residence: boolean;
 };
 
 export type DirectoryOnboardingModalProps = {
@@ -59,7 +58,6 @@ export function DirectoryOnboardingModal({
   const [visibleFields, setVisibleFields] = useState<DirectoryVisibleFields>({
     email: true,
     phone: false,
-    residence: false,
   });
 
   // Step 2: Field toggle helper
@@ -187,22 +185,6 @@ export function DirectoryOnboardingModal({
                 md={visibleFields.phone ? 'check_box' : 'check_box_outline_blank'}
                 size={20}
                 color={visibleFields.phone ? Brand.maroon : theme.textMuted}
-              />
-            </Pressable>
-
-            {/* Residence Hall Toggle */}
-            <Pressable
-              style={styles.fieldRow}
-              onPress={() => toggleField('residence')}
-            >
-              <ThemedText style={[styles.fieldName, { color: theme.text }]}>
-                Residence Hall & Room
-              </ThemedText>
-              <Icon
-                sf={visibleFields.residence ? 'checkmark.square.fill' : 'square'}
-                md={visibleFields.residence ? 'check_box' : 'check_box_outline_blank'}
-                size={20}
-                color={visibleFields.residence ? Brand.maroon : theme.textMuted}
               />
             </Pressable>
           </View>

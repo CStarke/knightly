@@ -48,8 +48,6 @@ export const student = {
   cardNumber: "2400001",
   /** 14-digit encoded barcode: 5 leading 0's, 7-digit student ID, 2 trailing 0's. */
   barcode: "00000240000100",
-  residence: "Campus Housing",
-  advisor: "Academic Advising",
   /**
    * Neutral default dining account state.
    */

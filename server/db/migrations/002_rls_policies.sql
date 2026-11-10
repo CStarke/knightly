@@ -17,12 +17,9 @@ ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clubs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE dining_venues ENABLE ROW LEVEL SECURITY;
 ALTER TABLE dining_hours ENABLE ROW LEVEL SECURITY;
-ALTER TABLE dining_stations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE dining_menu_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE campus_safety_contacts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE campus_safety_alerts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE directory_people ENABLE ROW LEVEL SECURITY;
-ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================================
 -- 2. PUBLIC READ POLICIES (anon & authenticated)
@@ -49,14 +46,6 @@ CREATE POLICY "Public read dining venues" ON dining_venues
     USING (true);
 
 CREATE POLICY "Public read dining hours" ON dining_hours
-    FOR SELECT TO anon, authenticated
-    USING (true);
-
-CREATE POLICY "Public read dining stations" ON dining_stations
-    FOR SELECT TO anon, authenticated
-    USING (true);
-
-CREATE POLICY "Public read dining menu items" ON dining_menu_items
     FOR SELECT TO anon, authenticated
     USING (true);
 
@@ -190,26 +179,7 @@ CREATE POLICY "Read directory people" ON directory_people
     );
 
 -- ============================================================================
--- 6. AUDIT LOG POLICIES
--- ============================================================================
-
--- Audit logs: readable only by administrators
-CREATE POLICY "Admins read audit logs" ON audit_logs
-    FOR SELECT TO authenticated
-    USING (
-        EXISTS (
-            SELECT 1 FROM students s
-            WHERE s.id = auth.uid() AND s.role = 'admin'
-        )
-    );
-
--- Audit logs: authenticated users can insert activity traces
-CREATE POLICY "Authenticated insert audit logs" ON audit_logs
-    FOR INSERT TO authenticated
-    WITH CHECK (actor_id = auth.uid() OR actor_id IS NULL);
-
--- ============================================================================
--- 7. DATA API ROLE PRIVILEGES (anon, authenticated, service_role)
+-- 6. DATA API ROLE PRIVILEGES (anon, authenticated, service_role)
 -- ============================================================================
 -- Required when "Automatically expose new tables" is disabled in Supabase.
 -- Grants table privileges so PostgreSQL can reach the Row-Level Security policy layer.

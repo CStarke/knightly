@@ -42,12 +42,10 @@ CREATE TABLE IF NOT EXISTS students (
     minor VARCHAR(150),
     card_number VARCHAR(32) NOT NULL,
     barcode VARCHAR(48) GENERATED ALWAYS AS ('00000' || student_id || '00') STORED,
-    residence VARCHAR(150),
-    advisor VARCHAR(150),
     role VARCHAR(32) NOT NULL DEFAULT 'student' CHECK (role IN ('student', 'moderator', 'admin')),
     directory_opt_in BOOLEAN NOT NULL DEFAULT FALSE,
     directory_prompted BOOLEAN NOT NULL DEFAULT FALSE,
-    directory_visible_fields JSONB NOT NULL DEFAULT '{"email": true, "phone": false, "residence": false}'::jsonb,
+    directory_visible_fields JSONB NOT NULL DEFAULT '{"email": true, "phone": false}'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -63,7 +61,6 @@ CREATE TABLE IF NOT EXISTS clubs (
     name VARCHAR(150) NOT NULL,
     category VARCHAR(64) NOT NULL,
     mark VARCHAR(8) NOT NULL,
-    tagline VARCHAR(255) NOT NULL,
     description TEXT NOT NULL,
     meeting_schedule VARCHAR(255),
     location VARCHAR(150),
@@ -174,21 +171,6 @@ CREATE TABLE IF NOT EXISTS dining_hours (
     meal_period VARCHAR(64) NOT NULL,
     start_minute_after_midnight INT NOT NULL CHECK (start_minute_after_midnight >= 0 AND start_minute_after_midnight < 1440),
     end_minute_after_midnight INT NOT NULL CHECK (end_minute_after_midnight >= 0 AND end_minute_after_midnight <= 1440)
-);
-
-CREATE TABLE IF NOT EXISTS dining_stations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    venue_id VARCHAR(32) NOT NULL REFERENCES dining_venues(id) ON DELETE CASCADE,
-    name VARCHAR(100) NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS dining_menu_items (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    station_id UUID NOT NULL REFERENCES dining_stations(id) ON DELETE CASCADE,
-    item_name VARCHAR(150) NOT NULL,
-    is_vegetarian BOOLEAN NOT NULL DEFAULT FALSE,
-    is_vegan BOOLEAN NOT NULL DEFAULT FALSE,
-    is_gluten_free BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE IF NOT EXISTS dining_transactions (
@@ -328,17 +310,3 @@ CREATE TABLE IF NOT EXISTS directory_people (
 CREATE INDEX IF NOT EXISTS idx_directory_people_role ON directory_people(role);
 CREATE INDEX IF NOT EXISTS idx_directory_people_search ON directory_people USING gin(to_tsvector('english', first_name || ' ' || last_name || ' ' || department || ' ' || title));
 
--- ============================================================================
--- 6. IMMUTABLE AUDIT LOG
--- ============================================================================
-CREATE TABLE IF NOT EXISTS audit_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    actor_id UUID REFERENCES students(id) ON DELETE SET NULL,
-    action VARCHAR(64) NOT NULL,
-    target_type VARCHAR(64) NOT NULL,
-    target_id VARCHAR(128) NOT NULL,
-    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_created ON audit_logs(actor_id, created_at DESC);
