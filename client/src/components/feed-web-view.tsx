@@ -21,9 +21,11 @@ import {
 } from "react-native";
 
 import {
+  ErrorBanner,
   FeedEmptyState,
   FeedFilterChips,
   FeedFollowingBanner,
+  FeedLoadingSkeleton,
   FeedSearchField,
 } from "@/components/feed-controls";
 import { PostCard } from "@/components/post-card";
@@ -62,7 +64,17 @@ export function FeedWebView() {
   const deferredSelectedFilters = useDeferredValue(selectedFilters);
   const deferredQuery = useDeferredValue(query);
 
-  const { posts: dynamicPosts, savedPosts, favoritePosts } = useFeed();
+  const {
+    posts: dynamicPosts,
+    savedPosts,
+    favoritePosts,
+    refreshFeed,
+    isRefreshing,
+    isLoading,
+    error,
+    retryFeed,
+    clearError,
+  } = useFeed();
   const { isFollowing, followedCount } = useClubFollow();
   const { openClubsDirectory } = useClubsNavigation();
 
@@ -157,8 +169,31 @@ export function FeedWebView() {
           interactiveHint={true}
         />
       )}
+
+      {/* Request-Failure Banner with Actionable Retry (US-N07) */}
+      {error ? (
+        <ErrorBanner
+          title="Unable to connect to campus network"
+          message={error}
+          onRetry={retryFeed}
+          isRetrying={isRefreshing}
+          onDismiss={clearError}
+          variant="banner"
+        />
+      ) : null}
     </View>
   );
+
+  // Animated Loading Skeleton View (US-N07)
+  if (isLoading && dynamicPosts.length === 0) {
+    const maxSkeletonWidth = numColumns >= 5 ? 1880 : numColumns >= 4 ? 1520 : 1200;
+    return (
+      <Screen style={[styles.screenInner, { maxWidth: maxSkeletonWidth }]}>
+        {listHeader}
+        <FeedLoadingSkeleton numColumns={numColumns} count={numColumns * 2} />
+      </Screen>
+    );
+  }
 
   const isNoFollowingPosts =
     deferredSelectedFilters.has("Following") &&
@@ -169,28 +204,43 @@ export function FeedWebView() {
   const isNoSavedPosts =
     deferredSelectedFilters.has("Saved") && (savedPosts?.length === 0 || favoritePosts?.length === 0);
 
-  const listEmpty = visible.length === 0 ? (
-    <View style={styles.screenInner}>
-      <FeedEmptyState
-        type={
-          isNoSavedPosts
-            ? "no-saved-posts"
-            : isNoFollowingPosts
-            ? "no-following-posts"
-            : "no-filter-matches"
-        }
-        onBrowseClubs={openClubsDirectory}
-        onClearFilters={handleClear}
-      />
-    </View>
-  ) : null;
+  const listEmpty =
+    error && dynamicPosts.length === 0 ? (
+      <View style={styles.screenInner}>
+        <ErrorBanner
+          title="Unable to load campus feed"
+          message={error}
+          onRetry={retryFeed}
+          isRetrying={isRefreshing}
+          variant="card"
+        />
+      </View>
+    ) : visible.length === 0 ? (
+      <View style={styles.screenInner}>
+        <FeedEmptyState
+          type={
+            isNoSavedPosts
+              ? "no-saved-posts"
+              : isNoFollowingPosts
+              ? "no-following-posts"
+              : "no-filter-matches"
+          }
+          onBrowseClubs={openClubsDirectory}
+          onClearFilters={handleClear}
+        />
+      </View>
+    ) : null;
 
   // Dynamically expand container maxWidth on wide and extra-wide/ultrawide displays
   // so 4 and 5 columns retain comfortable ~320-350px card breathing room
   const maxContentWidth = numColumns >= 5 ? 1880 : numColumns >= 4 ? 1520 : 1200;
 
   return (
-    <Screen style={[styles.screenInner, { maxWidth: maxContentWidth }]}>
+    <Screen
+      style={[styles.screenInner, { maxWidth: maxContentWidth }]}
+      refreshing={isRefreshing}
+      onRefresh={refreshFeed}
+    >
       {listHeader}
       <View style={styles.evenGrid}>
         {evenRows.map((row, rowIdx) => (

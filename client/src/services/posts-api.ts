@@ -24,7 +24,15 @@ export interface FetchPostsOptions {
   search?: string;
   limit?: number;
   offset?: number;
+  /** Optional callback invoked when the network request fails or times out. */
+  onError?: (error: Error) => void;
 }
+
+export type FetchFeedPostsResult = {
+  posts: Post[];
+  isError: boolean;
+  errorMessage?: string;
+};
 
 export interface CreatePostPayload {
   clubId?: string;
@@ -41,13 +49,20 @@ export interface CreatePostPayload {
 }
 
 /**
- * Fetches published posts from the unified Supabase database via the REST API.
+ * Fetches published posts from the unified Supabase database via the REST API with detailed error reporting.
  * Falls back cleanly to isolated offline seed posts if unreachable.
  *
- * @param options - Query filters and pagination
- * @returns Array of Post objects ready for feed display
+ * @param options - Query filters, pagination, and error callback
+ * @param fallbackPosts - Optional in-memory posts to preserve during offline state
+ * @returns FetchFeedPostsResult containing posts, error flag, and optional error message
  */
-export async function fetchFeedPosts(options: FetchPostsOptions = {}, fallbackPosts?: Post[]): Promise<Post[]> {
+export async function fetchFeedPostsDetailed(
+  options: FetchPostsOptions = {},
+  fallbackPosts?: Post[]
+): Promise<FetchFeedPostsResult> {
+  let isError = false;
+  let errorMessage: string | undefined;
+
   try {
     const request = createTimedFetch(5000);
 
@@ -71,21 +86,57 @@ export async function fetchFeedPosts(options: FetchPostsOptions = {}, fallbackPo
     if (res.ok) {
       const rows: DatabasePostRow[] = await res.json();
       if (Array.isArray(rows) && rows.length > 0) {
-        return rows.map(adaptDatabasePostToClientPost);
+        return {
+          posts: rows.map(adaptDatabasePostToClientPost),
+          isError: false,
+        };
       }
+    } else {
+      isError = true;
+      errorMessage = `Server returned status ${res.status}`;
+      options.onError?.(new Error(errorMessage));
     }
-  } catch {
-    // Backend offline / unreachable: proceed to graceful offline fallback below
+  } catch (err: any) {
+    isError = true;
+    errorMessage = err?.message || 'Network request failed';
+    options.onError?.(err instanceof Error ? err : new Error(errorMessage));
   }
 
   // ISOLATED HARDCODED FALLBACK (Required by Sprint 1 SLO SC2)
   // Keep an already-rendered feed unchanged offline instead of rebuilding/re-timestamping its cards.
-  if (fallbackPosts) return fallbackPosts;
+  if (fallbackPosts) {
+    return {
+      posts: fallbackPosts,
+      isError,
+      errorMessage,
+    };
+  }
+
   const fallbackScraped = CALVIN_EVENTS_SEED.map((e, idx) =>
     adaptCalvinEventToPost(e, Date.now() - idx * 3600 * 1000)
   );
 
-  return [...defaultPosts, ...fallbackScraped];
+  return {
+    posts: [...defaultPosts, ...fallbackScraped],
+    isError,
+    errorMessage,
+  };
+}
+
+/**
+ * Fetches published posts from the unified Supabase database via the REST API.
+ * Falls back cleanly to isolated offline seed posts if unreachable.
+ *
+ * @param options - Query filters and pagination
+ * @param fallbackPosts - Optional in-memory posts to preserve during offline state
+ * @returns Array of Post objects ready for feed display
+ */
+export async function fetchFeedPosts(
+  options: FetchPostsOptions = {},
+  fallbackPosts?: Post[]
+): Promise<Post[]> {
+  const result = await fetchFeedPostsDetailed(options, fallbackPosts);
+  return result.posts;
 }
 
 /**

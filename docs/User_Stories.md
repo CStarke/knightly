@@ -18,9 +18,9 @@ It consolidates:
 | **Dining and Knight Card** (Original PDF) | 13 | 9 | 4 | 69.2% |
 | **Safety** (Original PDF) | 8 | 7 | 1 | 87.5% |
 | **Directory** (Original PDF) | 3 | 3 | 0 | 100.0% |
-| **Navigation and Experience** (Original PDF) | 7 | 5 | 2 | 71.4% |
+| **Navigation and Experience** (Original PDF) | 7 | 6 | 1 | 85.7% |
 | **Account and Personal Data** (Original PDF) | 3 | 2 | 1 | 66.7% |
-| **Subtotal: Part 1 (Original User Stories PDF)** | **48** | **37** | **11** | **77.1%** |
+| **Subtotal: Part 1 (Original User Stories PDF)** | **48** | **38** | **10** | **79.2%** |
 | **Subtotal: Part 2 (SRS Requirements `FR-1`–`FR-26`)** | **26** | **23** | **3** | **88.5%** |
 | **Creative & Post Authoring** (Codebase Audit) | 5 | 5 | 0 | 100.0% |
 | **Club Leadership & Verification** (Codebase Audit) | 3 | 3 | 0 | 100.0% |
@@ -32,7 +32,7 @@ It consolidates:
 | **Offline Resilience & Data Integrity** (Codebase Audit) | 3 | 3 | 0 | 100.0% |
 | **Template Architecture & Consolidation** (Codebase Audit) | 3 | 3 | 0 | 100.0% |
 | **Subtotal: Part 3 (Additional Features Audit `US-X01`–`US-X26`)** | **26** | **26** | **0** | **100.0%** |
-| **Grand Total (Tracked Requirements)** | **100** | **86** | **14** | **86.0%** |
+| **Grand Total (Tracked Requirements)** | **100** | **87** | **13** | **87.0%** |
 
 ---
 
@@ -148,8 +148,8 @@ It consolidates:
   - *Verification & Code Reference:* Implemented in `AppTabsWeb` and `AppHeader`. Features desktop navbar with clickable tab links, avatar, and quick links.
 - [x] **US-N06:** As a student, I want a refresh action on the feed, dining, and safety screens, so I can request updated information without reopening the app.
   - *Verification & Code Reference:* Implemented template-level pull-to-refresh (`RefreshControl`) in `Screen` and `ScreenFlatList` with brand tokens (`Brand.gold` `#E8B019`, `Brand.maroon` `#5E1A24`), tightened top spacing (`headerInset + Spacing.two`), and `contentInsetAdjustmentBehavior="never"`. Implemented consolidated `RefreshButton` component with Reanimated spinning icon, flush vertical centering for labels (`type="caption"`, `includeFontPadding: false`), and accessible labels. Wired pull-to-refresh and manual refresh buttons across Feed (`index.tsx`, `feed-context.tsx`), Dining (`DiningMobileView`, `DiningWebView`, `DiningHallsSection`, `dining-context.tsx`), and Safety (`SafetyMobileView`, `SafetyWebView`, `SafetyAlertsSection`, `safety-context.tsx`, `safety-api.ts`). Verified with 50 tests in `client/tests/refresh-actions-us-n06.test.ts`.
-- [ ] **US-N07:** As a student, I want separate loading, no-results, and request-failure messages, with retry after a failure, so I understand what happened and can try again.
-  - *Status:* **Partial Implementation.** No-results empty states are implemented (`FeedEmptyState`). However, explicit animated loading skeletons and error banners with retry buttons on network failure are not yet implemented.
+- [x] **US-N07:** As a student, I want separate loading, no-results, and request-failure messages, with retry after a failure, so I understand what happened and can try again.
+  - *Verification & Code Reference:* Implemented explicit animated loading skeletons in `client/src/components/ui/skeleton.tsx` (`Skeleton`, `SkeletonLine`, `SkeletonCard`, `PostCardSkeleton`, `FeedLoadingSkeleton`) with Reanimated breathing pulse animation (0.38 <-> 0.85), responsive single-column mobile / multi-column desktop grids, semantic theme tokens, and accessibility progressbar attributes. Implemented consolidated request-failure error templates in `client/src/components/ui/error-banner.tsx` (`ErrorBanner`) supporting compact alert banner and centered card variants, actionable retry buttons (`RefreshButton`), dismiss actions, and centralized palette tokens (`Brand.brightRed`, `Brand.gold`, `theme.dangerSoft`). Standardized feed empty states in `client/src/components/feed-controls.tsx` (`FeedEmptyState`) distinguishing 4 distinct scenarios (`no-following-posts`, `no-filter-matches`, `no-saved-posts`, and `no-posts`) with tailored guidance and interactive CTAs. Added detailed error reporting in `client/src/services/posts-api.ts` (`fetchFeedPostsDetailed`, `FetchPostsOptions.onError`) and integrated loading, error, and retry coordination in `FeedContext` (`isLoading`, `error`, `retryFeed()`, `clearError()`, `refreshFeed()`). Wired across `index.tsx`, `FeedMobileView`, and `FeedWebView`. Verified with 38 tests in `client/tests/loading-error-states-us-n07.test.ts`.
 
 ---
 

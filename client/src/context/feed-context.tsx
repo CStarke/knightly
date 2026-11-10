@@ -21,7 +21,7 @@ import type { Club } from '@/data/clubs';
 import { CALVIN_EVENTS_SEED } from '@/data/calvin-events-seed';
 import { adaptCalvinEventToPost } from '@/utils/calvin-event-adapter';
 
-import { fetchFeedPosts, createPostApi, deletePostApi } from '@/services/posts-api';
+import { fetchFeedPostsDetailed, createPostApi, deletePostApi } from '@/services/posts-api';
 
 export type CreatePostInput = {
   club: Club;
@@ -50,6 +50,12 @@ type FeedContextType = {
   // Manual and pull-to-refresh actions (US-N06)
   refreshFeed: () => Promise<void>;
   isRefreshing: boolean;
+
+  // Loading, error, and retry states (US-N07)
+  isLoading: boolean;
+  error: string | null;
+  retryFeed: () => Promise<void>;
+  clearError: () => void;
 };
 
 const FeedContext = createContext<FeedContextType | null>(null);
@@ -205,6 +211,8 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
   const { isFollowing, toggleFollow } = useClubFollow();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   /**
    * Refreshes the feed by querying fresh posts from the backend API.
@@ -219,32 +227,61 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
   const refreshFeed = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      const livePosts = await fetchFeedPosts({}, feedPosts);
-      if (livePosts && livePosts.length > 0) {
-        setFeedPosts((prev) => {
-          const localOnly = prev.filter((p) => p.id.startsWith('p-local-'));
-          return sortPostsByDate([...localOnly, ...livePosts]);
-        });
+      const result = await fetchFeedPostsDetailed({}, feedPosts);
+      if (result.isError) {
+        setError(result.errorMessage || 'Unable to connect to campus network');
+      } else {
+        setError(null);
+        if (result.posts && result.posts.length > 0) {
+          setFeedPosts((prev) => {
+            const localOnly = prev.filter((p) => p.id.startsWith('p-local-'));
+            return sortPostsByDate([...localOnly, ...result.posts]);
+          });
+        }
       }
-    } catch {
-      // Swallowed gracefully per Sprint 1 SLO SC2
+    } catch (err: any) {
+      setError(err?.message || 'Unable to connect to campus network');
     } finally {
       setIsRefreshing(false);
     }
   }, [feedPosts]);
+
+  /**
+   * Retries loading feed posts after a failure, clearing the error before refetching.
+   */
+  const retryFeed = useCallback(async () => {
+    setError(null);
+    await refreshFeed();
+  }, [refreshFeed]);
+
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
 
   // SPRINT 1 SLO DIRECTIVE (SC2):
   // Asynchronously retrieve fresh events from the server REST API (/api/events),
   // merging with local state while preserving the offline seed data fallback.
   useEffect(() => {
     let mounted = true;
-    fetchFeedPosts({}, feedPosts).then((livePosts) => {
-      if (livePosts === feedPosts) return;
-      if (mounted && livePosts.length > 0) {
-        setFeedPosts((prev) => {
-          const localOnly = prev.filter((p) => p.id.startsWith('p-local-'));
-          return sortPostsByDate([...localOnly, ...livePosts]);
-        });
+    setIsLoading(true);
+    fetchFeedPostsDetailed({}, feedPosts).then((result) => {
+      if (!mounted) return;
+      setIsLoading(false);
+      if (result.isError) {
+        setError(result.errorMessage || 'Unable to connect to campus network');
+      } else {
+        setError(null);
+        if (result.posts !== feedPosts && result.posts.length > 0) {
+          setFeedPosts((prev) => {
+            const localOnly = prev.filter((p) => p.id.startsWith('p-local-'));
+            return sortPostsByDate([...localOnly, ...result.posts]);
+          });
+        }
+      }
+    }).catch((err: any) => {
+      if (mounted) {
+        setIsLoading(false);
+        setError(err?.message || 'Unable to connect to campus network');
       }
     });
     return () => {
@@ -371,6 +408,12 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       // Manual and pull-to-refresh actions (US-N06)
       refreshFeed,
       isRefreshing,
+
+      // Loading, error, and retry states (US-N07)
+      isLoading,
+      error,
+      retryFeed,
+      clearError,
     }),
     [
       feedPosts,
@@ -381,6 +424,10 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       isPostSaved,
       refreshFeed,
       isRefreshing,
+      isLoading,
+      error,
+      retryFeed,
+      clearError,
     ]
   );
 
