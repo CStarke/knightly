@@ -143,10 +143,6 @@ button:disabled {
 </head>
 
 <body>
-<p>
-  Drag to move. Pinch or use + / − to zoom.
-  Keyboard: arrows to move; + / − to zoom; 0 to fit.
-</p>
 
 <div class="map-layout">
   <!-- tabindex lets keyboard users focus the map and use its shortcuts. -->
@@ -165,11 +161,6 @@ button:disabled {
     <button id="fit" aria-label="Fit entire map">Fit map</button>
   </nav>
 </div>
-
-<p>
-  Source: Calvin University campus-map PDF.
-  Building map; emergency-phone locations are not shown.
-</p>
 
 <script>
 // Step 1: Keep the map in SVG coordinates so zoom redraws paths and letters sharply.
@@ -213,9 +204,10 @@ function draw() {
     [cx - w / 2, cy - h / 2, w, h].join(' ')
   );
 
-  // The percentage is relative to Fit map, not the PDF's printed size.
+  // Round only the displayed percentage to the nearest multiple of 5.
+  // The actual zoom scale remains unchanged.
   document.getElementById('level').textContent =
-    Math.round(scale * 100) + '%';
+    Math.round((scale * 100) / 5) * 5 + '%';
 
   minus.disabled = scale <= 1;
   plus.disabled = scale >= 8;
