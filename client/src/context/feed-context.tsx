@@ -12,7 +12,7 @@
  * 4. Account-scoped saved posts bookmarking with O(1) Set lookups and local persistence.
  */
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { posts as defaultPosts, sortPostsByDate, type Post, type FeedCategory } from '@/data/feed';
 import { useClubFollow } from '@/context/club-follow-context';
@@ -21,6 +21,7 @@ import type { Club } from '@/data/clubs';
 import { CALVIN_EVENTS_SEED } from '@/data/calvin-events-seed';
 import { adaptCalvinEventToPost } from '@/utils/calvin-event-adapter';
 
+import { editPostApi, type PostTextChanges } from '@/services/post-edit-api';
 import { fetchFeedPostsDetailed, createPostApi, deletePostApi } from '@/services/posts-api';
 
 export type CreatePostInput = {
@@ -36,6 +37,7 @@ type FeedContextType = {
   posts: Post[];
   createPost: (input: CreatePostInput) => Post;
   deletePost: (id: string) => void;
+  editPost: (id: string, changes: PostTextChanges) => Promise<void>;
 
   // Posts saved by the individual student (personal bookmarking)
   savedPosts: Post[];
@@ -167,6 +169,8 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
   const user = auth?.user ?? null;
   const savedAccountKey = getSavedPostsStorageKey(user);
 
+  // A successful edit invalidates older in-flight refresh snapshots.
+  const editRevision = useRef(0);
   const [feedPosts, setFeedPosts] = useState<Post[]>(getInitialPosts);
   // Maintain saved post IDs in a Set for guaranteed O(1) constant-time membership lookups
   // during fast 60fps scrolling (matching the ClubFollowContext architectural invariant).
@@ -225,6 +229,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
    * Wrapped in try/catch to ensure the app never crashes when the server is unreachable.
    */
   const refreshFeed = useCallback(async () => {
+    const revision = editRevision.current;
     setIsRefreshing(true);
     try {
       const result = await fetchFeedPostsDetailed({}, feedPosts);
@@ -232,7 +237,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         setError(result.errorMessage || 'Unable to connect to campus network');
       } else {
         setError(null);
-        if (result.posts && result.posts.length > 0) {
+        if (revision === editRevision.current && result.posts && result.posts.length > 0) {
           setFeedPosts((prev) => {
             const localOnly = prev.filter((p) => p.id.startsWith('p-local-'));
             return sortPostsByDate([...localOnly, ...result.posts]);
@@ -263,6 +268,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
   // merging with local state while preserving the offline seed data fallback.
   useEffect(() => {
     let mounted = true;
+    const revision = editRevision.current;
     setIsLoading(true);
     fetchFeedPostsDetailed({}, feedPosts).then((result) => {
       if (!mounted) return;
@@ -271,7 +277,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         setError(result.errorMessage || 'Unable to connect to campus network');
       } else {
         setError(null);
-        if (result.posts !== feedPosts && result.posts.length > 0) {
+        if (revision === editRevision.current && result.posts !== feedPosts && result.posts.length > 0) {
           setFeedPosts((prev) => {
             const localOnly = prev.filter((p) => p.id.startsWith('p-local-'));
             return sortPostsByDate([...localOnly, ...result.posts]);
@@ -383,6 +389,16 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
     [isFollowing, toggleFollow, user]
   );
 
+  /** Save first, then update all feed/saved views and the existing local cache. */
+  const editPost = useCallback(async (id: string, changes: PostTextChanges) => {
+    const studentId = user?.id || user?.studentId;
+    if (!studentId) throw new Error('Sign in before editing a post.');
+    const updated = await editPostApi(id, studentId, changes);
+    editRevision.current += 1;
+    setFeedPosts((previous) => previous.map((post) => post.id === id ? updated : post));
+    persistLocalAuthoredPosts(loadLocalAuthoredPosts().map((post) => post.id === id ? updated : post));
+  }, [user]);
+
   const deletePost = useCallback((id: string) => {
     setFeedPosts((prev) => prev.filter((p) => p.id !== id));
     const remainingLocals = loadLocalAuthoredPosts().filter((p) => p.id !== id);
@@ -394,6 +410,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
     () => ({
       posts: feedPosts,
       createPost,
+      editPost,
       deletePost,
 
       savedPosts,
@@ -418,6 +435,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
     [
       feedPosts,
       createPost,
+      editPost,
       deletePost,
       savedPosts,
       toggleSavePost,
