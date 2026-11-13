@@ -21,6 +21,7 @@ import type { Club } from '@/data/clubs';
 import { CALVIN_EVENTS_SEED } from '@/data/calvin-events-seed';
 import { adaptCalvinEventToPost } from '@/utils/calvin-event-adapter';
 
+import { cancelPostApi } from '@/services/post-cancel-api';
 import { editPostApi, type PostTextChanges } from '@/services/post-edit-api';
 import { fetchFeedPostsDetailed, createPostApi, deletePostApi } from '@/services/posts-api';
 
@@ -37,6 +38,7 @@ type FeedContextType = {
   posts: Post[];
   createPost: (input: CreatePostInput) => Post;
   deletePost: (id: string) => void;
+  cancelPost: (id: string) => Promise<void>;
   editPost: (id: string, changes: PostTextChanges) => Promise<void>;
 
   // Posts saved by the individual student (personal bookmarking)
@@ -169,8 +171,8 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
   const user = auth?.user ?? null;
   const savedAccountKey = getSavedPostsStorageKey(user);
 
-  // A successful edit invalidates older in-flight refresh snapshots.
-  const editRevision = useRef(0);
+  // A successful post mutation invalidates older in-flight refresh snapshots.
+  const postMutationRevision = useRef(0);
   const [feedPosts, setFeedPosts] = useState<Post[]>(getInitialPosts);
   // Maintain saved post IDs in a Set for guaranteed O(1) constant-time membership lookups
   // during fast 60fps scrolling (matching the ClubFollowContext architectural invariant).
@@ -229,7 +231,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
    * Wrapped in try/catch to ensure the app never crashes when the server is unreachable.
    */
   const refreshFeed = useCallback(async () => {
-    const revision = editRevision.current;
+    const revision = postMutationRevision.current;
     setIsRefreshing(true);
     try {
       const result = await fetchFeedPostsDetailed({}, feedPosts);
@@ -237,7 +239,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         setError(result.errorMessage || 'Unable to connect to campus network');
       } else {
         setError(null);
-        if (revision === editRevision.current && result.posts && result.posts.length > 0) {
+        if (revision === postMutationRevision.current && result.posts && result.posts.length > 0) {
           setFeedPosts((prev) => {
             const localOnly = prev.filter((p) => p.id.startsWith('p-local-'));
             return sortPostsByDate([...localOnly, ...result.posts]);
@@ -268,7 +270,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
   // merging with local state while preserving the offline seed data fallback.
   useEffect(() => {
     let mounted = true;
-    const revision = editRevision.current;
+    const revision = postMutationRevision.current;
     setIsLoading(true);
     fetchFeedPostsDetailed({}, feedPosts).then((result) => {
       if (!mounted) return;
@@ -277,7 +279,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         setError(result.errorMessage || 'Unable to connect to campus network');
       } else {
         setError(null);
-        if (revision === editRevision.current && result.posts !== feedPosts && result.posts.length > 0) {
+        if (revision === postMutationRevision.current && result.posts !== feedPosts && result.posts.length > 0) {
           setFeedPosts((prev) => {
             const localOnly = prev.filter((p) => p.id.startsWith('p-local-'));
             return sortPostsByDate([...localOnly, ...result.posts]);
@@ -394,9 +396,29 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
     const studentId = user?.id || user?.studentId;
     if (!studentId) throw new Error('Sign in before editing a post.');
     const updated = await editPostApi(id, studentId, changes);
-    editRevision.current += 1;
-    setFeedPosts((previous) => previous.map((post) => post.id === id ? updated : post));
-    persistLocalAuthoredPosts(loadLocalAuthoredPosts().map((post) => post.id === id ? updated : post));
+    postMutationRevision.current += 1;
+    // A delayed edit response must not undo a cancellation already confirmed locally.
+    setFeedPosts((previous) => previous.map((post) =>
+      post.id === id ? { ...updated, isCancelled: post.isCancelled || updated.isCancelled } : post
+    ));
+    persistLocalAuthoredPosts(loadLocalAuthoredPosts().map((post) =>
+      post.id === id ? { ...updated, isCancelled: post.isCancelled || updated.isCancelled } : post
+    ));
+  }, [user]);
+
+  /** Confirm server cancellation before marking cards and cached authored posts. */
+  const cancelPost = useCallback(async (id: string) => {
+    const studentId = user?.id || user?.studentId;
+    if (!studentId) throw new Error('Sign in before canceling a post.');
+    await cancelPostApi(id, studentId);
+    postMutationRevision.current += 1;
+    // Merge only the cancellation flag so a concurrent text edit is preserved.
+    setFeedPosts((previous) => previous.map((post) =>
+      post.id === id ? { ...post, isCancelled: true } : post
+    ));
+    persistLocalAuthoredPosts(loadLocalAuthoredPosts().map((post) =>
+      post.id === id ? { ...post, isCancelled: true } : post
+    ));
   }, [user]);
 
   const deletePost = useCallback((id: string) => {
@@ -411,6 +433,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       posts: feedPosts,
       createPost,
       editPost,
+      cancelPost,
       deletePost,
 
       savedPosts,
@@ -436,6 +459,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       feedPosts,
       createPost,
       editPost,
+      cancelPost,
       deletePost,
       savedPosts,
       toggleSavePost,
