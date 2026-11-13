@@ -1,3 +1,5 @@
+import { PostCancelButton } from '@/components/post-cancel-button';
+import { PostEditButton } from '@/components/post-edit-button';
 import { memo } from 'react';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -223,6 +225,8 @@ export const PostCard = memo(function PostCard({ post, variant = 'editorial', on
           </View>
         ) : null}
 
+        {post.isCancelled ? <Badge label="Canceled" tone="danger" /> : null}
+
         {/* Step 5: Headline typography (largest, most commanding text in serif font) */}
         <ThemedText style={[styles.title, isGrid && styles.webTitle]} numberOfLines={isGrid ? 3 : undefined}>
           {post.headline}
@@ -254,6 +258,9 @@ export const PostCard = memo(function PostCard({ post, variant = 'editorial', on
         <ThemedText type="small" themeColor="textSecondary" style={styles.body} numberOfLines={isGrid ? 4 : undefined}>
           {post.body}
         </ThemedText>
+
+        <PostEditButton post={post} />
+        <PostCancelButton post={post} />
 
         {/*
           Step 8: Card footer with dynamic relative timestamp & campus-wide badge

@@ -303,7 +303,45 @@ async function deletePost(id, client = getDefaultClient()) {
   return true;
 }
 
+/**
+ * Applies validated text edits to a still-published post in the verified club.
+ * Returning null lets the service report deletion/status changes during a request.
+ */
+async function updatePost(id, clubId, changes, client = getDefaultClient()) {
+  const { data, error } = await client
+    .from('posts')
+    .update(changes)
+    .eq('id', id)
+    .eq('club_id', clubId)
+    .eq('source', 'club')
+    .eq('status', 'published')
+    .select()
+    .maybeSingle();
+  if (error) throw new Error(`[posts-dal.updatePost] Failed: ${error.message}`);
+  return data;
+}
+
+/**
+ * Cancels a still-published club post. Setting true repeatedly is idempotent.
+ * The existing row, publication timestamps and saved-post relationships are retained.
+ */
+async function cancelPost(id, clubId, client = getDefaultClient()) {
+  const { data, error } = await client
+    .from('posts')
+    .update({ is_cancelled: true })
+    .eq('id', id)
+    .eq('club_id', clubId)
+    .eq('source', 'club')
+    .eq('status', 'published')
+    .select()
+    .maybeSingle();
+  if (error) throw new Error(`[posts-dal.cancelPost] Failed: ${error.message}`);
+  return data;
+}
+
 module.exports = {
+  cancelPost,
+  updatePost,
   getPosts,
   getPostById,
   createPost,
