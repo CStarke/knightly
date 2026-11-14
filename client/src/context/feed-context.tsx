@@ -37,7 +37,7 @@ export type CreatePostInput = {
 type FeedContextType = {
   posts: Post[];
   createPost: (input: CreatePostInput) => Post;
-  deletePost: (id: string) => void;
+  deletePost: (id: string) => Promise<void>;
   cancelPost: (id: string) => Promise<void>;
   editPost: (id: string, changes: PostTextChanges) => Promise<void>;
 
@@ -170,6 +170,8 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
   const auth = useContext(AuthContext);
   const user = auth?.user ?? null;
   const savedAccountKey = getSavedPostsStorageKey(user);
+  const savedAccountKeyRef = useRef(savedAccountKey);
+  savedAccountKeyRef.current = savedAccountKey;
 
   // A successful post mutation invalidates older in-flight refresh snapshots.
   const postMutationRevision = useRef(0);
@@ -421,12 +423,27 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
     ));
   }, [user]);
 
-  const deletePost = useCallback((id: string) => {
-    setFeedPosts((prev) => prev.filter((p) => p.id !== id));
-    const remainingLocals = loadLocalAuthoredPosts().filter((p) => p.id !== id);
-    persistLocalAuthoredPosts(remainingLocals);
-    deletePostApi(id);
-  }, []);
+  /** Remove the post and this account's bookmark only after the server confirms deletion. */
+  const deletePost = useCallback(async (id: string) => {
+    const studentId = user?.id || user?.studentId;
+    if (!studentId) throw new Error('Sign in before deleting a post.');
+    const deleted = await deletePostApi(id, studentId);
+    if (!deleted) throw new Error('Unable to delete the post. Check your connection and club leadership, then retry.');
+
+    // Invalidate older refreshes so they cannot reinsert the deleted card.
+    postMutationRevision.current += 1;
+    setFeedPosts((previous) => previous.filter((post) => post.id !== id));
+    persistLocalAuthoredPosts(loadLocalAuthoredPosts().filter((post) => post.id !== id));
+    persistSavedPostIds(user, loadSavedPostIds(user).filter((savedId) => savedId !== id));
+    // A user may sign out during the request. Only alter the originating account's saved list.
+    if (savedAccountKeyRef.current === savedAccountKey) {
+      setSavedIds((previous) => {
+        const next = new Set(previous);
+        next.delete(id);
+        return next;
+      });
+    }
+  }, [user, savedAccountKey]);
 
   const value = useMemo(
     () => ({

@@ -290,17 +290,19 @@ async function getSavedPosts(studentId, client = getDefaultClient()) {
   }));
 }
 
-async function deletePost(id, client = getDefaultClient()) {
-  const { error } = await client
-    .from('posts')
-    .delete()
-    .eq('id', id);
-
-  if (error) {
-    throw new Error(`[posts-dal.deletePost] Failed: ${error.message}`);
+/**
+ * Deletes a post and returns whether a row was removed.
+ * The optional verified club filter protects against ownership/status changes during a request.
+ * Database ON DELETE CASCADE removes saved_posts rows in the same transaction.
+ */
+async function deletePost(id, client = getDefaultClient(), expectedClubId) {
+  let query = client.from('posts').delete().eq('id', id);
+  if (expectedClubId !== undefined) {
+    query = query.eq('club_id', expectedClubId).eq('source', 'club').eq('status', 'published');
   }
-
-  return true;
+  const { data, error } = await query.select('id').maybeSingle();
+  if (error) throw new Error(`[posts-dal.deletePost] Failed: ${error.message}`);
+  return data !== null;
 }
 
 /**
