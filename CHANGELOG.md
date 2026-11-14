@@ -5,6 +5,28 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
+## [0.10.0] — Unreleased
+
+### Added
+
+- **Edit Post**: Club leaders can edit their club's published post title, description, date/time text, and location. Successful edits update the displayed post while preserving its identity and publication timestamp. Failed saves preserve the draft for retry.
+- **Cancel Post**: Club leaders can mark their club's posts as canceled after confirmation. Canceled posts remain visible with a Canceled label and retain their saved bookmarks. Canceled posts can still be edited, but cancellation cannot be undone in this release.
+- **Delete Post**: Club leaders can permanently delete active or canceled posts after confirmation. Successful deletion removes the post and its associated saved bookmarks. Failed requests retain the post and display an error.
+- Added database migration `005_post_cancellation.sql` to store cancellation status, with existing posts defaulting to active.
+- Added client and server tests covering post management requests, input validation, club leadership checks, failure handling, and deletion retries.
+
+### Changed
+
+- Added edit, cancel, and delete controls to eligible server-backed club post cards.
+- Updated feed state and cached posts after successful changes, with protection against outdated refresh responses overwriting confirmed changes.
+- Updated the package, lockfile, Expo app configuration, and displayed application version to `0.10.0` for the combined post management release.
+
+### Security
+
+- Added server-side club leadership checks for editing, cancellation, and deletion.
+- Replaced the previous unguarded deletion endpoint with a route that checks club leadership.
+- Leadership checks currently use the supplied prototype student identity. Verified authentication is still required before production use.
+
 ## [0.9.0] - Unreleased
 
 ### Added

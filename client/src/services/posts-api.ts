@@ -175,17 +175,23 @@ export async function createPostApi(payload: CreatePostPayload): Promise<Post | 
  * Deletes a post from the Supabase database via the REST API.
  *
  * @param id - Post UUID
- * @returns True if successfully deleted
+ * @param studentId - Prototype identity, verified against club leadership on the server
+ * @returns True if deleted or confirmed absent after a retry
  */
-export async function deletePostApi(id: string): Promise<boolean> {
+export async function deletePostApi(id: string, studentId?: string): Promise<boolean> {
+  if (!studentId?.trim()) return false;
   try {
     const request = createTimedFetch(5000);
 
     const res = await request(`${API_BASE_URL}/posts/${encodeURIComponent(id)}`, {
       method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ studentId }),
     });
 
-    return res.ok;
+    const result = await res.json().catch(() => null);
+    return (res.ok && result?.success === true)
+      || (res.status === 404 && result?.code === 'POST_NOT_FOUND');
   } catch {
     return false;
   }

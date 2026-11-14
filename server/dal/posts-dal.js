@@ -290,20 +290,60 @@ async function getSavedPosts(studentId, client = getDefaultClient()) {
   }));
 }
 
-async function deletePost(id, client = getDefaultClient()) {
-  const { error } = await client
-    .from('posts')
-    .delete()
-    .eq('id', id);
-
-  if (error) {
-    throw new Error(`[posts-dal.deletePost] Failed: ${error.message}`);
+/**
+ * Deletes a post and returns whether a row was removed.
+ * The optional verified club filter protects against ownership/status changes during a request.
+ * Database ON DELETE CASCADE removes saved_posts rows in the same transaction.
+ */
+async function deletePost(id, client = getDefaultClient(), expectedClubId) {
+  let query = client.from('posts').delete().eq('id', id);
+  if (expectedClubId !== undefined) {
+    query = query.eq('club_id', expectedClubId).eq('source', 'club').eq('status', 'published');
   }
+  const { data, error } = await query.select('id').maybeSingle();
+  if (error) throw new Error(`[posts-dal.deletePost] Failed: ${error.message}`);
+  return data !== null;
+}
 
-  return true;
+/**
+ * Applies validated text edits to a still-published post in the verified club.
+ * Returning null lets the service report deletion/status changes during a request.
+ */
+async function updatePost(id, clubId, changes, client = getDefaultClient()) {
+  const { data, error } = await client
+    .from('posts')
+    .update(changes)
+    .eq('id', id)
+    .eq('club_id', clubId)
+    .eq('source', 'club')
+    .eq('status', 'published')
+    .select()
+    .maybeSingle();
+  if (error) throw new Error(`[posts-dal.updatePost] Failed: ${error.message}`);
+  return data;
+}
+
+/**
+ * Cancels a still-published club post. Setting true repeatedly is idempotent.
+ * The existing row, publication timestamps and saved-post relationships are retained.
+ */
+async function cancelPost(id, clubId, client = getDefaultClient()) {
+  const { data, error } = await client
+    .from('posts')
+    .update({ is_cancelled: true })
+    .eq('id', id)
+    .eq('club_id', clubId)
+    .eq('source', 'club')
+    .eq('status', 'published')
+    .select()
+    .maybeSingle();
+  if (error) throw new Error(`[posts-dal.cancelPost] Failed: ${error.message}`);
+  return data;
 }
 
 module.exports = {
+  cancelPost,
+  updatePost,
   getPosts,
   getPostById,
   createPost,
