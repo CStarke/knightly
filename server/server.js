@@ -385,15 +385,7 @@ app.post('/api/posts', async (req, res) => {
 require('./routes/post-edit-route').registerPostEditRoute(app, postsDal, clubsDal);
 require('./routes/post-cancel-route').registerPostCancelRoute(app, postsDal, clubsDal);
 
-app.delete('/api/posts/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    await postsDal.deletePost(id);
-    res.json({ success: true, message: `Post ${id} deleted` });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+require('./routes/post-delete-route').registerPostDeleteRoute(app, postsDal, clubsDal);
 
 // Safety Contacts
 app.get('/api/safety/contacts', async (req, res) => {

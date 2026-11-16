@@ -1,3 +1,4 @@
+import { PostDeleteButton } from '@/components/post-delete-button';
 import { PostCancelButton } from '@/components/post-cancel-button';
 import { PostEditButton } from '@/components/post-edit-button';
 import { memo } from 'react';
@@ -261,6 +262,7 @@ export const PostCard = memo(function PostCard({ post, variant = 'editorial', on
 
         <PostEditButton post={post} />
         <PostCancelButton post={post} />
+        <PostDeleteButton post={post} />
 
         {/*
           Step 8: Card footer with dynamic relative timestamp & campus-wide badge
@@ -515,4 +517,3 @@ function MetaBadge({
     </View>
   );
 }
-
