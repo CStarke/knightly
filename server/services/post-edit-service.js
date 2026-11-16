@@ -1,3 +1,5 @@
+const { requirePostLeadership } = require('./post-leadership');
+
 /**
  * Edits published club posts using the prototype's student identity convention.
  * Memberships in this schema are leadership grants issued by claim codes.
@@ -57,15 +59,7 @@ async function editPost(id, payload, postsDal, clubsDal) {
   }
 
   // Step 2: Resolve ownership from the database, never from the request's club ID.
-  const post = await postsDal.getPostById(id);
-  if (!post) throw requestError(404, 'This post no longer exists.');
-  if (post.source !== 'club' || !post.club_id || post.status !== 'published') {
-    throw requestError(403, 'Only published club posts can be edited.');
-  }
-  const memberships = await clubsDal.getMembershipsForStudent(payload.studentId.trim());
-  if (!memberships.some((membership) => membership.club_id === post.club_id)) {
-    throw requestError(403, 'You must be a leader of this post’s club to edit it.');
-  }
+  const post = await requirePostLeadership(id, payload.studentId, postsDal, clubsDal);
 
   // Step 3: Update only requested fields, keeping publication order and bookmarks stable.
   const updated = await postsDal.updatePost(id, post.club_id, changes);

@@ -14,6 +14,7 @@ import { CALVIN_CLUBS } from '@/data/clubs';
 import { feedCategories, type FeedCategory, type Post } from '@/data/feed';
 
 export type DatabasePostRow = {
+  is_cancelled?: boolean;
   id: string;
   club_id?: string | null;
   author_student_id?: string | null;
@@ -76,6 +77,7 @@ export function adaptDatabasePostToClientPost(row: DatabasePostRow): Post {
 
   return {
     id: row.id,
+    isCancelled: row.is_cancelled === true,
     clubId: row.club_id || (row.source === 'calvin_drupal' ? 'calvin-university' : undefined),
     org: row.org_name || club?.name || 'Calvin Community',
     mark: row.mark || club?.mark || (row.org_name ? row.org_name.slice(0, 2).toUpperCase() : 'CC'),

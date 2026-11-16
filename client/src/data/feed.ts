@@ -34,6 +34,8 @@ export const feedCategories: FeedCategory[] = [
 ];
 
 export type Post = {
+  /** Canceled posts remain visible. Missing values on older cached posts mean false. */
+  isCancelled?: boolean;
   id: string;
   /** Primary club or department ID matching CALVIN_CLUBS. */
   clubId?: string;

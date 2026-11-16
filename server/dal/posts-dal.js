@@ -317,15 +317,30 @@ async function updatePost(id, clubId, changes, client = getDefaultClient()) {
     .eq('status', 'published')
     .select()
     .maybeSingle();
+  if (error) throw new Error(`[posts-dal.updatePost] Failed: ${error.message}`);
+  return data;
+}
 
-  if (error) {
-    throw new Error(`[posts-dal.updatePost] Failed: ${error.message}`);
-  }
-
+/**
+ * Cancels a still-published club post. Setting true repeatedly is idempotent.
+ * The existing row, publication timestamps and saved-post relationships are retained.
+ */
+async function cancelPost(id, clubId, client = getDefaultClient()) {
+  const { data, error } = await client
+    .from('posts')
+    .update({ is_cancelled: true })
+    .eq('id', id)
+    .eq('club_id', clubId)
+    .eq('source', 'club')
+    .eq('status', 'published')
+    .select()
+    .maybeSingle();
+  if (error) throw new Error(`[posts-dal.cancelPost] Failed: ${error.message}`);
   return data;
 }
 
 module.exports = {
+  cancelPost,
   updatePost,
   getPosts,
   getPostById,

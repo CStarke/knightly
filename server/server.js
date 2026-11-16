@@ -383,6 +383,7 @@ app.post('/api/posts', async (req, res) => {
 
 // Post editing shares the prototype identity convention and verifies club leadership.
 require('./routes/post-edit-route').registerPostEditRoute(app, postsDal, clubsDal);
+require('./routes/post-cancel-route').registerPostCancelRoute(app, postsDal, clubsDal);
 
 app.delete('/api/posts/:id', async (req, res) => {
   try {
