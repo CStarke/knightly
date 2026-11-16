@@ -26,6 +26,20 @@ and this project adheres to semantic application versioning defined in `AGENTS.m
 - Added server-side club leadership checks for editing, cancellation, and deletion.
 - Replaced the previous unguarded deletion endpoint with a route that checks club leadership.
 - Leadership checks currently use the supplied prototype student identity. Verified authentication is still required before production use.
+- Club leaders can edit a published club post's title, description, date/time text and location from its card.
+- The server checks club leadership and editable fields, preserving publication timestamps and post identity.
+- Failed saves retain the draft. Successful saves update feed cards, saved posts and cached authored posts.
+- Editing uses the existing prototype student identity. Verified sign-in remains required for production identity assurance.
+- The shared version bump for editing, cancellation and deletion will be applied with the final feature PR.
+- Club leaders can confirm cancellation of a server-backed post. Canceled posts stay visible with a Canceled label in feed, club and saved-post cards.
+- Added migration 005_post_cancellation.sql for the is_cancelled flag, defaulting existing posts to active.
+- Cancellation checks club leadership, preserves publication timestamps and bookmarks, and supports safe retries. Failed requests show an error without reporting success.
+- Text editing remains available for canceled posts. Cancellation cannot be undone in this release.
+- Club leaders can edit a published club post's title, description, date/time text and location from its card.
+- The server checks club leadership and editable fields, preserving publication timestamps and post identity.
+- Failed saves retain the draft. Successful saves update feed cards, saved posts and cached authored posts.
+- Editing uses the existing prototype student identity. Verified sign-in remains required for production identity assurance.
+- The shared version bump for editing, cancellation and deletion will be applied with the final feature PR.
 
 ## [0.9.0] - Unreleased
 
