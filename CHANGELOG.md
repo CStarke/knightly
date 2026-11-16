@@ -5,6 +5,15 @@ All notable changes to the Knightly application will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to semantic application versioning defined in `AGENTS.md`.
 
+## [0.10.0] — Unreleased
+
+### Added
+- Club leaders can edit a published club post's title, description, date/time text and location from its card.
+- The server checks club leadership and editable fields, preserving publication timestamps and post identity.
+- Failed saves retain the draft. Successful saves update feed cards, saved posts and cached authored posts.
+- Editing uses the existing prototype student identity. Verified sign-in remains required for production identity assurance.
+- The shared version bump for editing, cancellation and deletion will be applied with the final feature PR.
+
 ## [0.9.0] - Unreleased
 
 ### Added

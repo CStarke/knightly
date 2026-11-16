@@ -1,3 +1,4 @@
+import { PostEditButton } from '@/components/post-edit-button';
 import { memo } from 'react';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -254,6 +255,8 @@ export const PostCard = memo(function PostCard({ post, variant = 'editorial', on
         <ThemedText type="small" themeColor="textSecondary" style={styles.body} numberOfLines={isGrid ? 4 : undefined}>
           {post.body}
         </ThemedText>
+
+        <PostEditButton post={post} />
 
         {/*
           Step 8: Card footer with dynamic relative timestamp & campus-wide badge
